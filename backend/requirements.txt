@@ -15,6 +15,7 @@ redis==5.0.1                  # Redis client for caching and sessions
 
 # Data Validation and Serialization
 pydantic==2.5.0               # Data validation using Python type hints
+pydantic-settings==2.1.0      # Settings management for Pydantic (REQUIRED)
 
 # Authentication and Security
 python-jose[cryptography]==3.3.0  # JWT token handling
