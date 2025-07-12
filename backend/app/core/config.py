@@ -3,13 +3,12 @@
 # Manages environment variables and application settings
 
 from typing import List, Optional
-from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, validator
+from pydantic import BaseModel
 import os
 
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment variables"""
+class Settings(BaseModel):
+    """Application settings with fixed values"""
     
     # Project Information
     PROJECT_NAME: str = "CryptoPredict MVP"
@@ -63,20 +62,6 @@ class Settings(BaseSettings):
     
     # Data Collection Configuration
     DATA_COLLECTION_INTERVAL: int = 300  # 5 minutes
-    
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
-    def assemble_cors_origins(cls, v):
-        """Parse CORS origins from environment variable"""
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
-    
-    class Config:
-        """Pydantic configuration"""
-        env_file = ".env"
-        case_sensitive = True
 
 
 # Global settings instance

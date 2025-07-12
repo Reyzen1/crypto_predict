@@ -8,14 +8,14 @@ uvicorn[standard]==0.24.0     # ASGI server for FastAPI
 # Database and ORM
 sqlalchemy==2.0.23            # SQL toolkit and ORM
 alembic==1.12.1               # Database migration tool for SQLAlchemy
-psycopg[binary]==3.1.13       # PostgreSQL adapter for Python
+psycopg2-binary==2.9.9        # PostgreSQL adapter for Python (binary version)
 
 # Cache and Session
 redis==5.0.1                  # Redis client for caching and sessions
 
 # Data Validation and Serialization
 pydantic==2.5.0               # Data validation using Python type hints
-pydantic-settings==2.1.0      # Settings management for Pydantic (REQUIRED)
+pydantic-settings==2.1.0      # Settings management for Pydantic
 
 # Authentication and Security
 python-jose[cryptography]==3.3.0  # JWT token handling
