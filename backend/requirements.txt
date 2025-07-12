@@ -1,0 +1,48 @@
+# File: ./backend/requirements.txt
+# Python dependencies for CryptoPredict MVP Backend
+
+# Core FastAPI and ASGI server
+fastapi==0.104.1              # Modern, fast web framework for building APIs
+uvicorn[standard]==0.24.0     # ASGI server for FastAPI
+
+# Database and ORM
+sqlalchemy==2.0.23            # SQL toolkit and ORM
+alembic==1.12.1               # Database migration tool for SQLAlchemy
+psycopg[binary]==3.1.13       # PostgreSQL adapter for Python
+
+# Cache and Session
+redis==5.0.1                  # Redis client for caching and sessions
+
+# Data Validation and Serialization
+pydantic==2.5.0               # Data validation using Python type hints
+
+# Authentication and Security
+python-jose[cryptography]==3.3.0  # JWT token handling
+passlib[bcrypt]==1.7.4         # Password hashing utilities
+
+# HTTP and Form Handling
+python-multipart==0.0.6       # For handling file uploads
+httpx==0.25.2                 # Async HTTP client for external APIs
+
+# Configuration Management
+python-decouple==3.8          # Environment variable management
+
+# Data Processing and ML
+pandas>=2.2.0                 # Data manipulation and analysis
+numpy>=1.26.0                 # Numerical computing
+scikit-learn>=1.4.0           # Machine learning library
+tensorflow>=2.16.0            # Deep learning framework
+
+# Background Tasks
+celery==5.3.4                 # Distributed task queue
+
+# Rate Limiting and WebSockets
+slowapi==0.1.9                # Rate limiting for FastAPI
+python-socketio==5.10.0       # WebSocket support
+
+# File Handling
+aiofiles==23.2.1              # Async file operations
+
+# Testing
+pytest==7.4.3                 # Testing framework
+pytest-asyncio==0.21.1        # Async testing support

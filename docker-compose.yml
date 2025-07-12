@@ -1,0 +1,88 @@
+# File: ./docker-compose.yml
+# Docker Compose configuration for CryptoPredict MVP development environment
+# Contains PostgreSQL, Redis, FastAPI backend, and Next.js frontend services
+
+services:
+  # PostgreSQL Database - Primary data storage
+  postgres:
+    image: postgres:15
+    container_name: cryptopredict_postgres
+    environment:
+      POSTGRES_DB: cryptopredict              # Database name
+      POSTGRES_USER: postgres                 # Database user
+      POSTGRES_PASSWORD: postgres123          # Database password
+    ports:
+      - "5432:5432"                          # Expose PostgreSQL port
+    volumes:
+      - postgres_data:/var/lib/postgresql/data           # Persist database data
+      - ./database:/docker-entrypoint-initdb.d  # Initialize database schema
+    networks:
+      - cryptopredict_network
+
+  # Redis Cache - For caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: cryptopredict_redis
+    ports:
+      - "6379:6379"                          # Expose Redis port
+    volumes:
+      - redis_data:/data                      # Persist Redis data
+    networks:
+      - cryptopredict_network
+
+  # FastAPI Backend - Main API service
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cryptopredict_backend
+    ports:
+      - "8000:8000"                          # Expose FastAPI port
+    depends_on:
+      - postgres                             # Wait for PostgreSQL
+      - redis                                # Wait for Redis
+    environment:
+      # Database connection string
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/cryptopredict
+      # Redis connection string
+      - REDIS_URL=redis://redis:6379
+      # Security keys
+      - SECRET_KEY=your-secret-key-here
+      # External API keys
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY}
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+    volumes:
+      - ./backend:/app                       # Mount backend code for hot reload
+      - ./ml-service:/ml-service             # Mount ML service code
+    networks:
+      - cryptopredict_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Next.js Frontend - User interface
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cryptopredict_frontend
+    ports:
+      - "3000:3000"                          # Expose Next.js port
+    depends_on:
+      - backend                              # Wait for backend service
+    environment:
+      # API endpoint for frontend
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app                      # Mount frontend code for hot reload
+      - /app/node_modules                    # Preserve node_modules
+    networks:
+      - cryptopredict_network
+
+# Persistent volumes for data storage
+volumes:
+  postgres_data:                             # PostgreSQL data persistence
+  redis_data:                                # Redis data persistence
+
+# Custom network for service communication
+networks:
+  cryptopredict_network:
+    driver: bridge
