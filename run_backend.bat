@@ -1,12 +1,27 @@
 @echo off
 REM File: scripts/run.bat
 REM Run script for CryptoPredict MVP on Windows
-REM Automates the run process
+REM Automates the run process, now with a Docker check.
 
 echo ========================================
-echo CryptoPredict MVP Run Script
+echo CryptoPredict MVP Run Script (backend)
 echo ========================================
 echo.
+
+REM --- NEW: Check if Docker is running ---
+echo Checking Docker status...
+docker info > nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo [ERROR] Docker is not running.
+    echo Please start Docker Desktop and ensure it is running before executing this script.
+    echo.
+    pause
+    exit /b 1
+)
+echo Docker is running.
+echo.
+REM --- END: Docker Check ---
 
 REM Check if we're in the right directory
 if not exist docker-compose.yml (
@@ -26,5 +41,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+REM Start the Uvicorn server
+echo Starting the application server...
 python -m uvicorn app.main:app --reload
-
