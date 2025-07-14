@@ -8,19 +8,25 @@ echo CryptoPredict MVP Run Script (backend)
 echo ========================================
 echo.
 
-REM --- NEW: Check if Docker is running ---
-echo Checking Docker status...
-docker info > nul 2>&1
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Docker is not running.
-    echo Please start Docker Desktop and ensure it is running before executing this script.
-    echo.
-    pause
-    exit /b 1
+REM -- Check if Docker is running ---
+REM -- Disable Docker check if running inside WSL --
+ver | findstr /i "Microsoft" > nul
+if %errorlevel% equ 0 (
+    echo Running inside WSL, skipping Docker Desktop check...
+) else (
+    echo Checking Docker status...
+    docker info > nul 2>&1
+    if %errorlevel% neq 0 (
+        echo.
+        echo [ERROR] Docker is not running.
+        echo Please start Docker Desktop and ensure it is running before executing this script.
+        echo.
+        pause
+        exit /b 1
+    )
+    echo Docker is running.
 )
-echo Docker is running.
-echo.
+
 REM --- END: Docker Check ---
 
 REM Check if we're in the right directory

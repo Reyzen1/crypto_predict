@@ -1,11 +1,2 @@
-1. نصب Next.js:
-bash
-cd frontend
-npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
-npm install -g npm@11.4.2
-npm install class-variance-authority clsx lucide-react tailwind-merge tailwindcss-animate recharts axios @hookform/resolvers react-hook-form zod
-2. نصب Shadcn/ui:
-npm install @radix-ui/react-slot
-npm install class-variance-authority
-npm install clsx
-npm install tailwind-merge
+cd /mnt/d/install/Projects/crypto_predict
+docker-compose start
