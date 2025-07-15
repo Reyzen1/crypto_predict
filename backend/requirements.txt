@@ -2,48 +2,60 @@
 # Python dependencies for CryptoPredict MVP Backend
 
 # Core FastAPI and ASGI server
-fastapi==0.104.1              # Modern, fast web framework for building APIs
-uvicorn[standard]==0.24.0     # ASGI server for FastAPI
+fastapi==0.104.1                  # Modern, fast web framework for building APIs
+uvicorn[standard]==0.24.0         # ASGI server for FastAPI
+python-multipart==0.0.6           # For handling file uploads (form/multipart)
 
 # Database and ORM
-sqlalchemy==2.0.23            # SQL toolkit and ORM
-alembic==1.12.1               # Database migration tool for SQLAlchemy
-psycopg2-binary==2.9.9        # PostgreSQL adapter for Python (binary version)
+sqlalchemy==2.0.23                # SQL toolkit and ORM
+alembic==1.12.1                   # Database migration tool for SQLAlchemy
+psycopg2-binary==2.9.9            # PostgreSQL adapter for Python (binary version)
 
 # Cache and Session
-redis==5.0.1                  # Redis client for caching and sessions
+redis==5.0.1                      # Redis client for caching and sessions
 
 # Data Validation and Serialization
-pydantic==2.5.0               # Data validation using Python type hints
-pydantic-settings==2.1.0      # Settings management for Pydantic
+pydantic==2.5.0                   # Data validation using Python type hints
+pydantic-settings==2.1.0          # Settings management for Pydantic
 
 # Authentication and Security
-python-jose[cryptography]==3.3.0  # JWT token handling
-passlib[bcrypt]==1.7.4         # Password hashing utilities
+python-jose[cryptography]==3.3.0 # JWT token handling
+passlib[bcrypt]==1.7.4           # Password hashing utilities
+bcrypt==4.0.1                     # Low-level password hashing algorithm
 
 # HTTP and Form Handling
-python-multipart==0.0.6       # For handling file uploads
-httpx==0.25.2                 # Async HTTP client for external APIs
+httpx==0.25.2                     # Async HTTP client for external APIs
+requests==2.31.0                  # Synchronous HTTP client
 
 # Configuration Management
-python-decouple==3.8          # Environment variable management
+python-decouple==3.8              # Environment variable management
 
 # Data Processing and ML
-pandas>=2.2.0                 # Data manipulation and analysis
-numpy>=1.26.0                 # Numerical computing
-scikit-learn>=1.4.0           # Machine learning library
-tensorflow>=2.16.0            # Deep learning framework
+pandas>=2.2.0                     # Data manipulation and analysis
+numpy>=1.26.0                     # Numerical computing
+scikit-learn>=1.4.0               # Machine learning library
+tensorflow>=2.16.0                # Deep learning framework
+matplotlib==3.8.2                 # Data visualization library
+
+# Utilities
+python-dotenv==1.0.0              # Load environment variables from .env files
+click==8.1.7                      # CLI utility for creating command-line interfaces
 
 # Background Tasks
-celery==5.3.4                 # Distributed task queue
+celery==5.3.4                     # Distributed task queue
 
 # Rate Limiting and WebSockets
-slowapi==0.1.9                # Rate limiting for FastAPI
-python-socketio==5.10.0       # WebSocket support
+slowapi==0.1.9                    # Rate limiting for FastAPI using decorators
+python-socketio==5.10.0           # WebSocket client/server support (Socket.IO)
 
 # File Handling
-aiofiles==23.2.1              # Async file operations
+aiofiles==23.2.1                  # Async file operations (read/write with FastAPI)
 
 # Testing
-pytest==7.4.3                 # Testing framework
-pytest-asyncio==0.21.1        # Async testing support
+pytest==7.4.3                     # Testing framework
+pytest-asyncio==0.21.1            # Async testing support with pytest
+
+# Development
+black==23.10.1                    # Code formatter
+flake8==6.1.0                     # Code linting (style guide enforcement)
+isort==5.12.0                     # Sort imports automatically
