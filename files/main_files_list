@@ -1,0 +1,91 @@
+- نصب Docker و Docker Compose
+- تنظیم محیط توسعه
+- ایجاد repository
+- تنظیم environment variables
+./docker-compose.yml
+./.env
+./backend/requirements.txt
+./backend/app/main.py
+./backend/Dockerfile
+./backend/app/core/config.py
+./backend/app/core/database.py
+./backend/app/api/api_v1/api.py
+./database/init.sql
+====================
+- Initialize Next.js 14 project با TypeScript
+- تنظیم Tailwind CSS
+- نصب و پیکربندی Shadcn/ui
+- ایجاد layout اولیه پروژه
+./frontend/package.json
+./frontend/tailwind.config.js
+./frontend/app/layout.tsx
+./frontend/app/page.tsx
+./frontend/app/globals.css
+./frontend/Dockerfile
+=====================
+(روز 2 - صبح)
+-Initialize FastAPI project
+-تنظیم CORS و Security middleware
+✅ Docker Compose Configuration - تنظیم کامل محیط توسعه
+✅ Redis Configuration - پیکربندی Redis برای کارایی بهتر
+✅ Frontend Development Dockerfile - تصویر Docker برای frontend
+✅ Environment Configuration - فایل .env کامل
+✅ Management Scripts - اسکریپت‌های مدیریتی برای Linux/Mac و Windows
+✅ Database Health Check - اسکریپت تست سلامت دیتابیس‌ها
+✅ Setup Documentation - راهنمای کامل راه‌اندازی
+./docker-compose.yml
+./redis/redis.conf
+./frontend/Dockerfile.dev
+./.env
+./scripts/docker-dev.sh
+./scripts/check-db.py
+./docs/INFRASTRUCTURE_SETUP.md
+./scripts/quick-setup.sh
+./scripts/start-backend.sh
+./scripts/start-frontend.sh
+./scripts/stop-db.sh
+./docs/QUICK_START.md
+======================
+- تنظیم SQLAlchemy و Alembic
+- ایجاد مدل‌های اولیه دیتابیس
+ ./scripts/init-alembic.sh
+ ./backend/app/models/__init__.py
+ ./backend/alembic/env.py
+ ./scripts/migrate-db.sh
+ ./scripts/setup-db.sh
+ ./backend/app/core/database.py
+
+=======================
+Sorted List
+=======================
+./.env
+./backend/alembic/env.py
+./backend/app/api/api_v1/api.py
+./backend/app/core/config.py
+./backend/app/core/database.py
+./backend/app/core/database.py
+./backend/app/main.py
+./backend/app/models/__init__.py
+./backend/Dockerfile
+./backend/requirements.txt
+./database/init.sql
+./docker-compose.yml
+./docs/INFRASTRUCTURE_SETUP.md
+./docs/QUICK_START.md
+./frontend/app/globals.css
+./frontend/app/layout.tsx
+./frontend/app/page.tsx
+./frontend/Dockerfile
+./frontend/Dockerfile.dev
+./frontend/package.json
+./frontend/tailwind.config.js
+./redis/redis.conf
+./scripts/check-db.py
+./scripts/docker-dev.sh
+./scripts/init-alembic.sh
+./scripts/migrate-db.sh
+./scripts/quick-setup.sh
+./scripts/setup-db.sh
+./scripts/start-backend.sh
+./scripts/start-frontend.sh
+./scripts/stop-db.sh

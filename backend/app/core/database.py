@@ -36,13 +36,17 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 # Redis client for caching
-redis_client = redis.from_url(
-    settings.REDIS_URL,
-    decode_responses=True,       # Decode byte responses to strings
-    socket_connect_timeout=5,    # Connection timeout
-    socket_timeout=5,            # Socket timeout
-    retry_on_timeout=True        # Retry on timeout
-)
+try:
+    redis_client = redis.from_url(
+        settings.REDIS_URL,
+        decode_responses=True,       # Decode byte responses to strings
+        socket_connect_timeout=5,    # Connection timeout
+        socket_timeout=5,            # Socket timeout
+        retry_on_timeout=True        # Retry on timeout
+    )
+except Exception as e:
+    logger.warning(f"Redis connection failed: {e}")
+    redis_client = None
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -66,6 +70,8 @@ def get_redis() -> redis.Redis:
     Redis client dependency for FastAPI
     Returns the global Redis client instance
     """
+    if redis_client is None:
+        raise Exception("Redis client not available")
     return redis_client
 
 
@@ -91,6 +97,8 @@ async def check_redis_connection() -> bool:
     Returns True if connection is successful
     """
     try:
+        if redis_client is None:
+            return False
         # Test Redis connection with ping
         redis_client.ping()
         return True
@@ -103,6 +111,8 @@ async def check_redis_connection() -> bool:
 def init_db() -> None:
     """Initialize database tables"""
     try:
+        # Import models to ensure they're registered - fixed import location
+        import app.models
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
     except Exception as e:
