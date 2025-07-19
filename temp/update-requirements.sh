@@ -1,3 +1,23 @@
+# File: ./scripts/update-requirements.sh
+# Update requirements.txt with new dependencies
+
+#!/bin/bash
+
+set -e
+
+echo "📝 Updating Requirements.txt"
+echo "============================"
+
+# Check if we're in the right directory
+if [ ! -d "backend" ]; then
+    echo "❌ Backend directory not found! Please run from project root."
+    exit 1
+fi
+
+echo "📝 Creating updated requirements.txt..."
+
+# Create updated requirements.txt
+cat > backend/requirements.txt << 'EOF'
 # File: ./backend/requirements.txt
 # Python dependencies for CryptoPredict MVP Backend - Updated for Day 4
 
@@ -65,3 +85,21 @@ isort==5.12.0                     # Sort imports automatically
 # Additional API Development
 pydantic-extra-types==2.1.0       # Extra types for Pydantic
 typing-extensions==4.8.0          # Typing extensions for better type hints
+EOF
+
+echo "✅ Requirements.txt updated successfully!"
+
+echo ""
+echo "📋 New dependencies added:"
+echo "   - pydantic[email] - Email validation"
+echo "   - email-validator - Email validation library"
+echo "   - python-jose[cryptography] - JWT with crypto"
+echo "   - passlib[bcrypt] - Password hashing"
+echo "   - httpx - Modern HTTP client"
+echo "   - apscheduler - Background job scheduling"
+echo "   - pydantic-extra-types - Additional Pydantic types"
+
+echo ""
+echo "🎯 Next steps:"
+echo "1. Install dependencies: ./scripts/install-schema-dependencies.sh"
+echo "2. Test schemas: ./scripts/test-schemas.sh"
