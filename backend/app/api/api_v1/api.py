@@ -1,11 +1,11 @@
 # File: ./backend/app/api/api_v1/api.py
-# Main API router for CryptoPredict MVP
+# Main API router for CryptoPredict MVP - Updated with External API endpoints
 # Aggregates all API endpoints and provides version 1 routing
 
 from fastapi import APIRouter
 
 # Import endpoint routers
-from app.api.api_v1.endpoints import auth, users, crypto, prices, health
+from app.api.api_v1.endpoints import auth, users, crypto, prices, health, external
 # from app.api.api_v1.endpoints import predictions  # To be created later
 
 # Create main API router
@@ -43,6 +43,7 @@ async def api_info():
             "users": "/api/v1/users",
             "crypto": "/api/v1/crypto",
             "prices": "/api/v1/prices",
+            "external": "/api/v1/external",
             "system": "/api/v1/system",
             "docs": "/docs",
             "redoc": "/redoc"
@@ -51,6 +52,8 @@ async def api_info():
             "User authentication with JWT",
             "Cryptocurrency data management",
             "Price data tracking and analysis",
+            "External API integration (CoinGecko)",
+            "Background data synchronization",
             "System health monitoring",
             "RESTful API design",
             "Automatic API documentation"
@@ -68,6 +71,9 @@ api_router.include_router(crypto.router, prefix="/crypto", tags=["Cryptocurrency
 
 # Include price data router
 api_router.include_router(prices.router, prefix="/prices", tags=["Price Data"])
+
+# Include external API router
+api_router.include_router(external.router, prefix="/external", tags=["External APIs"])
 
 # Include system health router
 api_router.include_router(health.router, prefix="/system", tags=["System Health"])
