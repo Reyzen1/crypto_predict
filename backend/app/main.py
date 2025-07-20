@@ -1,11 +1,11 @@
 # File: ./backend/app/main.py
 # Main FastAPI application entry point for CryptoPredict MVP
-# Updated with favicon and well-known endpoints
+# Updated with Authentication System while preserving all existing features
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -62,7 +62,13 @@ async def root():
         "message": f"{settings.PROJECT_NAME}",
         "version": settings.VERSION,
         "docs": "/docs",
-        "redoc": "/redoc"
+        "redoc": "/redoc",
+        "health": "/api/v1/health",
+        "auth": {
+            "register": "/api/v1/auth/register",
+            "login": "/api/v1/auth/login",
+            "me": "/api/v1/auth/me"
+        }
     }
 
 @app.get("/health")
@@ -71,7 +77,8 @@ async def health_check():
     return {
         "status": "healthy", 
         "service": "cryptopredict-backend",
-        "version": settings.VERSION
+        "version": settings.VERSION,
+        "authentication": "enabled"
     }
 
 # Handle favicon requests to avoid 404 logs
@@ -85,6 +92,25 @@ async def get_favicon():
 async def get_chrome_devtools():
     """Return empty JSON for Chrome DevTools requests"""
     return {}
+
+# Well-known health check endpoint
+@app.get("/.well-known/health-check")
+async def well_known_health():
+    """Well-known health check endpoint"""
+    return {"status": "healthy"}
+
+# Global exception handler (NEW for better error handling)
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    """Global exception handler for unhandled errors"""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "message": "An unexpected error occurred",
+            "detail": str(exc) if settings.DEBUG else "Contact support"
+        }
+    )
 
 # Development server configuration
 if __name__ == "__main__":

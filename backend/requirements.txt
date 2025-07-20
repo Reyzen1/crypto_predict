@@ -1,5 +1,5 @@
 # File: ./backend/requirements.txt
-# Python dependencies for CryptoPredict MVP Backend - Updated for Day 4
+# Python dependencies for CryptoPredict MVP Backend - Updated for Day 4 with Authentication
 
 # Core FastAPI and ASGI server
 fastapi==0.104.1                  # Modern, fast web framework for building APIs
@@ -16,10 +16,11 @@ redis==5.0.1                      # Redis client for caching and sessions
 
 # Data Validation and Serialization
 pydantic[email]==2.5.0            # Data validation with email support
-pydantic-settings==2.1.0          # Settings management for Pydantic
+pydantic-settings==2.1.0          # Settings management for Pydantic (NEW for auth)
 email-validator==2.1.0            # Email validation for Pydantic
 
-# Authentication and Security
+# Authentication and Security (NEW)
+PyJWT==2.8.0                      # JWT token creation/validation
 python-jose[cryptography]==3.3.0  # JWT token handling with cryptographic support
 passlib[bcrypt]==1.7.4            # Password hashing utilities with bcrypt
 bcrypt==4.0.1                     # Low-level password hashing algorithm
@@ -50,8 +51,8 @@ python-socketio==5.10.0           # WebSocket client/server support (Socket.IO)
 # File Handling
 aiofiles==23.2.1                  # Async file operations (read/write with FastAPI)
 
-# Utilities
-click==8.1.7                      # CLI utility for creating command-line interfaces
+# System monitoring
+psutil==5.9.6                     # System and process monitoring
 
 # Testing
 pytest==7.4.3                     # Testing framework
