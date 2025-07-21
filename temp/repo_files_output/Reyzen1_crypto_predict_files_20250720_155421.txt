@@ -1,18 +1,24 @@
+Repository Files List
+=====================
+Repository: Reyzen1/crypto_predict
+URL: https://github.com/Reyzen1/crypto_predict
+Generated: 2025-07-20 15:54:21
+
 
 📁 Directory: /
 ──────────────────────────────────────────────────
-  📄 .env 
-  📄 .env.example 
+  📄 .env (0 KB)
+  📄 .env.example (0 KB)
 
 📁 Directory: backend
 ──────────────────────────────────────────────────
   📄 Dockerfile (850 B)
-  📄 alembic.ini 
+  📄 alembic.ini (0 KB)
 
 📁 Directory: backend/alembic
 ──────────────────────────────────────────────────
   📄 README (38 B)
-  📄 env.py 
+  📄 env.py (0 KB)
   📄 script.py.mako (661 B)
 
 📁 Directory: backend/app
@@ -25,96 +31,105 @@
 
 📁 Directory: backend/app/api/api_v1
 ──────────────────────────────────────────────────
-  📄 api.py 
+  📄 api.py (0 KB)
 
 📁 Directory: backend/app/api/api_v1/endpoints
 ──────────────────────────────────────────────────
   📄 __init__.py (92 B)
-  📄 auth.py 
-  📄 crypto.py 
-  📄 health.py 
-  📄 prices.py 
-  📄 users.py 
+  📄 auth.py (0 KB)
+  📄 crypto.py (0 KB)
+  📄 external.py (0 KB)
+  📄 health.py (0 KB)
+  📄 prices.py (0 KB)
+  📄 users.py (0 KB)
 
 📁 Directory: backend/app/core
 ──────────────────────────────────────────────────
   📄 __init__.py (0 B)
-  📄 config.py 
-  📄 database.py 
-  📄 deps.py 
-  📄 security.py 
+  📄 config.py (0 KB)
+  📄 database.py (0 KB)
+  📄 deps.py (0 KB)
+  📄 rate_limiter.py (0 KB)
+  📄 security.py (0 KB)
+
+📁 Directory: backend/app/external
+──────────────────────────────────────────────────
+  📄 __init__.py (752 B)
+  📄 coingecko.py (0 KB)
 
 📁 Directory: backend/app
 ──────────────────────────────────────────────────
-  📄 main.py 
+  📄 main.py (0 KB)
 
 📁 Directory: backend/app/models
 ──────────────────────────────────────────────────
-  📄 __init__.py 
-  📄 __init__.py.backup 
-  📄 crypto.py 
-  📄 prediction.py 
-  📄 user.py 
+  📄 __init__.py (0 KB)
+  📄 __init__.py.backup (0 KB)
+  📄 crypto.py (0 KB)
+  📄 prediction.py (0 KB)
+  📄 user.py (0 KB)
 
 📁 Directory: backend/app/repositories
 ──────────────────────────────────────────────────
   📄 __init__.py (762 B)
-  📄 base.py 
-  📄 cryptocurrency.py 
-  📄 price_data.py 
-  📄 user.py 
+  📄 base.py (0 KB)
+  📄 cryptocurrency.py (0 KB)
+  📄 price_data.py (0 KB)
+  📄 user.py (0 KB)
 
 📁 Directory: backend/app/schemas
 ──────────────────────────────────────────────────
-  📄 __init__.py 
-  📄 common.py 
-  📄 cryptocurrency.py 
-  📄 prediction.py 
-  📄 price_data.py 
-  📄 user.py 
+  📄 __init__.py (0 KB)
+  📄 common.py (0 KB)
+  📄 cryptocurrency.py (0 KB)
+  📄 prediction.py (0 KB)
+  📄 price_data.py (0 KB)
+  📄 user.py (0 KB)
 
 📁 Directory: backend/app/services
 ──────────────────────────────────────────────────
   📄 __init__.py (159 B)
-  📄 auth.py 
+  📄 auth.py (0 KB)
+  📄 data_sync.py (0 KB)
+  📄 external_api.py (0 KB)
 
 📁 Directory: backend
 ──────────────────────────────────────────────────
-  📄 requirements.txt 
+  📄 requirements.txt (0 KB)
 
 📁 Directory: database
 ──────────────────────────────────────────────────
-  📄 init.sql 
+  📄 init.sql (0 KB)
 
 📁 Directory: /
 ──────────────────────────────────────────────────
-  📄 docker-compose-backend.yml 
-  📄 docker-compose.yml 
+  📄 docker-compose-backend.yml (0 KB)
+  📄 docker-compose.yml (0 KB)
 
 📁 Directory: docs
 ──────────────────────────────────────────────────
-  📄 INFRASTRUCTURE_SETUP.md 
-  📄 QUICK_START.md 
+  📄 INFRASTRUCTURE_SETUP.md (0 KB)
+  📄 QUICK_START.md (0 KB)
 
 📁 Directory: files
 ──────────────────────────────────────────────────
-  📄 main_files_list 
+  📄 main_files_list (0 KB)
   📄 note.txt (397 B)
   📄 nvm-setup.exe (0 MB)
-  📄 phase1_project_definition.md 
-  📄 phase1_project_definition_second_day.md 
+  📄 phase1_project_definition.md (0 KB)
+  📄 phase1_project_definition_second_day.md (0 KB)
 
 📁 Directory: frontend
 ──────────────────────────────────────────────────
-  📄 Dockerfile 
-  📄 Dockerfile.dev 
-  📄 README.md 
+  📄 Dockerfile (0 KB)
+  📄 Dockerfile.dev (0 KB)
+  📄 README.md (0 KB)
 
 📁 Directory: frontend/app
 ──────────────────────────────────────────────────
-  📄 globals.css 
-  📄 layout.tsx 
-  📄 page.tsx 
+  📄 globals.css (0 KB)
+  📄 layout.tsx (0 KB)
+  📄 page.tsx (0 KB)
 
 📁 Directory: frontend
 ──────────────────────────────────────────────────
@@ -122,109 +137,117 @@
   📄 eslint.config.mjs (409 B)
   📄 next-env.d.js (216 B)
   📄 next.config.js (125 B)
-  📄 package-lock.json 
-  📄 package.json 
+  📄 package-lock.json (0 KB)
+  📄 package.json (0 KB)
   📄 postcss.config.cjs (86 B)
 
 📁 Directory: frontend/public
 ──────────────────────────────────────────────────
   📄 file.svg (391 B)
-  📄 globe.svg 
-  📄 next.svg 
+  📄 globe.svg (0 KB)
+  📄 next.svg (0 KB)
   📄 vercel.svg (128 B)
   📄 window.svg (385 B)
 
 📁 Directory: frontend/src/app
 ──────────────────────────────────────────────────
-  📄 favicon.ico 
-  📄 globals.css 
+  📄 favicon.ico (0 KB)
+  📄 globals.css (0 KB)
   📄 layout.tsx (723 B)
-  📄 page.tsx 
+  📄 page.tsx (0 KB)
 
 📁 Directory: frontend/src/components/ui
 ──────────────────────────────────────────────────
-  📄 alert.tsx 
-  📄 badge.tsx 
-  📄 button.tsx 
-  📄 card.tsx 
-  📄 dialog.tsx 
-  📄 dropdown-menu.tsx 
-  📄 form.tsx 
+  📄 alert.tsx (0 KB)
+  📄 badge.tsx (0 KB)
+  📄 button.tsx (0 KB)
+  📄 card.tsx (0 KB)
+  📄 dialog.tsx (0 KB)
+  📄 dropdown-menu.tsx (0 KB)
+  📄 form.tsx (0 KB)
   📄 input.tsx (790 B)
   📄 label.tsx (750 B)
-  📄 navigation-menu.tsx 
+  📄 navigation-menu.tsx (0 KB)
   📄 skeleton.tsx (281 B)
-  📄 table.tsx 
-  📄 tabs.tsx 
-  📄 toast.tsx 
+  📄 table.tsx (0 KB)
+  📄 tabs.tsx (0 KB)
+  📄 toast.tsx (0 KB)
   📄 toaster.tsx (821 B)
 
 📁 Directory: frontend/src/hooks
 ──────────────────────────────────────────────────
-  📄 use-toast.ts 
+  📄 use-toast.ts (0 KB)
 
 📁 Directory: frontend
 ──────────────────────────────────────────────────
-  📄 tailwind.config.js 
+  📄 tailwind.config.js (0 KB)
   📄 tsconfig.json (629 B)
 
 📁 Directory: redis
 ──────────────────────────────────────────────────
-  📄 redis.conf 
+  📄 redis.conf (0 KB)
 
 📁 Directory: /
 ──────────────────────────────────────────────────
-  📄 run_backend.bat 
+  📄 run_backend.bat (0 KB)
   📄 run_frontend.bat (489 B)
 
 📁 Directory: scripts
 ──────────────────────────────────────────────────
-  📄 check-db.py 
-  📄 docker-dev.sh 
-  📄 drop-tables.sh 
+  📄 check-db.py (0 KB)
+  📄 docker-dev.sh (0 KB)
+  📄 drop-tables.sh (0 KB)
   📄 emergency-restart.sh (866 B)
-  📄 init-alembic.sh 
-  📄 migrate-db.sh 
-  📄 quick-setup.sh 
-  📄 setup.bat 
-  📄 start-backend.sh 
-  📄 start-frontend.sh 
+  📄 init-alembic.sh (0 KB)
+  📄 migrate-db.sh (0 KB)
+  📄 quick-setup.sh (0 KB)
+  📄 setup.bat (0 KB)
+  📄 start-backend.sh (0 KB)
+  📄 start-frontend.sh (0 KB)
   📄 stop-db.sh (610 B)
 
 📁 Directory: temp
 ──────────────────────────────────────────────────
-  📄 check-current-status.sh 
-  📄 check-db-schema.sh 
-  📄 check-tables.sh 
-  📄 create-models.sh 
-  📄 fix-crypto-repository.sh 
-  📄 fix-models.sh 
-  📄 fix-prediction-schemas.sh 
-  📄 fix-schema-to-integer.sh 
-  📄 install-schema-dependencies.sh 
+  📄 check-current-status.sh (0 KB)
+  📄 check-db-schema.sh (0 KB)
+  📄 check-tables.sh (0 KB)
+  📄 create-models.sh (0 KB)
+  📄 fix-crypto-repository.sh (0 KB)
+  📄 fix-models.sh (0 KB)
+  📄 fix-prediction-schemas.sh (0 KB)
+  📄 fix-schema-to-integer.sh (0 KB)
+  📄 fix-timeout-error.sh (0 KB)
+  📄 github_list.sh (0 KB)
+  📄 install-schema-dependencies.sh (0 KB)
   📄 manual-db-reset.sh (1008 B)
 
 📁 Directory: temp/old
 ──────────────────────────────────────────────────
-  📄 local-dev.sh 
-  📄 quick-start.sh 
+  📄 local-dev.sh (0 KB)
+  📄 quick-start.sh (0 KB)
+
+📁 Directory: temp/repo_files_output
+──────────────────────────────────────────────────
+  📄 Reyzen1_crypto_predict_files_20250720_140804.txt (0 KB)
 
 📁 Directory: temp
 ──────────────────────────────────────────────────
-  📄 reset-db-fixed.sh 
-  📄 reset-db.sh 
-  📄 setup-auth-api-v1.sh 
-  📄 setup-crud-endpoints.sh 
-  📄 setup-db.sh 
-  📄 setup-repositories.sh 
-  📄 start-backend-postgres.sh 
-  📄 test-auth-api-v1.sh 
-  📄 test-crud-endpoints.sh 
-  📄 test-db-status.sh 
-  📄 test-db.sh 
-  📄 test-repositories.sh 
-  📄 test-schemas.sh 
-  📄 update-requirements.sh 
-  📄 use-integer-models.sh 
-  📄 use-postgres-db.sh 
-  📄 verify-schema-fix.sh 
+  📄 reset-db-fixed.sh (0 KB)
+  📄 reset-db.sh (0 KB)
+  📄 setup-auth-api-v1.sh (0 KB)
+  📄 setup-crud-endpoints.sh (0 KB)
+  📄 setup-db.sh (0 KB)
+  📄 setup-external-apis.sh (0 KB)
+  📄 setup-repositories.sh (0 KB)
+  📄 start-backend-postgres.sh (0 KB)
+  📄 test-auth-api-v1.sh (0 KB)
+  📄 test-crud-endpoints.sh (0 KB)
+  📄 test-db-status.sh (0 KB)
+  📄 test-db.sh (0 KB)
+  📄 test-external-apis.sh (0 KB)
+  📄 test-repositories.sh (0 KB)
+  📄 test-schemas.sh (0 KB)
+  📄 update-requirements.sh (0 KB)
+  📄 use-integer-models.sh (0 KB)
+  📄 use-postgres-db.sh (0 KB)
+  📄 verify-schema-fix.sh (0 KB)

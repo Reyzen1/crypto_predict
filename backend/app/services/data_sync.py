@@ -190,7 +190,7 @@ class DataSyncService:
             
             try:
                 # Get active cryptocurrencies
-                active_cryptos = cryptocurrency_repository.get_active(db)
+                active_cryptos = cryptocurrency_repository.get_active_cryptos(db)
                 
                 results = {
                     "success": 0,
@@ -486,7 +486,7 @@ class DataSyncService:
                 
                 # Get database statistics
                 total_cryptos = cryptocurrency_repository.count_total(db)
-                active_cryptos = len(cryptocurrency_repository.get_active(db))
+                active_cryptos = len(cryptocurrency_repository.get_active_cryptos(db))
                 total_price_records = price_data_repository.count_total(db)
                 
                 results["statistics"] = {
@@ -500,7 +500,7 @@ class DataSyncService:
                 
                 # 1. Check for cryptocurrencies without recent price data
                 cryptos_without_recent_data = []
-                active_cryptos_list = cryptocurrency_repository.get_active(db)
+                active_cryptos_list = cryptocurrency_repository.get_active_cryptos(db)
                 
                 for crypto in active_cryptos_list:
                     latest_price = price_data_repository.get_latest_price(db, crypto.id)

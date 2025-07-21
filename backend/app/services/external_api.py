@@ -52,7 +52,7 @@ class ExternalAPIService:
             coingecko_ids = [symbol_to_coingecko_id(symbol) for symbol in crypto_symbols]
         else:
             # Get all active cryptocurrencies from database
-            active_cryptos = cryptocurrency_repository.get_active(db)
+            active_cryptos = cryptocurrency_repository.get_active_cryptos(db)
             coingecko_ids = [crypto.coingecko_id for crypto in active_cryptos if crypto.coingecko_id]
         
         if not coingecko_ids:

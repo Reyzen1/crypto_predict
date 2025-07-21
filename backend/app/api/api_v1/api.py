@@ -5,7 +5,7 @@
 from fastapi import APIRouter
 
 # Import endpoint routers
-from app.api.api_v1.endpoints import auth, users, crypto, prices, health, external
+from app.api.api_v1.endpoints import auth, users, crypto, prices, health, external, tasks
 # from app.api.api_v1.endpoints import predictions  # To be created later
 
 # Create main API router
@@ -44,6 +44,8 @@ async def api_info():
             "crypto": "/api/v1/crypto",
             "prices": "/api/v1/prices",
             "external": "/api/v1/external",
+            "tasks": "/api/v1/tasks",
+            "tasks": "/api/v1/tasks",
             "system": "/api/v1/system",
             "docs": "/docs",
             "redoc": "/redoc"
@@ -54,6 +56,8 @@ async def api_info():
             "Price data tracking and analysis",
             "External API integration (CoinGecko)",
             "Background data synchronization",
+            "Background task management",
+            "Background task management",
             "System health monitoring",
             "RESTful API design",
             "Automatic API documentation"
@@ -74,6 +78,12 @@ api_router.include_router(prices.router, prefix="/prices", tags=["Price Data"])
 
 # Include external API router
 api_router.include_router(external.router, prefix="/external", tags=["External APIs"])
+
+# Include background tasks router
+api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks"])
+
+# Include background tasks router
+api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks"])
 
 # Include system health router
 api_router.include_router(health.router, prefix="/system", tags=["System Health"])

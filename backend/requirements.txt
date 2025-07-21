@@ -1,5 +1,5 @@
-# File: ./backend/requirements.txt
-# Python dependencies for CryptoPredict MVP Backend - Updated for Day 4 with External API Integration
+# backend/requirements.txt
+# Python dependencies for CryptoPredict MVP Backend - Updated for Phase 5 Background Tasks
 
 # Core FastAPI and ASGI server
 fastapi==0.104.1                  # Modern, fast web framework for building APIs
@@ -26,11 +26,11 @@ python-jose[cryptography]==3.3.0  # JWT token handling with cryptographic suppor
 passlib[bcrypt]==1.7.4            # Password hashing utilities with bcrypt
 bcrypt==4.0.1                     # Low-level password hashing algorithm
 
-# HTTP Client and External APIs (NEW - Phase 4)
+# HTTP Client and External APIs
 httpx==0.25.2                     # Modern async HTTP client for external APIs
 requests==2.31.0                  # Synchronous HTTP client (backup)
 
-# Rate Limiting and System Monitoring (NEW - Phase 4)
+# Rate Limiting and System Monitoring
 slowapi==0.1.9                    # Rate limiting for FastAPI
 psutil==5.9.6                     # System monitoring and health checks
 
@@ -45,9 +45,14 @@ scikit-learn>=1.4.0               # Machine learning library
 tensorflow>=2.16.0                # Deep learning framework
 matplotlib==3.8.2                 # Data visualization library
 
-# Background Tasks and Scheduling
-apscheduler==3.10.4               # Advanced Python Scheduler for background jobs
-celery==5.3.4                     # Distributed task queue (alternative)
+# Background Tasks and Scheduling (NEW - Phase 5)
+celery==5.3.4                     # Distributed task queue for background jobs
+kombu==5.3.2                      # Message queue library (Celery dependency)
+billiard==4.1.0                   # Process pool for Celery workers
+vine==5.0.0                       # Python promises (Celery dependency)
+
+# Task Scheduling Alternatives
+apscheduler==3.10.4               # Advanced Python Scheduler (alternative to Celery Beat)
 
 # File Handling
 aiofiles==23.2.1                  # Async file operations (read/write with FastAPI)

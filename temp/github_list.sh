@@ -1,9 +1,21 @@
 #!/bin/bash
 
+# File: temp/gitbash_list.sh
 # GitHub Repository Files Lister
 # Script to list all files from a specific GitHub repository using git and GitHub API
 
 set -e
+
+
+echo "🐍 Starting GitHub Repository Files Lister"
+echo "=========================================="
+
+# Check if we're in the right directory
+if [ ! -d "backend" ]; then
+    echo "❌ Backend directory not found! Please run from project root."
+    exit 1
+fi
+
 
 # Default values
 REPO_URL="https://github.com/Reyzen1/crypto_predict"
@@ -45,7 +57,7 @@ Usage: $0 [OPTIONS] [REPOSITORY_URL]
 OPTIONS:
     -h, --help          Show this help message
     -t, --token TOKEN   GitHub personal access token (for private repos)
-    -o, --output DIR    Output directory (default: ./repo_files_output)
+    -o, --output DIR    Output directory (default: ./temp/repo_files_output)
     --csv               Export to CSV format
     --json              Export to JSON format
     --txt               Export to TXT format (default)

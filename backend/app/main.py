@@ -17,7 +17,11 @@ from app.api.api_v1.api import api_router
 from app.core.database import engine, Base
 
 # Import models to ensure they're registered with SQLAlchemy
-import app.models
+# Import all models to register with SQLAlchemy
+
+# Create all database tables on startup
+# Import models for table creation
+from app.models import Base, User, Cryptocurrency, PriceData, Prediction
 
 # Create all database tables on startup
 Base.metadata.create_all(bind=engine)
