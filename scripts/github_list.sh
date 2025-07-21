@@ -19,7 +19,7 @@ fi
 
 # Default values
 REPO_URL="https://github.com/Reyzen1/crypto_predict"
-OUTPUT_DIR="./repo_files_output"
+OUTPUT_DIR="./temp/repo_files_output"
 TEMP_DIR="/tmp/repo_clone_$$"
 GITHUB_TOKEN=""
 
@@ -221,7 +221,7 @@ export_to_txt() {
                 fi
             fi
             
-            echo "  📄 $filename${size:+ ($size)}"
+            echo "  📄 $filename"
             
         done < <(find . -type f ! -path "./.git/*" ! -name ".git*" | sort)
         

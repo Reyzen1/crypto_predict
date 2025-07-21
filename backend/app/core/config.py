@@ -1,76 +1,117 @@
 # File: backend/app/core/config.py
-# Application configuration settings for CryptoPredict MVP
-# Updated with Authentication settings while preserving existing config
+# Complete configuration with all required fields
 
+import os
 from typing import List, Optional, Union
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
-import os
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables"""
+    """
+    Application settings loaded from environment variables and .env file
+    """
     
-    # Project Information (preserving your existing values)
-    PROJECT_NAME: str = "CryptoPredict MVP"
-    VERSION: str = "1.0.0"
-    DESCRIPTION: str = "AI-powered cryptocurrency price prediction API"
-    
-    # Environment Configuration
+    # Basic app settings
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
+    PROJECT_NAME: str = "CryptoPredict MVP"
+    DESCRIPTION: str = "AI-powered cryptocurrency price prediction API"
+    VERSION: str = "1.0.0"
+    API_V1_STR: str = "/api/v1"
     
-    # Security Configuration (NEW for authentication)
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-this")
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "your-jwt-secret-key")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    # Security settings
+    SECRET_KEY: str = "your-super-secret-key-change-this-in-production"
+    JWT_SECRET_KEY: str = "your-jwt-secret-key-change-this-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # Database Configuration (preserving your existing values)
+    # Database settings
     DATABASE_URL: str = "postgresql://postgres:postgres123@localhost:5432/cryptopredict"
     
-    # Redis Configuration (preserving your existing values)
-    REDIS_URL: str = "redis://localhost:6379"
+    # Redis settings
+    REDIS_URL: str = "redis://localhost:6379/0"
     
-    # External API Configuration (preserving your existing values)
+    # External API settings
     COINGECKO_API_KEY: Optional[str] = None
     BINANCE_API_KEY: Optional[str] = None
     BINANCE_API_SECRET: Optional[str] = None
     ALPHA_VANTAGE_API_KEY: Optional[str] = None
     
-    # CORS Configuration (preserving your existing approach)
-    BACKEND_CORS_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://127.0.0.1:3000"
-    
-    # Allowed Hosts (preserving your existing values)
-    ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1", "0.0.0.0"]
-    
-    # Rate Limiting Configuration (preserving your existing values)
+    # Rate limiting
     RATE_LIMIT_PER_MINUTE: int = 60
     RATE_LIMIT_PER_HOUR: int = 1000
     
-    # ML Model Configuration (preserving your existing values)
+    # Frontend settings
+    NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
+    NEXT_PUBLIC_WS_URL: str = "ws://localhost:8000"
+    
+    # ML Model settings
     MODEL_PATH: str = "./models"
-    MODEL_UPDATE_INTERVAL: int = 3600  # 1 hour
+    MODEL_UPDATE_INTERVAL: int = 3600
+    DATA_COLLECTION_INTERVAL: int = 300
     
-    # Data Collection Configuration (preserving your existing values)
-    DATA_COLLECTION_INTERVAL: int = 300  # 5 minutes
+    # Logging settings
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE_PATH: str = "./logs/app.log"
     
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    # CORS and host settings
+    ALLOWED_HOSTS: List[str] = ["*"]  # Allow all hosts for development
+    BACKEND_CORS_ORIGINS: Union[str, List[str]] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000", 
+        "http://localhost:8000",
+        "http://testserver"
+    ]
+    
+    @field_validator('BACKEND_CORS_ORIGINS', mode='before')
     @classmethod
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
-        """Parse CORS origins from environment variable (preserving your logic)"""
+    def assemble_cors_origins(cls, v) -> List[str]:
+        """Parse CORS origins from string or list"""
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         elif isinstance(v, list):
-            return v
+            return [str(origin) for origin in v]
         else:
-            return ["http://localhost:3000", "http://127.0.0.1:3000"]
+            return [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000", 
+                "http://localhost:8000",
+                "http://testserver"
+            ]
+
+    @field_validator('DEBUG', mode='before')
+    @classmethod
+    def parse_debug(cls, v):
+        if isinstance(v, str):
+            return v.lower() in ('true', '1', 'yes', 'on')
+        return bool(v)
     
     class Config:
-        """Pydantic configuration"""
         env_file = ".env"
+        env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"
 
 
-# Global settings instance
-settings = Settings()
+def get_settings() -> Settings:
+    """Create settings instance with environment loading"""
+    env_files_to_try = [".env", "../.env"]
+    
+    for env_file in env_files_to_try:
+        if os.path.exists(env_file):
+            try:
+                from dotenv import load_dotenv
+                load_dotenv(env_file, override=True)
+                break
+            except ImportError:
+                pass
+    
+    return Settings()
+
+
+# Create settings instance
+settings = get_settings()
+
+# Export for backward compatibility
+__all__ = ["settings", "Settings"]

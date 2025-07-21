@@ -1,5 +1,5 @@
 #!/bin/bash
-# temp/run-complete-test-suite.sh
+# scripts/run-complete-test-suite.sh
 # Complete test suite runner for Phase 6: Testing & Documentation
 
 echo "🧪 Phase 6: Testing & Documentation Suite"
