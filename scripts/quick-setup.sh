@@ -86,7 +86,7 @@ else
 fi
 
 pip install --upgrade pip
-pip install fastapi uvicorn sqlalchemy alembic psycopg2-binary redis pydantic python-decouple python-multipart httpx aiofiles slowapi python-jose passlib bcrypt
+pip install -r requirements.txt
 
 cd ..
 
