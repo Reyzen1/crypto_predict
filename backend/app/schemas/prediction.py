@@ -1,8 +1,8 @@
 # File: ./backend/app/schemas/prediction.py
-# ML prediction related Pydantic schemas - FIXED
+# ML prediction related Pydantic schemas - FIXED for Pydantic V2
 
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import json
@@ -13,7 +13,11 @@ from app.schemas.common import BaseSchema
 class PredictionBase(BaseSchema):
     """Base prediction schema with common fields"""
     
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
     
     crypto_id: int = Field(gt=0, description="Cryptocurrency ID")
     model_name: str = Field(
@@ -34,7 +38,8 @@ class PredictionBase(BaseSchema):
         description="JSON string of features used in prediction"
     )
     
-    @validator('target_date')
+    @field_validator('target_date')
+    @classmethod
     def validate_target_date(cls, v):
         """Validate that target date is in the future"""
         now = datetime.now(timezone.utc)
@@ -46,7 +51,8 @@ class PredictionBase(BaseSchema):
             raise ValueError('Target date must be in the future')
         return v
     
-    @validator('features_used')
+    @field_validator('features_used')
+    @classmethod
     def validate_features_json(cls, v):
         """Validate that features_used is valid JSON"""
         if v is not None:
@@ -60,13 +66,22 @@ class PredictionBase(BaseSchema):
 class PredictionCreate(PredictionBase):
     """Schema for creating new predictions"""
     
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+    
     user_id: int = Field(gt=0, description="User ID who requested the prediction")
 
 
 class PredictionUpdate(BaseModel):
     """Schema for updating predictions"""
     
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
     
     predicted_price: Optional[Decimal] = Field(
         default=None, 
@@ -88,6 +103,11 @@ class PredictionUpdate(BaseModel):
 class PredictionResponse(PredictionBase):
     """Schema for prediction data in API responses"""
     
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True
+    )
+    
     id: int = Field(description="Unique identifier")
     user_id: int = Field(description="User ID")
     created_at: datetime = Field(description="Creation timestamp")
@@ -95,6 +115,11 @@ class PredictionResponse(PredictionBase):
 
 class PredictionWithDetails(PredictionResponse):
     """Schema for prediction with additional details"""
+    
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True
+    )
     
     crypto_symbol: str = Field(description="Cryptocurrency symbol")
     crypto_name: str = Field(description="Cryptocurrency name")
@@ -116,7 +141,11 @@ class PredictionWithDetails(PredictionResponse):
 class PredictionRequest(BaseModel):
     """Schema for prediction requests"""
     
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
     
     crypto_id: int = Field(gt=0, description="Cryptocurrency ID")
     prediction_horizon: int = Field(
@@ -133,7 +162,8 @@ class PredictionRequest(BaseModel):
         description="Whether to include confidence score"
     )
     
-    @validator('model_type')
+    @field_validator('model_type')
+    @classmethod
     def validate_model_type(cls, v):
         """Validate model type"""
         valid_models = ["LSTM", "LINEAR_REGRESSION", "RANDOM_FOREST", "ARIMA", "ENSEMBLE"]
@@ -145,7 +175,10 @@ class PredictionRequest(BaseModel):
 class PredictionResult(BaseModel):
     """Schema for prediction results"""
     
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        str_strip_whitespace=True
+    )
     
     crypto_id: int = Field(description="Cryptocurrency ID")
     crypto_symbol: str = Field(description="Cryptocurrency symbol")
@@ -167,7 +200,11 @@ class PredictionResult(BaseModel):
 class BatchPredictionRequest(BaseModel):
     """Schema for batch prediction requests"""
     
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
     
     crypto_ids: List[int] = Field(
         min_length=1, 
@@ -188,6 +225,10 @@ class BatchPredictionRequest(BaseModel):
 class BatchPredictionResponse(BaseModel):
     """Schema for batch prediction responses"""
     
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+    
     predictions: List[PredictionResult] = Field(description="List of predictions")
     total_requested: int = Field(description="Total predictions requested")
     successful_predictions: int = Field(description="Number of successful predictions")
@@ -198,7 +239,11 @@ class BatchPredictionResponse(BaseModel):
 class ModelPerformance(BaseSchema):
     """Schema for ML model performance metrics"""
     
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        from_attributes=True,
+        str_strip_whitespace=True
+    )
     
     model_name: str = Field(description="Model name")
     crypto_id: int = Field(description="Cryptocurrency ID")
@@ -215,7 +260,11 @@ class ModelPerformance(BaseSchema):
 class PredictionAnalytics(BaseSchema):
     """Schema for prediction analytics"""
     
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        from_attributes=True,
+        str_strip_whitespace=True
+    )
     
     crypto_id: int = Field(description="Cryptocurrency ID")
     crypto_symbol: str = Field(description="Cryptocurrency symbol")
@@ -232,7 +281,12 @@ class PredictionAnalytics(BaseSchema):
 class PredictionComparison(BaseModel):
     """Schema for comparing predictions with actual prices"""
     
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+    
     prediction_id: int = Field(description="Prediction ID")
+    crypto_symbol: str = Field(description="Cryptocurrency symbol")
     predicted_price: Decimal = Field(description="Predicted price")
     actual_price: Optional[Decimal] = Field(
         default=None, 
@@ -252,6 +306,11 @@ class PredictionComparison(BaseModel):
 
 class UserPredictionStats(BaseSchema):
     """Schema for user prediction statistics"""
+    
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True
+    )
     
     user_id: int = Field(description="User ID")
     total_predictions: int = Field(description="Total predictions made")
@@ -276,13 +335,19 @@ class UserPredictionStats(BaseSchema):
 class PredictionAlert(BaseSchema):
     """Schema for prediction-based alerts"""
     
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+    
     user_id: int = Field(description="User ID")
     prediction_id: int = Field(description="Prediction ID")
     alert_type: str = Field(description="Alert type")
     threshold_percentage: float = Field(description="Alert threshold percentage")
     is_active: bool = Field(default=True, description="Whether alert is active")
     
-    @validator('alert_type')
+    @field_validator('alert_type')
+    @classmethod
     def validate_alert_type(cls, v):
         """Validate alert type"""
         valid_types = ["price_reached", "confidence_changed", "accuracy_update"]
@@ -294,7 +359,11 @@ class PredictionAlert(BaseSchema):
 class ModelTrainingRequest(BaseModel):
     """Schema for model training requests"""
     
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
     
     crypto_id: int = Field(gt=0, description="Cryptocurrency ID")
     model_type: str = Field(description="Type of model to train")
@@ -308,7 +377,8 @@ class ModelTrainingRequest(BaseModel):
         description="Model hyperparameters"
     )
     
-    @validator('model_type')
+    @field_validator('model_type')
+    @classmethod
     def validate_training_model_type(cls, v):
         """Validate model type for training"""
         valid_models = ["LSTM", "LINEAR_REGRESSION", "RANDOM_FOREST", "ARIMA"]
@@ -320,7 +390,10 @@ class ModelTrainingRequest(BaseModel):
 class ModelTrainingResponse(BaseModel):
     """Schema for model training responses"""
     
-    model_config = ConfigDict(protected_namespaces=())
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        str_strip_whitespace=True
+    )
     
     model_id: str = Field(description="Trained model identifier")
     crypto_id: int = Field(description="Cryptocurrency ID")

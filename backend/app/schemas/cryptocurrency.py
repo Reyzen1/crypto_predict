@@ -1,8 +1,8 @@
 # File: ./backend/app/schemas/cryptocurrency.py
-# Cryptocurrency-related Pydantic schemas
+# Cryptocurrency-related Pydantic schemas - FIXED for Pydantic V2
 
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from datetime import datetime
 from decimal import Decimal
 
@@ -11,6 +11,11 @@ from app.schemas.common import BaseSchema
 
 class CryptocurrencyBase(BaseSchema):
     """Base cryptocurrency schema with common fields"""
+    
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
     
     symbol: str = Field(
         min_length=1, 
@@ -33,7 +38,8 @@ class CryptocurrencyBase(BaseSchema):
         description="Binance trading pair symbol"
     )
     
-    @validator('symbol')
+    @field_validator('symbol')
+    @classmethod
     def validate_symbol_format(cls, v):
         """Validate symbol format (uppercase, alphanumeric)"""
         if not v.isalnum():
@@ -44,11 +50,21 @@ class CryptocurrencyBase(BaseSchema):
 class CryptocurrencyCreate(CryptocurrencyBase):
     """Schema for creating a new cryptocurrency"""
     
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+    
     is_active: bool = Field(default=True, description="Whether the cryptocurrency is active")
 
 
 class CryptocurrencyUpdate(BaseModel):
     """Schema for updating cryptocurrency information"""
+    
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
     
     name: Optional[str] = Field(
         default=None, 
@@ -75,54 +91,59 @@ class CryptocurrencyUpdate(BaseModel):
 class CryptocurrencyResponse(CryptocurrencyBase):
     """Schema for cryptocurrency data in API responses"""
     
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True
+    )
+    
     id: int = Field(description="Unique identifier")
     is_active: bool = Field(description="Whether the cryptocurrency is active")
     created_at: datetime = Field(description="Creation timestamp")
-    updated_at: datetime = Field(description="Last update timestamp")
+    updated_at: Optional[datetime] = Field(default=None, description="Last update timestamp")
 
 
 class CryptocurrencyWithPrice(CryptocurrencyResponse):
     """Schema for cryptocurrency with latest price information"""
     
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True
+    )
+    
     latest_price: Optional[Decimal] = Field(
         default=None, 
         description="Latest price in USD"
     )
+    latest_price_date: Optional[datetime] = Field(
+        default=None, 
+        description="Date of latest price"
+    )
     price_change_24h: Optional[float] = Field(
         default=None, 
-        description="24-hour price change percentage"
-    )
-    price_change_7d: Optional[float] = Field(
-        default=None, 
-        description="7-day price change percentage"
-    )
-    volume_24h: Optional[Decimal] = Field(
-        default=None, 
-        description="24-hour trading volume"
+        description="24h price change percentage"
     )
     market_cap: Optional[Decimal] = Field(
         default=None, 
-        description="Market capitalization"
-    )
-    last_updated: Optional[datetime] = Field(
-        default=None, 
-        description="Price data last update timestamp"
+        description="Current market capitalization"
     )
 
 
 class CryptocurrencyStats(BaseSchema):
     """Schema for cryptocurrency statistics"""
     
-    symbol: str = Field(description="Cryptocurrency symbol")
-    total_predictions: int = Field(default=0, description="Total number of predictions")
-    total_price_data_points: int = Field(default=0, description="Total price data points")
-    data_coverage_days: int = Field(default=0, description="Number of days with price data")
-    avg_daily_volume: Optional[Decimal] = Field(
-        default=None, 
-        description="Average daily trading volume"
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True
     )
-    price_volatility: Optional[float] = Field(
-        default=None, 
+    
+    crypto_id: int = Field(description="Cryptocurrency ID")
+    symbol: str = Field(description="Cryptocurrency symbol")
+    total_data_points: int = Field(description="Total price data points")
+    date_range_days: int = Field(description="Date range in days")
+    avg_daily_volume: Decimal = Field(description="Average daily volume")
+    highest_price: Decimal = Field(description="Highest recorded price")
+    lowest_price: Decimal = Field(description="Lowest recorded price")
+    volatility_score: float = Field(
         description="Price volatility percentage"
     )
     first_price_date: Optional[datetime] = Field(
@@ -138,6 +159,10 @@ class CryptocurrencyStats(BaseSchema):
 class CryptocurrencyList(BaseModel):
     """Schema for cryptocurrency list responses"""
     
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+    
     cryptocurrencies: List[CryptocurrencyResponse] = Field(
         description="List of cryptocurrencies"
     )
@@ -147,6 +172,11 @@ class CryptocurrencyList(BaseModel):
 
 class CryptocurrencySearch(BaseModel):
     """Schema for cryptocurrency search parameters"""
+    
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
     
     query: str = Field(
         min_length=1, 
@@ -166,6 +196,11 @@ class CryptocurrencySearch(BaseModel):
 class CryptocurrencyBulkUpdate(BaseModel):
     """Schema for bulk cryptocurrency operations"""
     
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+    
     cryptocurrency_ids: List[int] = Field(
         min_length=1, 
         max_length=50, 
@@ -173,7 +208,8 @@ class CryptocurrencyBulkUpdate(BaseModel):
     )
     action: str = Field(description="Action to perform (activate, deactivate)")
     
-    @validator('action')
+    @field_validator('action')
+    @classmethod
     def validate_action(cls, v):
         """Validate bulk action"""
         valid_actions = ["activate", "deactivate", "update_prices"]
@@ -185,53 +221,59 @@ class CryptocurrencyBulkUpdate(BaseModel):
 class MarketData(BaseSchema):
     """Schema for market data from external APIs"""
     
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+    
     symbol: str = Field(description="Cryptocurrency symbol")
     current_price: Decimal = Field(description="Current price in USD")
-    market_cap: Optional[Decimal] = Field(default=None, description="Market capitalization")
-    total_volume: Optional[Decimal] = Field(default=None, description="24h trading volume")
-    price_change_percentage_24h: Optional[float] = Field(
+    market_cap: Optional[Decimal] = Field(
+        default=None, 
+        description="Market capitalization"
+    )
+    total_volume: Optional[Decimal] = Field(
+        default=None, 
+        description="24h trading volume"
+    )
+    price_change_24h: Optional[float] = Field(
         default=None, 
         description="24h price change percentage"
     )
-    price_change_percentage_7d: Optional[float] = Field(
+    market_cap_rank: Optional[int] = Field(
         default=None, 
-        description="7d price change percentage"
+        description="Market cap ranking"
     )
-    price_change_percentage_30d: Optional[float] = Field(
-        default=None, 
-        description="30d price change percentage"
-    )
-    circulating_supply: Optional[Decimal] = Field(
-        default=None, 
-        description="Circulating supply"
-    )
-    total_supply: Optional[Decimal] = Field(
-        default=None, 
-        description="Total supply"
-    )
-    max_supply: Optional[Decimal] = Field(
-        default=None, 
-        description="Maximum supply"
-    )
-    last_updated: datetime = Field(description="Data last update timestamp")
+    last_updated: datetime = Field(description="Last update timestamp")
 
 
-class CryptocurrencyRanking(BaseSchema):
-    """Schema for cryptocurrency ranking"""
+class CryptocurrencyRanking(BaseModel):
+    """Schema for cryptocurrency rankings"""
     
-    rank: int = Field(description="Market rank")
-    symbol: str = Field(description="Cryptocurrency symbol")
-    name: str = Field(description="Cryptocurrency name")
-    market_cap: Decimal = Field(description="Market capitalization")
-    current_price: Decimal = Field(description="Current price")
-    change_24h: float = Field(description="24h price change percentage")
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True
+    )
+    
+    rank: int = Field(description="Market cap rank")
+    cryptocurrency: CryptocurrencyWithPrice = Field(description="Cryptocurrency details")
+    market_data: MarketData = Field(description="Current market data")
 
 
 class SupportedCryptocurrencies(BaseModel):
     """Schema for supported cryptocurrencies list"""
     
-    supported_symbols: List[str] = Field(description="List of supported symbols")
-    coingecko_ids: List[str] = Field(description="List of CoinGecko IDs")
-    binance_symbols: List[str] = Field(description="List of Binance symbols")
-    total_supported: int = Field(description="Total number of supported cryptocurrencies")
-    last_updated: datetime = Field(description="List last update timestamp")
+    model_config = ConfigDict(
+        str_strip_whitespace=True
+    )
+    
+    total_supported: int = Field(description="Total supported cryptocurrencies")
+    active_trading: int = Field(description="Active trading pairs")
+    prediction_enabled: List[str] = Field(
+        description="Cryptocurrencies with ML prediction enabled"
+    )
+    recently_added: List[CryptocurrencyResponse] = Field(
+        description="Recently added cryptocurrencies"
+    )
+    top_volume: List[CryptocurrencyWithPrice] = Field(
+        description="Top volume cryptocurrencies"
+    )

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import psutil
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.core.database import get_db, get_redis, check_db_connection
 from app.core.config import settings
@@ -31,7 +31,7 @@ def comprehensive_health_check(
     start_time = time.time()
     health_status = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT,
         "components": {},
@@ -103,7 +103,7 @@ def get_system_metrics(
         process_memory = process.memory_info()
         
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "system": {
                 "cpu_usage_percent": cpu_percent,
                 "memory": {
@@ -219,14 +219,14 @@ def get_database_health(
             "connection_time_ms": connection_time,
             "database_url": settings.DATABASE_URL.split("@")[-1] if "@" in settings.DATABASE_URL else "hidden",
             "statistics": stats,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 
@@ -268,14 +268,14 @@ def get_redis_health(
                     if key.startswith("db")
                 }
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 
@@ -291,7 +291,7 @@ def check_external_dependencies(
     """
     dependencies = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "services": {}
     }
     
@@ -357,7 +357,7 @@ def get_startup_checks(
     """
     checks = {
         "status": "ready",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "checks": {}
     }
     

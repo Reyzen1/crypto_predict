@@ -1,5 +1,5 @@
-# File: ./backend/app/core/deps.py
-# FastAPI dependencies for authentication - FINAL FIXED VERSION
+# File: backend/app/core/deps.py
+# FastAPI dependencies for authentication (using your existing database setup)
 
 from typing import Generator, Optional
 from fastapi import Depends, HTTPException, status
@@ -12,8 +12,8 @@ from app.models import User
 from app.repositories import user_repository
 
 
-# Security scheme for JWT token - FIXED with auto_error=False
-security_scheme = HTTPBearer(auto_error=False)
+# Security scheme for JWT token
+security_scheme = HTTPBearer()
 
 
 def get_current_user_from_token(
@@ -33,14 +33,6 @@ def get_current_user_from_token(
     Raises:
         HTTPException: If token is invalid or user not found
     """
-    # FIXED: Check if credentials is None
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
     # Extract token from credentials
     token = credentials.credentials
     
@@ -136,8 +128,6 @@ def get_optional_current_user(
     """
     Get current user optionally (for endpoints that work with/without auth)
     
-    FIXED: Properly handles None credentials without raising errors
-    
     Args:
         credentials: Optional JWT token
         db: Database session
@@ -149,40 +139,6 @@ def get_optional_current_user(
         return None
     
     try:
-        # Extract token from credentials
-        token = credentials.credentials
-        
-        # Verify token and get payload
-        payload = security.verify_token(token, token_type="access")
-        
-        # Get user ID from token
-        user_id: int = payload.get("user_id")
-        if user_id is None:
-            return None
-        
-        # Get user from database using your existing repository
-        user = user_repository.get(db, user_id)
-        if user is None or not user.is_active:
-            return None
-        
-        return user
-        
+        return get_current_user_from_token(credentials, db)
     except HTTPException:
-        # If token verification fails, return None (don't raise error)
         return None
-    except Exception:
-        # Any other error, return None (don't raise error)
-        return None
-
-
-# Pagination dependency
-class PaginationParams:
-    """Pagination parameters for list endpoints"""
-    
-    def __init__(
-        self,
-        skip: int = 0,
-        limit: int = 100
-    ):
-        self.skip = max(0, skip)  # Ensure skip is not negative
-        self.limit = min(max(1, limit), 1000)  # Ensure limit is between 1 and 1000
