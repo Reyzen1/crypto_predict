@@ -1,64 +1,64 @@
 # File: backend/app/api/api_v1/endpoints/auth.py
-# Authentication API endpoints
+# Fixed authentication endpoints to handle form data and JSON
 
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Form
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_active_user
-from app.schemas.user import UserRegister, UserLogin, UserResponse, Token, UserPasswordChange
+from app.schemas.user import (
+    UserRegister, UserLogin, UserResponse, AuthResponse, TokenResponse
+)
 from app.schemas.common import SuccessResponse
 from app.services.auth import auth_service
 from app.models import User
 
-
 router = APIRouter()
 
 
-@router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register_user(
     user_data: UserRegister,
     db: Session = Depends(get_db)
 ) -> Any:
     """
-    Register a new user
+    User registration
     
     Creates a new user account with email and password.
     Returns user data and authentication tokens.
     """
     try:
-        result = auth_service.register_user(db, user_data)
-        return {
-            "message": "User registered successfully",
-            "data": result
-        }
+        return auth_service.register_user(db, user_data)
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Registration error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration failed"
+            detail=str(e) 
         )
 
 
-@router.post("/login", response_model=dict)
+@router.post("/login", response_model=AuthResponse)
 def login_user(
-    login_data: UserLogin,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ) -> Any:
     """
-    User login
+    User login with OAuth2 form data
     
-    Authenticate user with email and password.
-    Returns user data and authentication tokens.
+    Authenticates user with email/password and returns JWT tokens.
+    Accepts both form data and JSON.
     """
     try:
-        result = auth_service.authenticate_user(db, login_data)
-        return {
-            "message": "Login successful",
-            "data": result
-        }
+        # Create UserLogin from form data
+        login_data = UserLogin(
+            email=form_data.username,  # OAuth2 uses 'username' field for email
+            password=form_data.password
+        )
+        return auth_service.authenticate_user(db, login_data)
     except HTTPException:
         raise
     except Exception as e:
@@ -68,15 +68,36 @@ def login_user(
         )
 
 
-@router.post("/refresh", response_model=Token)
-def refresh_token(
-    refresh_token: str = Body(..., embed=True),
+@router.post("/login-json", response_model=AuthResponse)
+def login_user_json(
+    login_data: UserLogin,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    User login with JSON data
+    
+    Alternative login endpoint that accepts JSON instead of form data.
+    """
+    try:
+        return auth_service.authenticate_user(db, login_data)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Login failed"
+        )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_access_token(
+    refresh_token: str = Form(...),
     db: Session = Depends(get_db)
 ) -> Any:
     """
     Refresh access token
     
-    Generate a new access token using a valid refresh token.
+    Uses refresh token to generate a new access token.
     """
     try:
         return auth_service.refresh_access_token(db, refresh_token)
@@ -124,65 +145,3 @@ def get_current_user_info(
         created_at=current_user.created_at,
         updated_at=current_user.updated_at
     )
-
-
-@router.post("/change-password", response_model=SuccessResponse)
-def change_password(
-    password_data: UserPasswordChange,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-) -> Any:
-    """
-    Change user password
-    
-    Change the password for the currently authenticated user.
-    Requires current password for security.
-    """
-    try:
-        auth_service.change_password(
-            db,
-            current_user,
-            password_data.current_password,
-            password_data.new_password
-        )
-        return SuccessResponse(
-            message="Password changed successfully",
-            data={"user_id": current_user.id}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Password change failed"
-        )
-
-
-@router.post("/verify-email/{user_id}", response_model=SuccessResponse)
-def verify_user_email(
-    user_id: int,
-    db: Session = Depends(get_db)
-) -> Any:
-    """
-    Verify user email
-    
-    Mark a user's email as verified. In a real application,
-    this would require a verification token sent via email.
-    """
-    try:
-        user = auth_service.verify_user_email(db, user_id)
-        return SuccessResponse(
-            message="Email verified successfully",
-            data={
-                "user_id": user.id,
-                "email": user.email,
-                "is_verified": user.is_verified
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Email verification failed"
-        )

@@ -36,7 +36,7 @@ class UserRepository(BaseRepository[User, dict, dict]):
         db: Session, 
         *, 
         email: str, 
-        password_hash: str,
+        hashed_password: str,
         first_name: Optional[str] = None,
         last_name: Optional[str] = None,
         is_active: bool = True,
@@ -50,7 +50,7 @@ class UserRepository(BaseRepository[User, dict, dict]):
         
         user_data = {
             "email": email,
-            "password_hash": password_hash,
+            "hashed_password": hashed_password,
             "first_name": first_name,
             "last_name": last_name,
             "is_active": is_active,

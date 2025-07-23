@@ -1,190 +1,120 @@
-# File: ./backend/app/schemas/user.py
-# User-related Pydantic schemas for authentication and user management - FIXED for Pydantic V2
+# File: backend/app/schemas/user.py
+# Fixed user schemas to match database schema
 
-from typing import Optional, List
-from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional
 from datetime import datetime
-import re
-
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from app.schemas.common import BaseSchema
 
 
 class UserBase(BaseSchema):
     """Base user schema with common fields"""
     
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True,
-        from_attributes=True
-    )
-    
-    email: EmailStr = Field(description="User's email address")
-    first_name: Optional[str] = Field(
-        default=None, 
-        min_length=1, 
-        max_length=50, 
-        description="User's first name"
-    )
-    last_name: Optional[str] = Field(
-        default=None, 
-        min_length=1, 
-        max_length=50, 
-        description="User's last name"
-    )
+    email: EmailStr = Field(description="User email address")
+    first_name: Optional[str] = Field(default=None, max_length=100, description="First name")
+    last_name: Optional[str] = Field(default=None, max_length=100, description="Last name")
 
 
-class UserRegister(UserBase):
+class UserRegister(BaseSchema):
     """Schema for user registration"""
     
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True
-    )
-    
-    password: str = Field(
-        min_length=8, 
-        max_length=100, 
-        description="User's password (min 8 characters)"
-    )
-    confirm_password: str = Field(
-        min_length=8, 
-        max_length=100, 
-        description="Password confirmation"
-    )
+    email: EmailStr = Field(description="User email address")
+    password: str = Field(min_length=8, max_length=100, description="User password")
+    confirm_password: str = Field(min_length=8, max_length=100, description="Password confirmation")
+    first_name: Optional[str] = Field(default=None, max_length=100, description="First name")
+    last_name: Optional[str] = Field(default=None, max_length=100, description="Last name")
     
     @field_validator('password')
     @classmethod
-    def validate_password_strength(cls, v):
+    def validate_password(cls, v):
         """Validate password strength"""
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')
-        
-        # Check for at least one uppercase letter
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        
-        # Check for at least one lowercase letter
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        
-        # Check for at least one digit
-        if not re.search(r'\d', v):
+        if not any(c.isdigit() for c in v):
             raise ValueError('Password must contain at least one digit')
-        
+        if not any(c.isupper() for c in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not any(c.islower() for c in v):
+            raise ValueError('Password must contain at least one lowercase letter')
         return v
     
     @field_validator('confirm_password')
     @classmethod
     def passwords_match(cls, v, info):
-        """Validate that password and confirm_password match"""
+        """Ensure passwords match"""
         if 'password' in info.data and v != info.data['password']:
             raise ValueError('Passwords do not match')
         return v
 
 
-class UserLogin(BaseModel):
-    """Schema for user login"""
+class UserLogin(BaseSchema):
+    """Schema for user login - using email as username"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    email: EmailStr = Field(description="User's email address")
-    password: str = Field(min_length=1, description="User's password")
+    email: EmailStr = Field(description="User email address")
+    password: str = Field(description="User password")
 
 
-class UserUpdate(BaseModel):
-    """Schema for user profile updates"""
+class UserUpdate(BaseSchema):
+    """Schema for updating user profile"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    first_name: Optional[str] = Field(
-        default=None, 
-        min_length=1, 
-        max_length=50, 
-        description="User's first name"
-    )
-    last_name: Optional[str] = Field(
-        default=None, 
-        min_length=1, 
-        max_length=50, 
-        description="User's last name"
-    )
+    first_name: Optional[str] = Field(default=None, max_length=100, description="First name")
+    last_name: Optional[str] = Field(default=None, max_length=100, description="Last name")
+    preferences: Optional[str] = Field(default=None, description="User preferences as JSON string")
 
 
-class UserPasswordChange(BaseModel):
-    """Schema for password change"""
+class UserPasswordChange(BaseSchema):
+    """Schema for changing user password"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    current_password: str = Field(min_length=1, description="Current password")
-    new_password: str = Field(
-        min_length=8, 
-        max_length=100, 
-        description="New password (min 8 characters)"
-    )
-    confirm_new_password: str = Field(
-        min_length=8, 
-        max_length=100, 
-        description="New password confirmation"
-    )
+    current_password: str = Field(description="Current password")
+    new_password: str = Field(min_length=8, description="New password")
+    confirm_new_password: str = Field(min_length=8, description="New password confirmation")
     
     @field_validator('new_password')
     @classmethod
-    def validate_new_password_strength(cls, v):
-        """Validate new password strength"""
+    def validate_password(cls, v):
+        """Validate password strength"""
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')
-        
-        # Check for at least one uppercase letter
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        
-        # Check for at least one lowercase letter
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        
-        # Check for at least one digit
-        if not re.search(r'\d', v):
+        if not any(c.isdigit() for c in v):
             raise ValueError('Password must contain at least one digit')
-        
+        if not any(c.isupper() for c in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not any(c.islower() for c in v):
+            raise ValueError('Password must contain at least one lowercase letter')
         return v
     
     @field_validator('confirm_new_password')
     @classmethod
-    def new_passwords_match(cls, v, info):
-        """Validate that new_password and confirm_new_password match"""
+    def passwords_match(cls, v, info):
+        """Ensure passwords match"""
         if 'new_password' in info.data and v != info.data['new_password']:
-            raise ValueError('New passwords do not match')
+            raise ValueError('Passwords do not match')
         return v
 
 
 class UserResponse(UserBase):
     """Schema for user data in API responses"""
     
-    model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
-    )
+    model_config = {"from_attributes": True}
     
-    id: int = Field(description="User's unique identifier")
-    is_active: bool = Field(description="Whether the user account is active")
-    is_verified: bool = Field(description="Whether the user email is verified")
+    id: int = Field(description="Unique identifier")
+    is_active: bool = Field(description="Account active status")
+    is_verified: bool = Field(description="Email verification status")
     created_at: datetime = Field(description="Account creation timestamp")
     updated_at: Optional[datetime] = Field(default=None, description="Last update timestamp")
+    
+    @property
+    def username(self) -> str:
+        """Username property for backward compatibility"""
+        return self.email
 
 
-class UserSummary(BaseSchema):
-    """Schema for user summary (minimal info)"""
+class UserProfile(UserResponse):
+    """Extended user profile schema"""
     
-    model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
-    )
-    
-    id: int = Field(description="User's unique identifier")
-    email: EmailStr = Field(description="User's email address")
-    first_name: Optional[str] = Field(description="User's first name")
-    last_name: Optional[str] = Field(description="User's last name")
-    is_active: bool = Field(description="Whether the user account is active")
+    last_login: Optional[datetime] = Field(default=None, description="Last login timestamp")
+    preferences: Optional[str] = Field(default=None, description="User preferences")
     
     @property
     def full_name(self) -> str:
@@ -200,22 +130,62 @@ class UserSummary(BaseSchema):
 class UserWithStats(UserResponse):
     """Schema for user data with statistics"""
     
-    model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
-    )
-    
     total_predictions: int = Field(default=0, description="Total number of predictions made")
     total_portfolios: int = Field(default=0, description="Total number of portfolio entries")
-    last_prediction_date: Optional[datetime] = Field(
-        default=None, 
-        description="Date of last prediction"
-    )
-    last_login_date: Optional[datetime] = Field(
-        default=None, 
-        description="Date of last login"
-    )
+    last_prediction_date: Optional[datetime] = Field(default=None, description="Date of last prediction")
+    last_login_date: Optional[datetime] = Field(default=None, description="Date of last login")
 
+
+class UserSummary(BaseSchema):
+    """Brief user summary for lists"""
+    
+    id: int = Field(description="User ID")
+    email: EmailStr = Field(description="User email")
+    first_name: Optional[str] = Field(default=None, description="First name")
+    last_name: Optional[str] = Field(default=None, description="Last name")
+    is_active: bool = Field(description="Account active status")
+
+
+class TokenResponse(BaseSchema):
+    """Schema for authentication token response"""
+    
+    access_token: str = Field(description="JWT access token")
+    token_type: str = Field(default="bearer", description="Token type")
+    expires_in: int = Field(description="Token expiration time in seconds")
+
+
+class AuthResponse(BaseSchema):
+    """Schema for authentication response with user data"""
+    
+    user: UserResponse = Field(description="User information")
+    access_token: str = Field(description="JWT access token")
+    token_type: str = Field(default="bearer", description="Token type")
+    expires_in: int = Field(description="Token expiration time in seconds")
+
+
+class TokenRefresh(BaseSchema):
+    """Schema for token refresh request"""
+    
+    refresh_token: str = Field(description="Refresh token")
+
+
+class UserListResponse(BaseSchema):
+    """Schema for paginated user list response"""
+    
+    users: list[UserSummary] = Field(description="List of users")
+    total: int = Field(description="Total number of users")
+    page: int = Field(description="Current page number")
+    per_page: int = Field(description="Items per page")
+
+
+class UserStats(BaseSchema):
+    """Schema for user statistics"""
+    
+    total_users: int = Field(description="Total number of users")
+    active_users: int = Field(description="Number of active users")
+    verified_users: int = Field(description="Number of verified users")
+    new_users_today: int = Field(description="New users today")
+    new_users_this_week: int = Field(description="New users this week")
 
 class Token(BaseModel):
     """Schema for JWT tokens"""
@@ -225,173 +195,3 @@ class Token(BaseModel):
     access_token: str = Field(description="JWT access token")
     token_type: str = Field(default="bearer", description="Token type")
     expires_in: int = Field(description="Token expiration time in seconds")
-
-
-class TokenData(BaseModel):
-    """Schema for token payload data"""
-    
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    user_id: int = Field(description="User ID from token")
-    email: str = Field(description="User email from token")
-    exp: int = Field(description="Token expiration timestamp")
-
-
-class UserPreferences(BaseModel):
-    """Schema for user preferences and settings"""
-    
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True
-    )
-    
-    email_notifications: bool = Field(default=True, description="Enable email notifications")
-    push_notifications: bool = Field(default=True, description="Enable push notifications")
-    default_currency: str = Field(default="USD", description="Default currency for display")
-    timezone: str = Field(default="UTC", description="User's timezone")
-    theme: str = Field(default="light", description="UI theme preference")
-    
-    @field_validator('default_currency')
-    @classmethod
-    def validate_currency(cls, v):
-        """Validate currency code"""
-        valid_currencies = ["USD", "EUR", "GBP", "JPY", "BTC", "ETH"]
-        if v.upper() not in valid_currencies:
-            raise ValueError(f'Currency must be one of: {", ".join(valid_currencies)}')
-        return v.upper()
-    
-    @field_validator('theme')
-    @classmethod
-    def validate_theme(cls, v):
-        """Validate theme option"""
-        valid_themes = ["light", "dark", "auto"]
-        if v.lower() not in valid_themes:
-            raise ValueError(f'Theme must be one of: {", ".join(valid_themes)}')
-        return v.lower()
-
-
-class UserPasswordReset(BaseModel):
-    """Schema for password reset request"""
-    
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    email: EmailStr = Field(description="User's email address for password reset")
-
-
-class UserPasswordResetConfirm(BaseModel):
-    """Schema for password reset confirmation"""
-    
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    token: str = Field(description="Password reset token")
-    new_password: str = Field(
-        min_length=8, 
-        max_length=100, 
-        description="New password (min 8 characters)"
-    )
-    confirm_password: str = Field(
-        min_length=8, 
-        max_length=100, 
-        description="Password confirmation"
-    )
-    
-    @field_validator('new_password')
-    @classmethod
-    def validate_password(cls, v):
-        """Validate password strength"""
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
-        return v
-    
-    @field_validator('confirm_password')
-    @classmethod
-    def validate_password_match(cls, v, info):
-        """Validate password confirmation"""
-        if 'new_password' in info.data and v != info.data['new_password']:
-            raise ValueError('Passwords do not match')
-        return v
-
-
-class UserProfile(UserResponse):
-    """Extended user profile with preferences"""
-    
-    model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
-    )
-    
-    last_login: Optional[datetime] = None
-    timezone: Optional[str] = "UTC"
-    language: Optional[str] = "en"
-    currency: Optional[str] = "USD"
-
-
-class UserStats(BaseModel):
-    """User statistics schema"""
-    
-    model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
-    )
-    
-    total_predictions: int = 0
-    successful_predictions: int = 0
-    accuracy_rate: float = 0.0
-    favorite_cryptocurrencies: List[str] = []
-    account_age_days: int = 0
-    last_activity: Optional[datetime] = None
-
-
-class UserListResponse(BaseModel):
-    """User list response with pagination"""
-    
-    model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
-    )
-    
-    users: List[UserResponse]
-    total: int
-    page: int
-    per_page: int
-
-
-# Token response schemas
-class TokenResponse(BaseModel):
-    """Token response schema"""
-    
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    expires_in: int
-
-
-class AuthResponse(BaseModel):
-    """Authentication response schema"""
-    
-    model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
-    )
-    
-    user: UserResponse
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    expires_in: int
-
-
-class TokenRefresh(BaseModel):
-    """Token refresh schema"""
-    
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
-    refresh_token: str

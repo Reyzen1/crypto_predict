@@ -1,5 +1,4 @@
-# File: ./backend/app/models/user.py
-# User model for CryptoPredict MVP authentication and user management
+# File: backend/app/models/user.py
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.orm import relationship
@@ -20,7 +19,7 @@ class User(Base):
     
     # User credentials
     email = Column(String(255), unique=True, index=True, nullable=False)
-    username = Column(String(50), unique=True, index=True, nullable=False)
+    # username = Column(String(50), unique=True, index=True, nullable=False)  # COMMENTED OUT - تعلیق شده
     hashed_password = Column(String(255), nullable=False)
     
     # User information
@@ -60,7 +59,12 @@ class User(Base):
             return self.first_name
         elif self.last_name:
             return self.last_name
-        return self.username
+        return self.email
+    
+    @property
+    def username(self) -> str:
+        """Username property for backward compatibility - use email"""
+        return self.email
     
     def __repr__(self):
-        return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
+        return f"<User(id={self.id}, email='{self.email}')>"

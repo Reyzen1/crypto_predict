@@ -44,7 +44,7 @@ class AuthService:
             user = user_repository.create_user(
                 db,
                 email=user_data.email,
-                password_hash=hashed_password,
+                hashed_password=hashed_password,
                 first_name=user_data.first_name,
                 last_name=user_data.last_name
             )
@@ -97,7 +97,7 @@ class AuthService:
             )
         
         # Verify password
-        if not security.verify_password(login_data.password, user.password_hash):
+        if not security.verify_password(login_data.password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
@@ -221,17 +221,17 @@ class AuthService:
             HTTPException: If current password is wrong
         """
         # Verify current password
-        if not security.verify_password(current_password, user.password_hash):
+        if not security.verify_password(current_password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Current password is incorrect"
             )
         
         # Hash new password
-        new_password_hash = security.hash_password(new_password)
+        new_hashed_password = security.hash_password(new_password)
         
         # Update password using your existing repository
-        user_repository.update(db, db_obj=user, obj_in={"password_hash": new_password_hash})
+        user_repository.update(db, db_obj=user, obj_in={"hashed_password": new_hashed_password})
         
         return True
 
