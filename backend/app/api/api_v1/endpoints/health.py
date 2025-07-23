@@ -8,7 +8,7 @@ import psutil
 import time
 from datetime import datetime, timezone
 
-from app.core.database import get_db, get_redis, check_db_connection
+from app.core.database import get_db, get_redis, check_db_connection, check_redis_connection
 from app.core.config import settings
 from app.core.deps import get_current_active_user, get_optional_current_user
 from app.repositories import user_repository, cryptocurrency_repository, price_data_repository
@@ -44,7 +44,7 @@ def comprehensive_health_check(
         "message": "API is running"
     }
     
-    # Check database health
+    # Check database health - FIXED: No await needed
     try:
         db_healthy = check_db_connection()
         health_status["components"]["database"] = {
@@ -61,14 +61,15 @@ def comprehensive_health_check(
         }
         health_status["status"] = "degraded"
     
-    # Check Redis health
+    # Check Redis health - FIXED: No await needed
     try:
-        redis_client = get_redis()
-        redis_client.ping()
+        redis_healthy = check_redis_connection()
         health_status["components"]["redis"] = {
-            "status": "healthy",
-            "message": "Redis connection successful"
+            "status": "healthy" if redis_healthy else "unhealthy",
+            "message": "Redis connection successful" if redis_healthy else "Redis connection failed"
         }
+        if not redis_healthy:
+            health_status["status"] = "degraded"
     except Exception as e:
         health_status["components"]["redis"] = {
             "status": "unhealthy",
@@ -93,14 +94,25 @@ def get_system_metrics(
     Returns system resource usage and performance data.
     """
     try:
-        # Get system metrics
+        # System metrics
         cpu_percent = psutil.cpu_percent(interval=1)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
         
-        # Get process-specific metrics
-        process = psutil.Process()
-        process_memory = process.memory_info()
+        # Database metrics
+        db_session = next(get_db())
+        try:
+            # Get user count
+            user_count = user_repository.count(db_session)
+            
+            # Get crypto count
+            crypto_count = cryptocurrency_repository.count(db_session)
+            
+            # Get price data count (last 24 hours)
+            recent_prices = price_data_repository.get_recent_count(db_session, hours=24)
+            
+        finally:
+            db_session.close()
         
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -117,242 +129,218 @@ def get_system_metrics(
                     "used_percent": round((disk.used / disk.total) * 100, 2)
                 }
             },
-            "process": {
-                "memory_mb": round(process_memory.rss / (1024**2), 2),
-                "cpu_percent": process.cpu_percent(),
-                "threads": process.num_threads(),
-                "open_files": len(process.open_files())
+            "database": {
+                "total_users": user_count,
+                "total_cryptocurrencies": crypto_count,
+                "recent_price_updates": recent_prices
             },
-            "application": {
+            "api": {
                 "version": settings.VERSION,
-                "environment": settings.ENVIRONMENT,
-                "debug_mode": settings.DEBUG
+                "environment": settings.ENVIRONMENT
             }
         }
         
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve system metrics: {str(e)}"
+            detail=f"Failed to collect metrics: {str(e)}"
         )
 
 
 @router.get("/database")
-def get_database_health(
+def database_health_check(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
-    Get detailed database health information
+    Detailed database health check
     
     Requires user authentication.
-    Returns database connection status and data statistics.
+    Returns database connection status and basic statistics.
     """
     try:
-        start_time = time.time()
+        # Test database connection
+        db.execute("SELECT 1")
         
-        # Basic connection test
-        db_healthy = check_db_connection()
-        connection_time = round((time.time() - start_time) * 1000, 2)
-        
-        if not db_healthy:
-            return {
-                "status": "unhealthy",
-                "connection_time_ms": connection_time,
-                "error": "Database connection failed"
-            }
-        
-        # Get data statistics using your existing repositories
-        stats = {}
-        
-        try:
-            # User statistics
-            active_users = user_repository.count_active_users(db)
-            stats["users"] = {
-                "total_active": active_users,
-                "status": "healthy"
-            }
-        except Exception as e:
-            stats["users"] = {
-                "status": "error",
-                "error": str(e)
-            }
-        
-        try:
-            # Cryptocurrency statistics
-            all_cryptos = cryptocurrency_repository.get_all(db)
-            active_cryptos = cryptocurrency_repository.get_active_cryptos(db)
-            stats["cryptocurrencies"] = {
-                "total": len(all_cryptos),
-                "active": len(active_cryptos),
-                "status": "healthy"
-            }
-        except Exception as e:
-            stats["cryptocurrencies"] = {
-                "status": "error",
-                "error": str(e)
-            }
-        
-        try:
-            # Price data statistics  
-            btc = cryptocurrency_repository.get_by_symbol(db, "BTC")
-            if btc:
-                btc_data_check = price_data_repository.check_data_availability(db, btc.id)
-                stats["price_data"] = {
-                    "btc_data_points": btc_data_check["total_records"],
-                    "btc_data_quality": btc_data_check["data_quality"],
-                    "status": "healthy"
-                }
-            else:
-                stats["price_data"] = {
-                    "status": "warning",
-                    "message": "No BTC data found"
-                }
-        except Exception as e:
-            stats["price_data"] = {
-                "status": "error",
-                "error": str(e)
-            }
-        
-        return {
+        # Get database statistics
+        stats = {
             "status": "healthy",
-            "connection_time_ms": connection_time,
-            "database_url": settings.DATABASE_URL.split("@")[-1] if "@" in settings.DATABASE_URL else "hidden",
-            "statistics": stats,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "message": "Database connection successful",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "statistics": {}
         }
+        
+        try:
+            # Get table counts
+            stats["statistics"]["users"] = user_repository.count(db)
+            stats["statistics"]["cryptocurrencies"] = cryptocurrency_repository.count(db)
+            stats["statistics"]["price_data_points"] = price_data_repository.count(db)
+            
+        except Exception as e:
+            stats["statistics"]["error"] = f"Could not collect statistics: {str(e)}"
+        
+        return stats
         
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database health check failed: {str(e)}"
+        )
 
 
 @router.get("/redis")
-def get_redis_health(
+def redis_health_check(
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
-    Get detailed Redis health information
+    Detailed Redis health check
     
     Requires user authentication.
-    Returns Redis connection status and basic statistics.
+    Returns Redis connection status and basic information.
     """
     try:
-        start_time = time.time()
-        
-        # Get Redis client
         redis_client = get_redis()
+        if redis_client is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Redis client not available"
+            )
         
-        # Test connection
+        # Test Redis connection
         redis_client.ping()
-        connection_time = round((time.time() - start_time) * 1000, 2)
         
         # Get Redis info
         redis_info = redis_client.info()
         
         return {
             "status": "healthy",
-            "connection_time_ms": connection_time,
-            "redis_url": settings.REDIS_URL.split("@")[-1] if "@" in settings.REDIS_URL else settings.REDIS_URL,
+            "message": "Redis connection successful",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "info": {
-                "version": redis_info.get("redis_version"),
-                "uptime_seconds": redis_info.get("uptime_in_seconds"),
-                "connected_clients": redis_info.get("connected_clients"),
+                "redis_version": redis_info.get("redis_version"),
                 "used_memory_human": redis_info.get("used_memory_human"),
+                "connected_clients": redis_info.get("connected_clients"),
                 "total_commands_processed": redis_info.get("total_commands_processed"),
-                "keyspace": {
-                    key: value for key, value in redis_info.items() 
-                    if key.startswith("db")
-                }
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+                "keyspace_hits": redis_info.get("keyspace_hits"),
+                "keyspace_misses": redis_info.get("keyspace_misses")
+            }
         }
         
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Redis health check failed: {str(e)}"
+        )
 
 
-@router.get("/dependencies")
-def check_external_dependencies(
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
+@router.get("/detailed")
+def detailed_health_check() -> Any:
     """
-    Check status of external dependencies and APIs
+    Detailed health check with all system components
     
-    Requires user authentication.
-    Tests connectivity to external services.
+    Public endpoint - no authentication required.
+    Performs comprehensive health checks on all system dependencies.
     """
-    dependencies = {
+    health_status = {
         "status": "healthy",
+        "service": "cryptopredict-backend", 
+        "version": settings.VERSION,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "services": {}
+        "checks": {}
     }
     
-    # Check external APIs (basic connectivity)
-    external_apis = [
-        {
-            "name": "CoinGecko API",
-            "url": "https://api.coingecko.com/api/v3/ping",
-            "required": True
-        },
-        {
-            "name": "Binance API", 
-            "url": "https://api.binance.com/api/v3/ping",
-            "required": False
+    # Database health check - FIXED: No await needed
+    try:
+        db_healthy = check_db_connection()
+        health_status["checks"]["database"] = {
+            "status": "healthy" if db_healthy else "unhealthy",
+            "connection": "active" if db_healthy else "failed"
         }
-    ]
-    
-    import httpx
-    
-    for api in external_apis:
-        try:
-            start_time = time.time()
+        
+        if not db_healthy:
+            health_status["status"] = "unhealthy"
             
-            with httpx.Client(timeout=5.0) as client:
-                response = client.get(api["url"])
-                response_time = round((time.time() - start_time) * 1000, 2)
-                
-                if response.status_code == 200:
-                    dependencies["services"][api["name"]] = {
-                        "status": "healthy",
-                        "response_time_ms": response_time,
-                        "status_code": response.status_code
-                    }
-                else:
-                    dependencies["services"][api["name"]] = {
-                        "status": "unhealthy",
-                        "response_time_ms": response_time,
-                        "status_code": response.status_code
-                    }
-                    if api["required"]:
-                        dependencies["status"] = "degraded"
-                        
-        except Exception as e:
-            dependencies["services"][api["name"]] = {
-                "status": "unhealthy",
-                "error": str(e)
-            }
-            if api["required"]:
-                dependencies["status"] = "degraded"
+    except Exception as e:
+        health_status["checks"]["database"] = {
+            "status": "error",
+            "error": str(e)
+        }
+        health_status["status"] = "unhealthy"
     
-    return dependencies
+    # Redis health check - FIXED: No await needed
+    try:
+        redis_healthy = check_redis_connection()
+        health_status["checks"]["redis"] = {
+            "status": "healthy" if redis_healthy else "unhealthy",
+            "connection": "active" if redis_healthy else "failed"
+        }
+        
+        if not redis_healthy:
+            health_status["status"] = "degraded"  # Redis is not critical for basic operation
+            
+    except Exception as e:
+        health_status["checks"]["redis"] = {
+            "status": "error",
+            "error": str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # Configuration health check
+    try:
+        config_issues = []
+        
+        if not settings.SECRET_KEY or settings.SECRET_KEY == "your-super-secret-key-change-this-in-production":
+            config_issues.append("SECRET_KEY not properly configured")
+        
+        if not settings.DATABASE_URL:
+            config_issues.append("DATABASE_URL not configured")
+            
+        if not settings.REDIS_URL:
+            config_issues.append("REDIS_URL not configured")
+        
+        health_status["checks"]["configuration"] = {
+            "status": "healthy" if not config_issues else "warning",
+            "issues": config_issues
+        }
+        
+    except Exception as e:
+        health_status["checks"]["configuration"] = {
+            "status": "error",
+            "error": str(e)
+        }
+    
+    # Environment health check
+    try:
+        env_warnings = []
+        
+        if settings.DEBUG and settings.ENVIRONMENT == "production":
+            env_warnings.append("DEBUG mode enabled in production")
+            
+        if settings.SECRET_KEY and len(settings.SECRET_KEY) < 32:
+            env_warnings.append("SECRET_KEY should be at least 32 characters")
+        
+        health_status["checks"]["environment"] = {
+            "status": "healthy" if not env_warnings else "warning",
+            "warnings": env_warnings,
+            "environment": settings.ENVIRONMENT,
+            "debug_mode": settings.DEBUG
+        }
+        
+    except Exception as e:
+        health_status["checks"]["environment"] = {
+            "status": "error",
+            "error": str(e)
+        }
+    
+    return health_status
 
 
-@router.get("/startup")
-def get_startup_checks(
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
+@router.get("/readiness")
+def readiness_check() -> Any:
     """
-    Run startup validation checks
+    Readiness check for Kubernetes/container orchestration
     
-    Requires user authentication.
+    Public endpoint - validates that the application is ready to accept traffic.
     Validates system configuration and readiness.
     """
     checks = {
@@ -399,3 +387,76 @@ def get_startup_checks(
         checks["status"] = "warning"
     
     return checks
+
+
+@router.get("/liveness")
+def liveness_check() -> Any:
+    """
+    Liveness check for Kubernetes/container orchestration
+    
+    Public endpoint - simple check to verify the application is alive and responsive.
+    Does not check external dependencies.
+    """
+    return {
+        "status": "alive",
+        "service": "cryptopredict-backend",
+        "version": settings.VERSION,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "uptime": "running"  # Could be enhanced with actual uptime calculation
+    }
+
+
+@router.get("/startup")
+def startup_check() -> Any:
+    """
+    Startup check for initialization validation
+    
+    Public endpoint - validates that all required components are initialized.
+    """
+    startup_status = {
+        "status": "ready",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "initialization": {}
+    }
+    
+    # Check if database tables exist
+    try:
+        db_session = next(get_db())
+        try:
+            # Try to query each main table
+            user_repository.count(db_session)
+            startup_status["initialization"]["database_tables"] = {
+                "status": "ready",
+                "message": "All database tables accessible"
+            }
+        except Exception as e:
+            startup_status["initialization"]["database_tables"] = {
+                "status": "not_ready",
+                "message": f"Database tables not accessible: {str(e)}"
+            }
+            startup_status["status"] = "not_ready"
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        startup_status["initialization"]["database_tables"] = {
+            "status": "error",
+            "message": f"Database connection failed: {str(e)}"
+        }
+        startup_status["status"] = "not_ready"
+    
+    # Check Redis availability
+    try:
+        redis_healthy = check_redis_connection()
+        startup_status["initialization"]["redis_cache"] = {
+            "status": "ready" if redis_healthy else "not_ready",
+            "message": "Redis cache available" if redis_healthy else "Redis cache not available"
+        }
+        # Redis is not critical for startup
+    except Exception as e:
+        startup_status["initialization"]["redis_cache"] = {
+            "status": "error",
+            "message": f"Redis check failed: {str(e)}"
+        }
+    
+    return startup_status

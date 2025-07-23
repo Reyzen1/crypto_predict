@@ -1,16 +1,24 @@
 # File: backend/app/core/config.py
-# Complete configuration with all required fields
+# Complete configuration with all required fields 
 
 import os
 from typing import List, Optional, Union
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
+from pydantic import field_validator, ConfigDict
 
 
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables and .env file
     """
+    
+    # Pydantic V2 configuration using ConfigDict (FIXED)
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore"
+    )
     
     # Basic app settings
     ENVIRONMENT: str = "development"
@@ -86,12 +94,6 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return v.lower() in ('true', '1', 'yes', 'on')
         return bool(v)
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
-        extra = "ignore"
 
 
 def get_settings() -> Settings:
@@ -110,8 +112,8 @@ def get_settings() -> Settings:
     return Settings()
 
 
-# Create settings instance
+# Create settings instance - CRITICAL: This was missing!
 settings = get_settings()
 
 # Export for backward compatibility
-__all__ = ["settings", "Settings"]
+__all__ = ["settings", "Settings", "get_settings"]

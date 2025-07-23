@@ -1,4 +1,4 @@
-# File: ./backend/app/schemas/__init__.py
+# File: backend/app/schemas/__init__.py
 # Schemas package initialization - exports all schema classes
 
 # Common schemas
@@ -8,11 +8,18 @@ from app.schemas.common import (
     PaginatedResponse,
     SuccessResponse,
     ErrorResponse,
-    HealthCheck,
-    SearchParams,
+    HealthStatus,
+    HealthCheck,  # Backward compatibility alias
     DateRangeFilter,
-    BulkOperation,
-    BulkOperationResult
+    APIResponse,
+    SortOrder,
+    FilterParams,
+    BatchOperation,
+    MetricsResponse,
+    BulkOperationResult,
+    SearchParams,
+    TimeSeriesParams,
+    ExportRequest
 )
 
 # User schemas
@@ -23,11 +30,12 @@ from app.schemas.user import (
     UserUpdate,
     UserPasswordChange,
     UserResponse,
-    UserSummary,
-    UserWithStats,
-    Token,
-    TokenData,
-    UserPreferences
+    UserProfile,
+    UserStats,
+    UserListResponse,
+    TokenResponse,
+    AuthResponse,
+    TokenRefresh
 )
 
 # Cryptocurrency schemas
@@ -40,10 +48,7 @@ from app.schemas.cryptocurrency import (
     CryptocurrencyStats,
     CryptocurrencyList,
     CryptocurrencySearch,
-    CryptocurrencyBulkUpdate,
-    MarketData,
-    CryptocurrencyRanking,
-    SupportedCryptocurrencies
+    CryptocurrencyBulkUpdate
 )
 
 # Price data schemas
@@ -59,7 +64,6 @@ from app.schemas.price_data import (
     PriceStatistics,
     MLDataRequest,
     MLDataResponse,
-    PriceAlert,
     PriceDataBulkInsert,
     PriceDataAnalytics,
     RealTimePriceUpdate
@@ -71,18 +75,13 @@ from app.schemas.prediction import (
     PredictionCreate,
     PredictionUpdate,
     PredictionResponse,
-    PredictionWithDetails,
     PredictionRequest,
     PredictionResult,
     BatchPredictionRequest,
     BatchPredictionResponse,
     ModelPerformance,
     PredictionAnalytics,
-    PredictionComparison,
-    UserPredictionStats,
-    PredictionAlert,
-    ModelTrainingRequest,
-    ModelTrainingResponse
+    PredictionComparison
 )
 
 # Export all schema classes for easy importing
@@ -93,11 +92,18 @@ __all__ = [
     "PaginatedResponse",
     "SuccessResponse",
     "ErrorResponse", 
-    "HealthCheck",
-    "SearchParams",
+    "HealthStatus",
+    "HealthCheck",  # Backward compatibility
     "DateRangeFilter",
-    "BulkOperation",
+    "APIResponse",
+    "SortOrder",
+    "FilterParams",
+    "BatchOperation",
+    "MetricsResponse",
     "BulkOperationResult",
+    "SearchParams",
+    "TimeSeriesParams",
+    "ExportRequest",
     
     # User schemas
     "UserBase",
@@ -106,11 +112,12 @@ __all__ = [
     "UserUpdate",
     "UserPasswordChange",
     "UserResponse",
-    "UserSummary",
-    "UserWithStats", 
-    "Token",
-    "TokenData",
-    "UserPreferences",
+    "UserProfile",
+    "UserStats",
+    "UserListResponse",
+    "TokenResponse",
+    "AuthResponse",
+    "TokenRefresh",
     
     # Cryptocurrency schemas
     "CryptocurrencyBase",
@@ -122,9 +129,6 @@ __all__ = [
     "CryptocurrencyList",
     "CryptocurrencySearch",
     "CryptocurrencyBulkUpdate",
-    "MarketData",
-    "CryptocurrencyRanking", 
-    "SupportedCryptocurrencies",
     
     # Price data schemas
     "PriceDataBase",
@@ -138,7 +142,6 @@ __all__ = [
     "PriceStatistics",
     "MLDataRequest",
     "MLDataResponse", 
-    "PriceAlert",
     "PriceDataBulkInsert",
     "PriceDataAnalytics",
     "RealTimePriceUpdate",
@@ -148,16 +151,11 @@ __all__ = [
     "PredictionCreate",
     "PredictionUpdate",
     "PredictionResponse",
-    "PredictionWithDetails",
     "PredictionRequest",
     "PredictionResult",
     "BatchPredictionRequest",
     "BatchPredictionResponse",
     "ModelPerformance",
     "PredictionAnalytics", 
-    "PredictionComparison",
-    "UserPredictionStats",
-    "PredictionAlert",
-    "ModelTrainingRequest",
-    "ModelTrainingResponse"
+    "PredictionComparison"
 ]

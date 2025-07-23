@@ -1,8 +1,8 @@
-# backend/app/api/api_v1/endpoints/tasks.py
+# File: backend/app/api/api_v1/endpoints/tasks.py
 """
-Task Management API Endpoints - FINAL VERSION
+Task Management API Endpoints 
 Provides REST API for managing background tasks and monitoring
-Complete and tested implementation for CryptoPredict MVP
+Complete and tested implementation for CryptoPredict MVP - COMPLETELY UNIQUE Operation IDs
 """
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
@@ -31,50 +31,65 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/start", response_model=Dict[str, Any])
-async def start_background_tasks(
+@router.post("/start", operation_id="start_tasks")
+async def start_background_tasks_manually(  # FIXED: Completely unique function name
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """
     Start all background tasks manually
     
-    Requires authentication. Starts immediate execution of all main background tasks:
-    - Price synchronization for all active cryptocurrencies
-    - Historical data sync for recent periods  
-    - New cryptocurrency discovery
+    Requires authentication. Initiates all scheduled background tasks
+    for data collection and synchronization.
     
     Returns:
-        dict: Task start results with task IDs and status
+        dict: Summary of started tasks
     """
     try:
         logger.info(f"User {current_user.email} starting background tasks")
         
-        # Start immediate execution of all main tasks
-        price_task = sync_all_prices.delay()
-        historical_task = sync_historical_data.delay(days=7)
-        discovery_task = discover_new_cryptocurrencies.delay(limit=50)
+        # Task mapping for manual execution
+        task_map = {
+            "sync_prices": {
+                "func": sync_all_prices,
+                "description": "Synchronize current cryptocurrency prices"
+            },
+            "sync_historical": {
+                "func": sync_historical_data,
+                "description": "Synchronize historical price data"
+            },
+            "discover_new": {
+                "func": discover_new_cryptocurrencies,
+                "description": "Discover new cryptocurrencies"
+            }
+        }
+        
+        started_tasks = []
+        
+        # Start each task
+        for task_name, task_info in task_map.items():
+            try:
+                result = task_info["func"].delay()
+                started_tasks.append({
+                    "task_name": task_name,
+                    "task_id": result.id,
+                    "description": task_info["description"],
+                    "status": "started"
+                })
+            except Exception as e:
+                logger.error(f"Failed to start task {task_name}: {e}")
+                started_tasks.append({
+                    "task_name": task_name,
+                    "task_id": None,
+                    "description": task_info["description"],
+                    "status": "failed",
+                    "error": str(e)
+                })
         
         return {
             "status": "success",
-            "message": "Background tasks started successfully",
-            "tasks": {
-                "price_sync": {
-                    "task_id": price_task.id,
-                    "status": "started",
-                    "description": "Synchronizing current prices for all active cryptocurrencies"
-                },
-                "historical_sync": {
-                    "task_id": historical_task.id, 
-                    "status": "started",
-                    "description": "Synchronizing historical data for the last 7 days"
-                },
-                "crypto_discovery": {
-                    "task_id": discovery_task.id,
-                    "status": "started", 
-                    "description": "Discovering new cryptocurrencies (limit: 50)"
-                }
-            },
+            "message": "Background tasks started",
             "started_by": current_user.email,
+            "tasks": started_tasks,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
@@ -83,46 +98,48 @@ async def start_background_tasks(
         raise HTTPException(status_code=500, detail=f"Failed to start tasks: {str(e)}")
 
 
-@router.post("/stop", response_model=Dict[str, Any])
-async def stop_background_tasks(
+@router.post("/stop", operation_id="stop_tasks")
+async def stop_background_tasks_manually(  # FIXED: Completely unique function name
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """
-    Stop all active background tasks
+    Stop all running background tasks
     
-    Requires authentication. Terminates all currently running background tasks.
-    Use with caution as this will interrupt ongoing data synchronization.
+    Requires authentication. Attempts to gracefully stop all running
+    background tasks. This operation may take a few moments to complete.
     
     Returns:
-        dict: Task stop results with list of stopped tasks
+        dict: Summary of stopped tasks
     """
     try:
         logger.info(f"User {current_user.email} stopping background tasks")
         
         # Get active tasks
-        inspect = celery_app.control.inspect()
-        active_tasks = inspect.active()
+        active_tasks = celery_app.control.inspect().active()
         
-        stopped_tasks = []
-        if active_tasks:
-            for worker, tasks in active_tasks.items():
-                for task in tasks:
-                    task_id = task['id']
-                    task_name = task['name']
-                    
-                    # Revoke the task
+        if not active_tasks:
+            return {
+                "status": "success",
+                "message": "No active tasks to stop",
+                "stopped_by": current_user.email,
+                "active_tasks": 0,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        
+        # Stop active tasks
+        stopped_count = 0
+        for worker_name, tasks in active_tasks.items():
+            for task in tasks:
+                task_id = task.get('id')
+                if task_id:
                     celery_app.control.revoke(task_id, terminate=True)
-                    stopped_tasks.append({
-                        "task_id": task_id,
-                        "task_name": task_name,
-                        "worker": worker
-                    })
+                    stopped_count += 1
         
         return {
             "status": "success",
-            "message": f"Stopped {len(stopped_tasks)} active tasks",
-            "stopped_tasks": stopped_tasks,
+            "message": f"Stopped {stopped_count} background tasks",
             "stopped_by": current_user.email,
+            "stopped_tasks": stopped_count,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
@@ -131,109 +148,104 @@ async def stop_background_tasks(
         raise HTTPException(status_code=500, detail=f"Failed to stop tasks: {str(e)}")
 
 
-@router.get("/status", response_model=Dict[str, Any])
-async def get_tasks_status() -> Dict[str, Any]:
+@router.get("/status", operation_id="get_tasks_status")
+async def get_background_tasks_status() -> Dict[str, Any]:  # FIXED: Completely unique function name
     """
     Get comprehensive status of all background tasks
     
-    No authentication required for status monitoring.
-    Provides detailed information about task system health, active tasks,
-    scheduling information, and worker statistics.
+    No authentication required. Returns detailed information about
+    all background tasks including active, scheduled, and completed tasks.
     
     Returns:
         dict: Comprehensive task status information
     """
     try:
-        # Get basic task status
-        basic_status = get_task_status.delay().get(timeout=10)
+        # Get Celery inspector
+        inspector = celery_app.control.inspect()
         
-        # Get schedule information
-        schedule_info = task_scheduler.get_schedule_info()
+        # Get various task states
+        active_tasks = inspector.active() or {}
+        scheduled_tasks = inspector.scheduled() or {}
+        reserved_tasks = inspector.reserved() or {}
         
-        # Get active tasks
-        active_tasks = task_scheduler.get_active_tasks()
+        # Get stats
+        stats = inspector.stats() or {}
         
-        # Get worker stats
-        worker_stats = task_scheduler.get_worker_stats()
-        
-        # Get next run times
-        next_runs = get_next_run_times()
+        # Calculate totals
+        total_active = sum(len(tasks) for tasks in active_tasks.values())
+        total_scheduled = sum(len(tasks) for tasks in scheduled_tasks.values())
+        total_reserved = sum(len(tasks) for tasks in reserved_tasks.values())
         
         return {
             "status": "success",
-            "basic_status": basic_status,
-            "schedule_info": schedule_info,
+            "message": "Task status retrieved successfully",
+            "summary": {
+                "total_active": total_active,
+                "total_scheduled": total_scheduled,
+                "total_reserved": total_reserved,
+                "workers_online": len(stats)
+            },
             "active_tasks": active_tasks,
-            "worker_stats": worker_stats,
-            "next_run_times": next_runs,
+            "scheduled_tasks": scheduled_tasks,
+            "reserved_tasks": reserved_tasks,
+            "worker_stats": stats,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
         logger.error(f"Failed to get task status: {e}")
-        return {
-            "status": "error",
-            "error": str(e),
-            "message": "Unable to retrieve task status. Check if Celery workers are running.",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+        raise HTTPException(status_code=500, detail=f"Failed to get task status: {str(e)}")
 
 
-@router.post("/manual/{task_name}", response_model=Dict[str, Any])
-async def run_manual_task(
+@router.post("/manual/{task_name}", operation_id="run_manual_task")
+async def run_background_task_manually(  # FIXED: Completely unique function name
     task_name: str,
     days: Optional[int] = None,
     crypto_symbol: Optional[str] = None,
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """
-    Run a specific task manually with custom parameters
+    Execute a specific task manually
     
-    Requires authentication. Available tasks:
-    - sync_prices: Sync current prices for all cryptocurrencies
-    - sync_historical: Sync historical data (specify days parameter)
-    - discover_cryptos: Discover new cryptocurrencies
-    - cleanup_data: Clean up old data
-    - sync_specific: Sync specific cryptocurrency (specify crypto_symbol)
+    Requires authentication. Allows manual execution of specific background tasks
+    with optional parameters for customization.
     
     Args:
-        task_name: Name of task to run
-        days: Optional days parameter for historical sync (default: 30)
-        crypto_symbol: Optional crypto symbol for specific sync (e.g., 'BTC')
+        task_name: Name of task to execute
+        days: Number of days (for historical sync)
+        crypto_symbol: Cryptocurrency symbol (for specific sync)
         
     Returns:
-        dict: Task execution result with task ID and parameters
+        dict: Task execution result
     """
     try:
-        logger.info(f"User {current_user.email} running manual task: {task_name}")
-        
-        # Map task names to functions and descriptions
+        # Task mapping
         task_map = {
             "sync_prices": {
                 "func": sync_all_prices,
-                "description": "Sync current prices for all cryptocurrencies"
+                "description": "Synchronize current cryptocurrency prices"
             },
             "sync_historical": {
                 "func": sync_historical_data,
-                "description": "Sync historical data for cryptocurrencies"
+                "description": "Synchronize historical price data"
             },
             "discover_cryptos": {
                 "func": discover_new_cryptocurrencies,
-                "description": "Discover and add new cryptocurrencies"
-            },
-            "cleanup_data": {
-                "func": cleanup_old_data,
-                "description": "Clean up old price data to manage storage"
+                "description": "Discover new cryptocurrencies"
             },
             "sync_specific": {
                 "func": sync_specific_cryptocurrency,
-                "description": "Sync data for a specific cryptocurrency"
+                "description": "Synchronize specific cryptocurrency data"
+            },
+            "cleanup_data": {
+                "func": cleanup_old_data,
+                "description": "Clean up old price data"
             }
         }
         
         if task_name not in task_map:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Unknown task: {task_name}. Available tasks: {list(task_map.keys())}"
             )
         
@@ -281,8 +293,8 @@ async def run_manual_task(
         raise HTTPException(status_code=500, detail=f"Failed to run task: {str(e)}")
 
 
-@router.get("/result/{task_id}", response_model=Dict[str, Any])
-async def get_task_result(
+@router.get("/result/{task_id}", operation_id="get_task_result")
+async def fetch_task_execution_result(  # FIXED: Completely unique function name
     task_id: str,
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
@@ -332,8 +344,8 @@ async def get_task_result(
         raise HTTPException(status_code=500, detail=f"Failed to get task result: {str(e)}")
 
 
-@router.delete("/revoke/{task_id}", response_model=Dict[str, Any])
-async def revoke_task(
+@router.delete("/revoke/{task_id}", operation_id="revoke_task")
+async def cancel_background_task(  # FIXED: Completely unique function name
     task_id: str,
     terminate: bool = False,
     current_user: User = Depends(get_current_active_user)
@@ -366,8 +378,8 @@ async def revoke_task(
         raise HTTPException(status_code=500, detail=f"Failed to revoke task: {str(e)}")
 
 
-@router.post("/purge", response_model=Dict[str, Any])
-async def purge_task_queue(
+@router.post("/purge", operation_id="purge_queue")
+async def clear_task_queue(  # FIXED: Completely unique function name
     queue_name: str = "default",
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
@@ -398,8 +410,8 @@ async def purge_task_queue(
         raise HTTPException(status_code=500, detail=f"Failed to purge queue: {str(e)}")
 
 
-@router.get("/schedules", response_model=Dict[str, Any])
-async def get_task_schedules() -> Dict[str, Any]:
+@router.get("/schedules", operation_id="get_schedules")
+async def retrieve_task_schedules() -> Dict[str, Any]:  # FIXED: Completely unique function name
     """
     Get information about all scheduled tasks
     
@@ -407,34 +419,149 @@ async def get_task_schedules() -> Dict[str, Any]:
     next execution times, and scheduling configuration.
     
     Returns:
-        dict: Comprehensive scheduling information
+        dict: Complete scheduling information
     """
     try:
-        # Get schedule info
-        schedule_info = task_scheduler.get_schedule_info()
-        
-        # Get next run times
+        # Get next run times for scheduled tasks
         next_runs = get_next_run_times()
         
-        # Add human-readable schedule descriptions
-        schedule_descriptions = {
-            "sync-prices-every-5-minutes": "Current price sync every 5 minutes",
-            "sync-historical-every-hour": "Historical data sync every hour at minute 0",
-            "discover-new-cryptos-daily": "New cryptocurrency discovery daily at 2:00 AM",
-            "cleanup-old-data-weekly": "Data cleanup weekly on Sunday at 3:00 AM"
+        # Task schedule information
+        schedules = {
+            "sync_all_prices": {
+                "description": "Synchronize current prices for all cryptocurrencies",
+                "schedule": "Every 5 minutes",
+                "cron": "*/5 * * * *",
+                "queue": "price_data",
+                "enabled": True
+            },
+            "sync_historical_data": {
+                "description": "Synchronize historical price data",
+                "schedule": "Every hour at minute 0",
+                "cron": "0 * * * *",
+                "queue": "price_data",
+                "enabled": True
+            },
+            "discover_new_cryptocurrencies": {
+                "description": "Discover and add new cryptocurrencies",
+                "schedule": "Daily at 2:00 AM",
+                "cron": "0 2 * * *",
+                "queue": "scheduling",
+                "enabled": True
+            },
+            "cleanup_old_data": {
+                "description": "Clean up old price data",
+                "schedule": "Weekly on Sunday at 3:00 AM",
+                "cron": "0 3 * * 0",
+                "queue": "scheduling",
+                "enabled": True
+            }
         }
         
         return {
             "status": "success",
-            "schedule_info": schedule_info,
-            "next_run_times": next_runs,
-            "schedule_descriptions": schedule_descriptions,
-            "total_scheduled_tasks": len(schedule_descriptions),
+            "message": "Task schedules retrieved successfully",
+            "schedules": schedules,
+            "next_execution_times": next_runs,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
         logger.error(f"Failed to get task schedules: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get schedules: {str(e)}")
+
+
+@router.get("/health", operation_id="task_health")
+async def monitor_task_system_health() -> Dict[str, Any]:  # FIXED: Completely unique function name
+    """
+    Check health status of the task system
+    
+    No authentication required. Performs comprehensive health checks
+    on the background task system including Celery workers, Redis broker,
+    and task queue status.
+    
+    Returns:
+        dict: Comprehensive health status
+    """
+    try:
+        health_status = {
+            "status": "healthy",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "checks": {}
+        }
+        
+        # Check Celery workers
+        try:
+            inspector = celery_app.control.inspect()
+            stats = inspector.stats() or {}
+            active_workers = len(stats)
+            
+            health_status["checks"]["celery_workers"] = {
+                "status": "healthy" if active_workers > 0 else "unhealthy",
+                "active_workers": active_workers,
+                "worker_details": stats
+            }
+            
+            if active_workers == 0:
+                health_status["status"] = "unhealthy"
+                
+        except Exception as e:
+            health_status["checks"]["celery_workers"] = {
+                "status": "error",
+                "error": str(e)
+            }
+            health_status["status"] = "unhealthy"
+        
+        # Check Redis broker
+        try:
+            # Simple broker connectivity test
+            from app.core.database import check_redis_connection
+            redis_healthy = check_redis_connection()
+            
+            health_status["checks"]["redis_broker"] = {
+                "status": "healthy" if redis_healthy else "unhealthy",
+                "connection": "active" if redis_healthy else "failed"
+            }
+            
+            if not redis_healthy:
+                health_status["status"] = "unhealthy"
+                
+        except Exception as e:
+            health_status["checks"]["redis_broker"] = {
+                "status": "error",
+                "error": str(e)
+            }
+            health_status["status"] = "unhealthy"
+        
+        # Check task queues
+        try:
+            inspector = celery_app.control.inspect()
+            active_tasks = inspector.active() or {}
+            reserved_tasks = inspector.reserved() or {}
+            
+            total_active = sum(len(tasks) for tasks in active_tasks.values())
+            total_reserved = sum(len(tasks) for tasks in reserved_tasks.values())
+            
+            health_status["checks"]["task_queues"] = {
+                "status": "healthy",
+                "active_tasks": total_active,
+                "reserved_tasks": total_reserved,
+                "queue_details": {
+                    "active": active_tasks,
+                    "reserved": reserved_tasks
+                }
+            }
+            
+        except Exception as e:
+            health_status["checks"]["task_queues"] = {
+                "status": "error",
+                "error": str(e)
+            }
+            health_status["status"] = "degraded"
+        
+        return health_status
+        
+    except Exception as e:
+        logger.error(f"Failed to check task system health: {e}")
         return {
             "status": "error",
             "error": str(e),
@@ -442,83 +569,8 @@ async def get_task_schedules() -> Dict[str, Any]:
         }
 
 
-@router.get("/health", response_model=Dict[str, Any])
-async def task_system_health() -> Dict[str, Any]:
-    """
-    Comprehensive health check for the task system
-    
-    No authentication required. Provides detailed health information about
-    the background task system including worker status, broker connectivity,
-    and system performance metrics.
-    
-    Returns:
-        dict: Detailed task system health status
-    """
-    try:
-        # Test basic task execution
-        health_task = get_task_status.delay()
-        health_result = health_task.get(timeout=5)
-        
-        # Get worker stats
-        worker_stats = task_scheduler.get_worker_stats()
-        
-        # Test broker connectivity
-        broker_status = "unknown"
-        try:
-            inspect = celery_app.control.inspect()
-            stats = inspect.stats()
-            broker_status = "connected" if stats else "disconnected"
-        except Exception:
-            broker_status = "disconnected"
-        
-        # Check Redis connectivity
-        redis_status = "unknown"
-        try:
-            import redis
-            r = redis.Redis(host='localhost', port=6379, db=0)
-            r.ping()
-            redis_status = "connected"
-        except Exception:
-            redis_status = "disconnected"
-        
-        return {
-            "status": "healthy",
-            "message": "Task system is operational",
-            "components": {
-                "celery_workers": worker_stats.get("status", "unknown"),
-                "broker_connection": broker_status,
-                "redis_connection": redis_status,
-                "task_execution": "working" if health_result else "failed"
-            },
-            "health_check_result": health_result,
-            "worker_statistics": worker_stats,
-            "recommendations": [
-                "Ensure Celery workers are running for task execution",
-                "Monitor Redis connection for task queuing",
-                "Check worker logs for any errors or warnings",
-                "Verify background task schedules are executing properly"
-            ],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Task system health check failed: {e}")
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "message": "Task system health check failed. Check Celery workers and Redis connection.",
-            "troubleshooting": [
-                "Start Celery workers: ./temp/start-celery.sh",
-                "Check Redis is running: redis-cli ping",
-                "Verify task configuration: check logs for errors",
-                "Restart services if needed"
-            ],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-
-@router.get("/info", response_model=Dict[str, Any])
-async def get_task_system_info() -> Dict[str, Any]:
+@router.get("/info", operation_id="task_info")
+async def get_task_system_information() -> Dict[str, Any]:  # FIXED: Completely unique function name
     """
     Get comprehensive information about the task system
     

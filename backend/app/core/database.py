@@ -1,49 +1,71 @@
-# File: ./backend/app/core/database.py
-# Database configuration and session management for CryptoPredict MVP
-# Handles PostgreSQL connection and SQLAlchemy setup
-# MINIMAL FIX: Only changed the declarative_base import
+# File: backend/app/core/database.py
+# Database connection and session management
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session  
-from typing import Generator
-import redis
+import os
 import logging
+from typing import Generator, Optional
+from sqlalchemy import create_engine, MetaData
+from sqlalchemy.orm import sessionmaker, Session, declarative_base  # FIXED: Updated import
+from sqlalchemy.pool import NullPool
+import redis
+from redis import Redis
 
 from app.core.config import settings
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Setup logging
 logger = logging.getLogger(__name__)
 
-# SQLAlchemy Engine Configuration
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,          # Validate connections before use
-    pool_recycle=300,            # Recycle connections every 5 minutes
-    pool_size=20,                # Connection pool size
-    max_overflow=0,              # Maximum overflow connections
-    echo=settings.DEBUG,         # Log SQL queries in debug mode
-)
+# Database URL from settings
+DATABASE_URL = settings.DATABASE_URL
 
-# Session factory for database operations
+# Create SQLAlchemy engine with connection pooling
+if "sqlite" in DATABASE_URL:
+    # SQLite configuration for testing
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=NullPool
+    )
+else:
+    # PostgreSQL configuration for production
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=3600,  # Recycle connections every hour
+        echo=False  # Set to True for SQL query logging
+    )
+
+# Create SessionLocal class for database sessions
 SessionLocal = sessionmaker(
-    autocommit=False,            # Manual transaction control
-    autoflush=False,             # Manual flush control
-    bind=engine                  # Bind to our engine
+    bind=engine,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False
 )
 
-# Base class for all database models
-Base = declarative_base()  
+# Create declarative base for models - FIXED: Using SQLAlchemy 2.0 import
+Base = declarative_base()
 
-# Redis client for caching
+# Optional metadata for enhanced table management
+metadata = MetaData()
+
+# Redis client setup
+redis_client: Optional[Redis] = None
+
 try:
     redis_client = redis.from_url(
         settings.REDIS_URL,
-        decode_responses=True,       # Decode byte responses to strings
-        socket_connect_timeout=5,    # Connection timeout
-        socket_timeout=5,            # Socket timeout
-        retry_on_timeout=True        # Retry on timeout
+        decode_responses=True,
+        socket_connect_timeout=5,
+        socket_timeout=5,
+        retry_on_timeout=True,
+        health_check_interval=30
     )
+    # Test connection
+    redis_client.ping()
+    logger.info("Redis connection established successfully")
 except Exception as e:
     logger.warning(f"Redis connection failed: {e}")
     redis_client = None
@@ -51,8 +73,10 @@ except Exception as e:
 
 def get_db() -> Generator[Session, None, None]:
     """
-    Database session dependency for FastAPI
-    Creates a new database session for each request
+    Dependency function to get database session
+    
+    Yields:
+        Session: SQLAlchemy database session
     """
     db = SessionLocal()
     try:
@@ -65,19 +89,19 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def get_redis() -> redis.Redis:
+def get_redis() -> Optional[Redis]:
     """
-    Redis client dependency for FastAPI
-    Returns the global Redis client instance
+    Get Redis client instance
+    
+    Returns:
+        Redis client or None if unavailable
     """
-    if redis_client is None:
-        raise Exception("Redis client not available")
     return redis_client
 
 
-async def check_db_connection() -> bool:
+def check_db_connection() -> bool:
     """
-    Check if database connection is healthy
+    Check if database connection is healthy - FIXED: Made synchronous
     Returns True if connection is successful
     """
     try:
@@ -91,9 +115,9 @@ async def check_db_connection() -> bool:
         return False
 
 
-async def check_redis_connection() -> bool:
+def check_redis_connection() -> bool:
     """
-    Check if Redis connection is healthy
+    Check if Redis connection is healthy - FIXED: Made synchronous
     Returns True if connection is successful
     """
     try:
@@ -128,3 +152,34 @@ def drop_db() -> None:
     except Exception as e:
         logger.error(f"Failed to drop database tables: {e}")
         raise
+
+
+# Health check functions for monitoring
+def get_database_info() -> dict:
+    """Get database connection information"""
+    return {
+        "database_url": DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "local",
+        "engine_info": str(engine.url).split("@")[-1] if "@" in str(engine.url) else "local",
+        "pool_size": getattr(engine.pool, 'size', 'N/A'),
+        "pool_checked_in": getattr(engine.pool, 'checkedin', 'N/A'),
+        "pool_checked_out": getattr(engine.pool, 'checkedout', 'N/A'),
+        "pool_overflow": getattr(engine.pool, 'overflow', 'N/A'),
+    }
+
+
+def get_redis_info() -> dict:
+    """Get Redis connection information"""
+    if redis_client is None:
+        return {"status": "disconnected", "error": "Redis not available"}
+    
+    try:
+        info = redis_client.info()
+        return {
+            "status": "connected",
+            "redis_version": info.get("redis_version"),
+            "used_memory": info.get("used_memory_human"),
+            "connected_clients": info.get("connected_clients"),
+            "total_commands_processed": info.get("total_commands_processed")
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}

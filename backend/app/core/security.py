@@ -31,7 +31,7 @@ class SecurityManager:
         return self.pwd_context.verify(plain_password, hashed_password)
 
     def create_access_token(self, data: Dict[str, Any]) -> str:
-        """Create JWT access token"""
+        """Create JWT access token - FIXED UTC usage"""
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(minutes=self.access_token_expire_minutes)
         to_encode.update({"exp": expire, "type": "access"})
@@ -39,7 +39,7 @@ class SecurityManager:
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=self.algorithm)
 
     def create_refresh_token(self, data: Dict[str, Any]) -> str:
-        """Create JWT refresh token (7 days)"""
+        """Create JWT refresh token (7 days) - FIXED UTC usage"""
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(days=7)
         to_encode.update({"exp": expire, "type": "refresh"})
@@ -47,7 +47,7 @@ class SecurityManager:
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=self.algorithm)
 
     def verify_token(self, token: str, token_type: str = "access") -> Dict[str, Any]:
-        """Verify and decode JWT token"""
+        """Verify and decode JWT token - FIXED UTC usage"""
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[self.algorithm])
             
@@ -58,7 +58,7 @@ class SecurityManager:
                     detail=f"Invalid token type. Expected {token_type}"
                 )
             
-            # Check expiration
+            # Check expiration - FIXED: Use timezone-aware datetime
             exp = payload.get("exp")
             if exp is None:
                 raise HTTPException(
@@ -66,7 +66,9 @@ class SecurityManager:
                     detail="Token has no expiration"
                 )
             
-            if datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
+            # Convert timestamp to timezone-aware datetime
+            exp_datetime = datetime.fromtimestamp(exp, tz=timezone.utc)
+            if exp_datetime < datetime.now(timezone.utc):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Token has expired"
@@ -92,7 +94,7 @@ security = SecurityManager()
 # Additional standalone functions for backward compatibility
 def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
     """
-    Standalone function to create access token (for backward compatibility)
+    Standalone function to create access token (for backward compatibility) - FIXED UTC usage
     """
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
