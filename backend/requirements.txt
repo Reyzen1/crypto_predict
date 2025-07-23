@@ -56,7 +56,7 @@ apscheduler==3.10.4               # Advanced Python Scheduler (alternative to Ce
 
 # File Handling
 aiofiles==23.2.1                  # Async file operations (read/write with FastAPI)
-python-dateutil==2.8.2            # Enhanced date/time handling
+python-dateutil==2.9.0            # Enhanced date/time handling
 
 # Utilities
 click==8.1.7                      # CLI utility for creating command-line interfaces

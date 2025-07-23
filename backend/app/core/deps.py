@@ -1,5 +1,5 @@
 # File: ./backend/app/core/deps.py
-# FastAPI dependencies for authentication - FINAL FIXED VERSION
+# FastAPI dependencies for authentication 
 
 from typing import Generator, Optional
 from fastapi import Depends, HTTPException, status

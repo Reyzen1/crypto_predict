@@ -82,9 +82,6 @@ api_router.include_router(external.router, prefix="/external", tags=["External A
 # Include background tasks router
 api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks"])
 
-# Include background tasks router
-api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks"])
-
 # Include system health router
 api_router.include_router(health.router, prefix="/system", tags=["System Health"])
 
