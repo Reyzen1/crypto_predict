@@ -1,5 +1,5 @@
 # File: backend/app/ml/models/lstm_predictor.py
-# LSTM Neural Network for cryptocurrency price prediction
+# LSTM Neural Network for cryptocurrency price prediction - CLEAN FIXED VERSION
 
 import numpy as np
 import pandas as pd
@@ -156,14 +156,12 @@ class LSTMPredictor:
     
     def prepare_data(
         self, 
-        data: pd.DataFrame,
+        data: pd.DataFrame, 
         target_column: str = 'close_price',
-        feature_columns: List[str] = None
-    ) -> Tuple[np.ndarray, np.ndarray, MinMaxScaler, MinMaxScaler]:
+        feature_columns: Optional[List[str]] = None
+    ) -> Tuple[np.ndarray, np.ndarray, Any, Any]:
         """
-        Prepare data for LSTM training
-        
-        Performs feature engineering, scaling, and sequence creation for LSTM input.
+        Prepare data for LSTM training - FIXED VERSION
         
         Args:
             data: DataFrame with price and indicator data
@@ -174,38 +172,83 @@ class LSTMPredictor:
             Tuple of (X, y, target_scaler, feature_scaler)
         """
         if feature_columns is None:
-            feature_columns = [
-                'close_price', 'volume', 'rsi', 
-                'sma_20', 'ema_12', 'macd'
+            # Select columns that definitely exist
+            available_features = []
+            potential_features = [
+                'close_price', 'volume', 'open_price', 'high_price', 'low_price',
+                'rsi', 'sma_20', 'ema_12', 'macd', 'market_cap'
             ]
+            
+            for col in potential_features:
+                if col in data.columns:
+                    available_features.append(col)
+            
+            feature_columns = available_features[:self.n_features]  # Max n_features columns
+            
+            if len(feature_columns) < 2:
+                # Minimum base columns
+                feature_columns = ['close_price', 'volume'] if 'volume' in data.columns else ['close_price', 'open_price']
         
-        # Validate required columns
+        # Check column existence
         missing_cols = [col for col in feature_columns if col not in data.columns]
         if missing_cols:
-            raise ValueError(f"Missing required columns: {missing_cols}")
+            logger.warning(f"Missing columns {missing_cols}, removing from features")
+            feature_columns = [col for col in feature_columns if col in data.columns]
+        
+        if not feature_columns:
+            raise ValueError("No valid feature columns found")
+        
+        if target_column not in data.columns:
+            raise ValueError(f"Target column '{target_column}' not found in data")
         
         # Sort by timestamp
-        data = data.sort_values('timestamp').copy()
+        if 'timestamp' in data.columns:
+            data = data.sort_values('timestamp').copy()
         
-        # Handle missing values
-        data[feature_columns] = data[feature_columns].fillna(method='ffill').fillna(method='bfill')
+        # Handle missing values - use modern pandas methods
+        logger.info(f"Using feature columns: {feature_columns}")
+        data_clean = data.copy()
+        
+        # Replace old fillna with modern pandas methods
+        for col in feature_columns + [target_column]:
+            if col in data_clean.columns:
+                # Forward fill then backward fill
+                data_clean[col] = data_clean[col].ffill().bfill()
+        
+        # Remove remaining NaN values
+        data_clean = data_clean.dropna(subset=feature_columns + [target_column])
+        
+        if len(data_clean) < self.sequence_length + 1:
+            raise ValueError(f"Insufficient data after cleaning: {len(data_clean)} < {self.sequence_length + 1}")
         
         # Extract features and target
-        features = data[feature_columns].values
-        target = data[target_column].values.reshape(-1, 1)
+        features = data_clean[feature_columns].values
+        target = data_clean[target_column].values.reshape(-1, 1)
         
-        # Scale features
-        self.feature_scaler = RobustScaler()  # More robust to outliers
+        logger.info(f"Data shape before scaling: features {features.shape}, target {target.shape}")
+        
+        # FIXED: Initialize and fit scalers properly
+        if self.feature_scaler is None:
+            self.feature_scaler = RobustScaler()  # More robust to outliers
+        
+        if self.scaler is None:
+            self.scaler = MinMaxScaler(feature_range=(0, 1))
+        
+        # Fit and transform features
         features_scaled = self.feature_scaler.fit_transform(features)
         
-        # Scale target
-        self.scaler = MinMaxScaler(feature_range=(0, 1))
+        # Fit and transform target
         target_scaled = self.scaler.fit_transform(target)
+        
+        # Update n_features based on actual features used
+        self.n_features = features_scaled.shape[1]
         
         # Create sequences for LSTM
         X, y = self._create_sequences(features_scaled, target_scaled.flatten())
         
-        logger.info(f"Prepared data: X shape {X.shape}, y shape {y.shape}")
+        logger.info(f"✅ Data prepared successfully: X shape {X.shape}, y shape {y.shape}")
+        logger.info(f"✅ Scalers fitted: feature_scaler={self.feature_scaler is not None}, target_scaler={self.scaler is not None}")
+        
         return X, y, self.scaler, self.feature_scaler
     
     def _create_sequences(
@@ -452,7 +495,7 @@ class LSTMPredictor:
         # Make predictions
         predictions, _ = self.predict(X_test, return_confidence=False)
         
-        # Inverse transform true values
+        # Inverse transform true values - FIXED
         y_true = self.scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
         
         # Calculate metrics
