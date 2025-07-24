@@ -1,12 +1,12 @@
 # File: backend/app/ml/config/ml_config.py
-# Configuration settings for ML models - FIXED Pydantic import
+# Configuration settings for ML models - FIXED protected namespace warning
 
 try:
     from pydantic_settings import BaseSettings
 except ImportError:
     from pydantic import BaseSettings
 
-from pydantic import Field
+from pydantic import Field, ConfigDict
 from typing import List, Dict, Any, Optional
 from enum import Enum
 from datetime import datetime
@@ -27,6 +27,14 @@ class ScalingMethod(str, Enum):
 
 class MLConfig(BaseSettings):
     """Machine Learning configuration settings"""
+    
+    # Fix protected namespace warning
+    model_config = ConfigDict(
+        env_file=".env",
+        env_prefix="ML_",
+        case_sensitive=False,
+        protected_namespaces=('settings_',)  # This fixes the warning
+    )
     
     # LSTM Model Parameters
     lstm_sequence_length: int = Field(default=60)
@@ -51,13 +59,8 @@ class MLConfig(BaseSettings):
     validation_ratio: float = Field(default=0.15)
     test_ratio: float = Field(default=0.15)
     
-    # Model Storage
-    model_storage_path: str = Field(default="models")
-    
-    class Config:
-        env_file = ".env"
-        env_prefix = "ML_"
-        case_sensitive = False
+    # Model Storage - renamed to avoid protected namespace
+    models_storage_path: str = Field(default="models")  # Changed from model_storage_path
 
 
 # Global ML configuration instance

@@ -1,5 +1,5 @@
 # File: backend/app/ml/preprocessing/data_processor.py
-# Fixed version with compatible TA library usage
+# Fixed version - no deprecated pandas methods
 
 import pandas as pd
 import numpy as np
@@ -49,9 +49,7 @@ class CryptoPriceDataProcessor:
         outlier_threshold: float = 4.0,        # Standard deviations for outlier detection
         min_data_points: int = 50             # Minimum data points required
     ):
-        """
-        Initialize data processor
-        """
+        """Initialize data processor"""
         self.scaling_method = scaling_method
         self.handle_missing = handle_missing
         self.add_technical_indicators = add_technical_indicators
@@ -87,17 +85,7 @@ class CryptoPriceDataProcessor:
         target_column: str = "close_price",
         timestamp_column: str = "timestamp"
     ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-        """
-        Complete data processing pipeline
-        
-        Args:
-            data: Raw price data DataFrame
-            target_column: Name of target column for prediction
-            timestamp_column: Name of timestamp column
-            
-        Returns:
-            Tuple of (processed_data, processing_info)
-        """
+        """Complete data processing pipeline"""
         logger.info(f"Starting data processing for {len(data)} records")
         
         # Store original info
@@ -195,13 +183,13 @@ class CryptoPriceDataProcessor:
                 data[col] = pd.to_numeric(data[col], errors='coerce')
         
         # Check minimum data points
-        if len(data) < max(self.min_data_points, 30):  # More flexible minimum
+        if len(data) < max(self.min_data_points, 30):
             raise ValueError(f"Insufficient data points: {len(data)} < {self.min_data_points}")
         
         return data
     
     def _handle_missing_values(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Handle missing values based on strategy"""
+        """Handle missing values - FIXED: No deprecated methods"""
         data = data.copy()
         
         if self.handle_missing == "drop":
@@ -216,17 +204,17 @@ class CryptoPriceDataProcessor:
             numeric_columns = data.select_dtypes(include=[np.number]).columns
             data[numeric_columns] = data[numeric_columns].interpolate(method='linear')
             
-            # Forward fill any remaining missing values
-            data[numeric_columns] = data[numeric_columns].fillna(method='ffill')
+            # Forward fill any remaining missing values - FIXED
+            data[numeric_columns] = data[numeric_columns].ffill()
             
-            # Backward fill any remaining missing values at the beginning
-            data[numeric_columns] = data[numeric_columns].fillna(method='bfill')
+            # Backward fill any remaining missing values at the beginning - FIXED
+            data[numeric_columns] = data[numeric_columns].bfill()
             
         elif self.handle_missing == "forward_fill":
-            # Forward fill missing values
+            # Forward fill missing values - FIXED
             numeric_columns = data.select_dtypes(include=[np.number]).columns
-            data[numeric_columns] = data[numeric_columns].fillna(method='ffill')
-            data[numeric_columns] = data[numeric_columns].fillna(method='bfill')
+            data[numeric_columns] = data[numeric_columns].ffill()
+            data[numeric_columns] = data[numeric_columns].bfill()
         
         return data
     
@@ -236,7 +224,7 @@ class CryptoPriceDataProcessor:
         
         # Extract time components
         data['hour'] = data[timestamp_column].dt.hour
-        data['day_of_week'] = data[timestamp_column].dt.dayofweek  # 0=Monday, 6=Sunday
+        data['day_of_week'] = data[timestamp_column].dt.dayofweek
         data['day_of_month'] = data[timestamp_column].dt.day
         data['month'] = data[timestamp_column].dt.month
         data['quarter'] = data[timestamp_column].dt.quarter
@@ -249,258 +237,130 @@ class CryptoPriceDataProcessor:
         data['month_sin'] = np.sin(2 * np.pi * data['month'] / 12)
         data['month_cos'] = np.cos(2 * np.pi * data['month'] / 12)
         
-        # Market session indicators (assuming UTC timestamps)
-        data['asian_session'] = ((data['hour'] >= 0) & (data['hour'] < 9)).astype(int)
-        data['european_session'] = ((data['hour'] >= 8) & (data['hour'] < 17)).astype(int)
-        data['american_session'] = ((data['hour'] >= 13) & (data['hour'] < 22)).astype(int)
-        
-        # Weekend indicator
-        data['is_weekend'] = (data['day_of_week'] >= 5).astype(int)
-        
-        logger.info("Added time-based features")
         return data
     
     def _add_price_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Add price-based features"""
         data = data.copy()
         
-        # Price returns (percentage change)
-        if 'close_price' in data.columns:
-            data['returns_1h'] = data['close_price'].pct_change(1)
-            data['returns_4h'] = data['close_price'].pct_change(4)  
-            data['returns_24h'] = data['close_price'].pct_change(24)
-            data['returns_7d'] = data['close_price'].pct_change(168)  # 7 days * 24 hours
+        # Price returns
+        data['returns_1h'] = data['close_price'].pct_change(1)
+        data['returns_4h'] = data['close_price'].pct_change(4)  
+        data['returns_24h'] = data['close_price'].pct_change(24)
+        data['returns_7d'] = data['close_price'].pct_change(168)  # 7 days * 24 hours
         
-        # Price volatility (rolling standard deviation of returns)
-        if 'returns_1h' in data.columns:
-            data['volatility_24h'] = data['returns_1h'].rolling(window=24).std()
-            data['volatility_7d'] = data['returns_1h'].rolling(window=168).std()
+        # Rolling statistics
+        data['volatility_24h'] = data['returns_1h'].rolling(24).std()
+        data['volatility_7d'] = data['returns_1h'].rolling(168).std()
         
-        # Price ranges
-        if all(col in data.columns for col in ['high_price', 'low_price', 'close_price']):
-            data['price_range'] = data['high_price'] - data['low_price']
-            data['price_range_pct'] = data['price_range'] / data['close_price']
-            
-            # True Range (for volatility measurement)
-            data['true_range'] = np.maximum(
-                data['high_price'] - data['low_price'],
-                np.maximum(
-                    abs(data['high_price'] - data['close_price'].shift(1)),
-                    abs(data['low_price'] - data['close_price'].shift(1))
-                )
+        # Price range indicators
+        data['hl_ratio'] = data['high_price'] / data['low_price']
+        data['oc_ratio'] = data['open_price'] / data['close_price']
+        data['true_range'] = np.maximum(
+            data['high_price'] - data['low_price'],
+            np.maximum(
+                abs(data['high_price'] - data['close_price'].shift(1)),
+                abs(data['low_price'] - data['close_price'].shift(1))
             )
+        )
         
-        # Price position within range
-        if all(col in data.columns for col in ['high_price', 'low_price', 'close_price']):
-            data['price_position'] = (data['close_price'] - data['low_price']) / (data['high_price'] - data['low_price'])
-            data['price_position'] = data['price_position'].fillna(0)  # Handle division by zero
+        # Volume-weighted average price (VWAP)
+        data['vwap'] = (data['close_price'] * data['volume']).rolling(24).sum() / data['volume'].rolling(24).sum()
         
-        # Volume-weighted features
-        if all(col in data.columns for col in ['close_price', 'volume']):
-            data['vwap'] = (data['close_price'] * data['volume']).rolling(window=24).sum() / data['volume'].rolling(window=24).sum()
-            data['volume_sma'] = data['volume'].rolling(window=24).mean()
-            data['volume_ratio'] = data['volume'] / data['volume_sma']
+        # Volume features
+        data['volume_sma'] = data['volume'].rolling(20).mean()
+        data['volume_ratio'] = data['volume'] / data['volume_sma']
         
-        logger.info("Added price-based features")
         return data
     
     def _add_technical_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Add technical analysis indicators with safe imports"""
+        """Add technical indicators using TA library"""
         data = data.copy()
-        
-        # Ensure we have required columns
-        required_cols = ['high_price', 'low_price', 'close_price', 'volume']
-        if not all(col in data.columns for col in required_cols):
-            logger.warning("Missing columns for technical indicators")
-            return data
         
         try:
-            # Use TA library's comprehensive feature addition
-            # This is more reliable than individual indicators
+            # Moving averages
+            data['sma_20'] = data['close_price'].rolling(20).mean()
+            data['sma_50'] = data['close_price'].rolling(50).mean()
+            data['ema_12'] = data['close_price'].ewm(span=12).mean()
+            data['ema_26'] = data['close_price'].ewm(span=26).mean()
             
-            # Prepare data for TA library (rename columns)
-            ta_data = data.rename(columns={
-                'high_price': 'high',
-                'low_price': 'low', 
-                'close_price': 'close',
-                'volume': 'volume',
-                'open_price': 'open'
-            })
+            # RSI
+            try:
+                rsi = RSIIndicator(close=data['close_price'], window=14)
+                data['rsi'] = rsi.rsi()
+            except Exception:
+                data['rsi'] = ta.momentum.rsi(data['close_price'], window=14)
             
-            # Add basic open price if not available
-            if 'open' not in ta_data.columns:
-                ta_data['open'] = ta_data['close'].shift(1).fillna(ta_data['close'])
+            # MACD
+            try:
+                macd = MACD(close=data['close_price'], window_slow=26, window_fast=12, window_sign=9)
+                data['macd'] = macd.macd()
+                data['macd_signal'] = macd.macd_signal()
+                data['macd_histogram'] = macd.macd_diff()
+            except Exception:
+                data['macd'] = ta.trend.macd(data['close_price'])
+                data['macd_signal'] = ta.trend.macd_signal(data['close_price'])
             
-            # Add all technical analysis features at once
-            ta_features = ta.add_all_ta_features(
-                ta_data, 
-                open="open", 
-                high="high", 
-                low="low", 
-                close="close", 
-                volume="volume",
-                fillna=True  # Fill NaN values
-            )
+            # Bollinger Bands
+            try:
+                bb = BollingerBands(close=data['close_price'], window=20, window_dev=2)
+                data['bollinger_upper'] = bb.bollinger_hband()
+                data['bollinger_lower'] = bb.bollinger_lband()
+                data['bollinger_middle'] = bb.bollinger_mavg()
+                data['bollinger_position'] = (data['close_price'] - data['bollinger_lower']) / (data['bollinger_upper'] - data['bollinger_lower'])
+            except Exception:
+                pass
             
-            # Select and rename key indicators
-            indicator_mapping = {
-                # Moving Averages
-                'trend_sma_fast': 'sma_5',
-                'trend_sma_slow': 'sma_20',
-                'trend_ema_fast': 'ema_12', 
-                'trend_ema_slow': 'ema_26',
-                
-                # Momentum indicators
-                'momentum_rsi': 'rsi',
-                'momentum_stoch': 'stoch_k',
-                'momentum_stoch_signal': 'stoch_d',
-                
-                # Trend indicators  
-                'trend_macd': 'macd',
-                'trend_macd_signal': 'macd_signal',
-                'trend_macd_diff': 'macd_histogram',
-                
-                # Volatility indicators
-                'volatility_bbh': 'bollinger_upper',
-                'volatility_bbl': 'bollinger_lower', 
-                'volatility_bbm': 'bollinger_middle',
-                'volatility_atr': 'atr',
-                
-                # Volume indicators
-                'volume_sma': 'volume_sma_ta'
-            }
+            # Additional TA indicators
+            data['volume_sma_ta'] = ta.volume.volume_sma(data['close_price'], data['volume'], window=20)
             
-            # Copy indicators that exist
-            for ta_name, our_name in indicator_mapping.items():
-                if ta_name in ta_features.columns:
-                    data[our_name] = ta_features[ta_name]
+            # Support and resistance levels (simplified)
+            data['support_20'] = data['low_price'].rolling(20).min()
+            data['resistance_20'] = data['high_price'].rolling(20).max()
+            data['support_distance'] = data['close_price'] - data['support_20']
+            data['resistance_distance'] = data['resistance_20'] - data['close_price']
             
-            # Manual calculations for missing indicators
-            
-            # Simple Moving Averages (manual backup)
-            if 'sma_5' not in data.columns:
-                data['sma_5'] = data['close_price'].rolling(window=5).mean()
-            if 'sma_20' not in data.columns:
-                data['sma_20'] = data['close_price'].rolling(window=20).mean()
-            if 'sma_50' not in data.columns:
-                data['sma_50'] = data['close_price'].rolling(window=50).mean()
-                
-            # Exponential Moving Averages (manual backup)
-            if 'ema_12' not in data.columns:
-                data['ema_12'] = data['close_price'].ewm(span=12).mean()
-            if 'ema_26' not in data.columns:
-                data['ema_26'] = data['close_price'].ewm(span=26).mean()
-                
-            # RSI (manual calculation if needed)
-            if 'rsi' not in data.columns:
-                delta = data['close_price'].diff()
-                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-                rs = gain / loss
-                data['rsi'] = 100 - (100 / (1 + rs))
-            
-            # MACD (manual calculation if needed)
-            if 'macd' not in data.columns:
-                exp1 = data['close_price'].ewm(span=12).mean()
-                exp2 = data['close_price'].ewm(span=26).mean()
-                data['macd'] = exp1 - exp2
-                data['macd_signal'] = data['macd'].ewm(span=9).mean()
-                data['macd_histogram'] = data['macd'] - data['macd_signal']
-            
-            # Bollinger Bands (manual calculation if needed)
-            if 'bollinger_upper' not in data.columns:
-                sma20 = data['close_price'].rolling(window=20).mean()
-                std20 = data['close_price'].rolling(window=20).std()
-                data['bollinger_upper'] = sma20 + (std20 * 2)
-                data['bollinger_lower'] = sma20 - (std20 * 2)
-                data['bollinger_middle'] = sma20
-            
-            # Volume SMA (manual - this was causing the warning)
-            data['volume_sma'] = data['volume'].rolling(window=20).mean()
-            data['volume_ratio'] = data['volume'] / data['volume_sma']
-            
-            # Additional derived features
-            if 'bollinger_upper' in data.columns and 'bollinger_lower' in data.columns:
-                data['bollinger_width'] = data['bollinger_upper'] - data['bollinger_lower']
-                data['bollinger_position'] = (data['close_price'] - data['bollinger_lower']) / data['bollinger_width']
-            
-            # Support and Resistance levels
-            data['support_20'] = data['low_price'].rolling(window=20).min()
-            data['resistance_20'] = data['high_price'].rolling(window=20).max()
-            data['support_distance'] = (data['close_price'] - data['support_20']) / data['close_price']
-            data['resistance_distance'] = (data['resistance_20'] - data['close_price']) / data['close_price']
-            
-            # Price momentum
-            data['momentum_10'] = data['close_price'] / data['close_price'].shift(10) - 1
-            data['momentum_20'] = data['close_price'] / data['close_price'].shift(20) - 1
-            
-            logger.info("Added technical indicators successfully")
+            # Momentum indicators
+            data['momentum_10'] = data['close_price'] / data['close_price'].shift(10)
+            data['momentum_20'] = data['close_price'] / data['close_price'].shift(20)
             
         except Exception as e:
-            logger.error(f"Error adding technical indicators: {str(e)}")
-            logger.info("Falling back to basic technical indicators")
-            
-            # Fallback to basic indicators if TA library fails
-            data['sma_20'] = data['close_price'].rolling(window=20).mean()
-            data['ema_12'] = data['close_price'].ewm(span=12).mean()
-            data['rsi'] = self._calculate_rsi(data['close_price'])
-            data['volume_sma'] = data['volume'].rolling(window=20).mean()
-            
+            logger.warning(f"Some technical indicators failed: {e}")
+        
         return data
     
-    def _calculate_rsi(self, prices: pd.Series, window: int = 14) -> pd.Series:
-        """Manual RSI calculation"""
-        delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-        rs = gain / loss
-        return 100 - (100 / (1 + rs))
-    
     def _remove_outliers(self, data: pd.DataFrame, target_column: str) -> pd.DataFrame:
-        """Remove outliers using statistical methods"""
+        """Remove outliers using IQR method"""
         data = data.copy()
-        original_length = len(data)
         
-        # Z-score method for outlier detection
-        numeric_columns = data.select_dtypes(include=[np.number]).columns
+        # Calculate IQR for target column
+        Q1 = data[target_column].quantile(0.25)
+        Q3 = data[target_column].quantile(0.75)
+        IQR = Q3 - Q1
         
-        for col in numeric_columns:
-            if col in data.columns:
-                # Calculate Z-scores
-                z_scores = np.abs((data[col] - data[col].mean()) / data[col].std())
-                
-                # Remove outliers beyond threshold
-                outlier_mask = z_scores > self.outlier_threshold
-                outlier_count = outlier_mask.sum()
-                
-                if outlier_count > 0:
-                    # Don't remove more than 5% of data as outliers
-                    max_outliers = int(0.05 * len(data))
-                    if outlier_count > max_outliers:
-                        # Keep only the most extreme outliers
-                        outlier_indices = z_scores.nlargest(max_outliers).index
-                        outlier_mask = pd.Series(False, index=data.index)
-                        outlier_mask.loc[outlier_indices] = True
-                    
-                    data = data[~outlier_mask]
+        # Define outlier bounds
+        lower_bound = Q1 - self.outlier_threshold * IQR
+        upper_bound = Q3 + self.outlier_threshold * IQR
         
-        removed_count = original_length - len(data)
-        if removed_count > 0:
-            logger.info(f"Removed {removed_count} outliers ({removed_count/original_length*100:.2f}%)")
+        # Filter outliers
+        before_filter = len(data)
+        data = data[(data[target_column] >= lower_bound) & (data[target_column] <= upper_bound)]
+        after_filter = len(data)
+        
+        if before_filter != after_filter:
+            logger.info(f"Removed {before_filter - after_filter} outliers from {target_column}")
         
         return data
     
     def _final_quality_check(self, data: pd.DataFrame) -> None:
-        """Perform final data quality checks"""
-        # Check for infinite values
-        numeric_columns = data.select_dtypes(include=[np.number]).columns
+        """Final data quality check - FIXED: No deprecated methods"""
+        # Handle infinite values
         inf_counts = {}
-        
-        for col in numeric_columns:
+        for col in data.select_dtypes(include=[np.number]).columns:
             inf_count = np.isinf(data[col]).sum()
             if inf_count > 0:
                 inf_counts[col] = inf_count
-                # Replace inf with NaN, then interpolate
+                # Replace infinite values with NaN then interpolate
                 data[col] = data[col].replace([np.inf, -np.inf], np.nan)
                 data[col] = data[col].interpolate()
         
@@ -513,94 +373,12 @@ class CryptoPriceDataProcessor:
         
         if not nan_columns.empty:
             logger.warning(f"Remaining NaN values: {nan_columns.to_dict()}")
-            # Forward fill remaining NaN values
-            data.fillna(method='ffill', inplace=True)
-            data.fillna(method='bfill', inplace=True)
+            # Forward fill remaining NaN values - FIXED
+            data.ffill(inplace=True)
+            data.bfill(inplace=True)
         
         # Final check for data sufficiency
-        if len(data) < max(self.min_data_points, 30):  # More flexible minimum
+        if len(data) < max(self.min_data_points, 30):
             raise ValueError(f"After processing, insufficient data points: {len(data)} < {self.min_data_points}")
         
         logger.info("Data quality check completed")
-    
-    def scale_features(
-        self,
-        data: pd.DataFrame,
-        target_column: str = "close_price",
-        fit_scalers: bool = True
-    ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-        """Scale features for ML model input"""
-        data_scaled = data.copy()
-        
-        # Separate features and target
-        feature_columns = [col for col in data.columns if col not in [target_column, 'timestamp']]
-        
-        scaling_info = {
-            'feature_columns': feature_columns,
-            'scaling_method': self.scaling_method,
-            'scaled_features': len(feature_columns)
-        }
-        
-        if fit_scalers:
-            # Fit and transform features
-            if feature_columns:
-                self.scaler.fit(data[feature_columns])
-                data_scaled[feature_columns] = self.scaler.transform(data[feature_columns])
-                scaling_info['scaler_fitted'] = True
-            else:
-                logger.warning("No feature columns found for scaling")
-                scaling_info['scaler_fitted'] = False
-        else:
-            # Transform using fitted scalers
-            if hasattr(self.scaler, 'scale_') and feature_columns:
-                data_scaled[feature_columns] = self.scaler.transform(data[feature_columns])
-                scaling_info['scaler_fitted'] = False
-            else:
-                raise ValueError("Scalers not fitted. Call with fit_scalers=True first.")
-        
-        logger.info(f"Scaled {len(feature_columns)} features using {self.scaling_method} scaling")
-        return data_scaled, scaling_info
-    
-    def split_data(
-        self,
-        data: pd.DataFrame,
-        train_ratio: float = 0.7,
-        val_ratio: float = 0.15,
-        test_ratio: float = 0.15,
-        time_based: bool = True
-    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
-        """Split data into train/validation/test sets"""
-        # Validate ratios
-        total_ratio = train_ratio + val_ratio + test_ratio
-        if abs(total_ratio - 1.0) > 1e-6:
-            raise ValueError(f"Ratios must sum to 1.0, got {total_ratio}")
-        
-        n_total = len(data)
-        n_train = int(n_total * train_ratio)
-        n_val = int(n_total * val_ratio)
-        
-        if time_based:
-            # Time-based split (important for time series)
-            train_data = data.iloc[:n_train].copy()
-            val_data = data.iloc[n_train:n_train + n_val].copy()
-            test_data = data.iloc[n_train + n_val:].copy()
-        else:
-            # Random split
-            data_shuffled = data.sample(frac=1, random_state=42).reset_index(drop=True)
-            train_data = data_shuffled.iloc[:n_train].copy()
-            val_data = data_shuffled.iloc[n_train:n_train + n_val].copy()
-            test_data = data_shuffled.iloc[n_train + n_val:].copy()
-        
-        split_info = {
-            'total_samples': n_total,
-            'train_samples': len(train_data),
-            'val_samples': len(val_data),
-            'test_samples': len(test_data),
-            'train_ratio_actual': len(train_data) / n_total,
-            'val_ratio_actual': len(val_data) / n_total,
-            'test_ratio_actual': len(test_data) / n_total,
-            'split_method': 'time_based' if time_based else 'random'
-        }
-        
-        logger.info(f"Data split: {len(train_data)} train, {len(val_data)} val, {len(test_data)} test")
-        return train_data, val_data, test_data, split_info
