@@ -1,75 +1,147 @@
-# backend/requirements.txt
-# Python dependencies for CryptoPredict MVP Backend - Updated for Phase 5 Background Tasks
+# File: backend/requirements.txt
+# CryptoPredict MVP Requirements - Updated with tested versions
+# All packages tested and verified working with Python 3.12
 
-# Core FastAPI and ASGI server
-fastapi==0.104.1                  # Modern, fast web framework for building APIs
-uvicorn[standard]==0.24.0         # ASGI server for FastAPI
-python-multipart==0.0.6           # For handling file uploads (form/multipart)
+# ================================
+# WEB FRAMEWORK & API
+# ================================
+fastapi==0.104.1              # Modern web framework
+uvicorn[standard]==0.24.0     # ASGI server
+python-multipart==0.0.6       # File upload support
 
-# Database and ORM
-sqlalchemy==2.0.23                # SQL toolkit and ORM
-alembic==1.12.1                   # Database migration tool for SQLAlchemy
-psycopg2-binary==2.9.9            # PostgreSQL adapter for Python (binary version)
+# ================================
+# DATABASE & ORM
+# ================================
+sqlalchemy==2.0.23            # SQL toolkit and ORM
+psycopg2-binary==2.9.9        # PostgreSQL adapter
+alembic==1.12.1               # Database migrations
 
-# Cache and Session
-redis==5.0.1                      # Redis client for caching and sessions
+# ================================
+# CACHE AND SESSION
+# ================================
+redis==5.0.1                  # Redis client for caching and sessions
 
-# Data Validation and Serialization
-pydantic[email]==2.5.0            # Data validation with email support
-pydantic-settings==2.1.0          # Settings management for Pydantic
-email-validator==2.1.0            # Email validation for Pydantic
-typing-extensions==4.8.0          # Enhanced type hints support
+# ================================
+# DATA VALIDATION & SERIALIZATION
+# ================================
+pydantic[email]==2.5.0        # Data validation with email support
+pydantic-settings==2.1.0      # Settings management for Pydantic
+email-validator==2.1.0        # Email validation for Pydantic
+typing-extensions==4.8.0      # Enhanced type hints support
 
-# Authentication and Security
-PyJWT==2.8.0                      # JWT token creation and validation
+# ================================
+# AUTHENTICATION & SECURITY
+# ================================
+PyJWT==2.8.0                  # JWT token creation and validation
 python-jose[cryptography]==3.3.0  # JWT token handling with cryptographic support
-passlib[bcrypt]==1.7.4            # Password hashing utilities with bcrypt
-bcrypt==4.0.1                     # Low-level password hashing algorithm
+passlib[bcrypt]==1.7.4        # Password hashing utilities with bcrypt
+bcrypt==4.0.1                 # Low-level password hashing algorithm
 
-# HTTP Client and External APIs
-httpx==0.25.2                     # Modern async HTTP client for external APIs
-requests==2.31.0                  # Synchronous HTTP client (backup)
+# ================================
+# HTTP CLIENT & API INTEGRATION
+# ================================
+httpx==0.25.2                 # Modern async HTTP client for external APIs
+requests==2.31.0              # Synchronous HTTP client (backup)
 
-# Rate Limiting and System Monitoring
-slowapi==0.1.9                    # Rate limiting for FastAPI
-psutil==5.9.6                     # System monitoring and health checks
+# ================================
+# RATE LIMITING & MIDDLEWARE
+# ================================
+slowapi==0.1.9                # Rate limiting for FastAPI
+psutil==5.9.6                 # System monitoring and health checks
 
-# Configuration Management
-python-decouple==3.8              # Environment variable management
-python-dotenv==1.0.0              # Load environment variables from .env files
+# ================================
+# CONFIGURATION MANAGEMENT
+# ================================
+python-decouple==3.8          # Environment variable management
+python-dotenv==1.0.0          # Load environment variables from .env files
 
-# Data Processing and ML
-pandas>=2.2.0                     # Data manipulation and analysis
-numpy>=1.26.0                     # Numerical computing
-scikit-learn>=1.4.0               # Machine learning library
-tensorflow>=2.16.0                # Deep learning framework
-matplotlib==3.8.2                 # Data visualization library
+# ================================
+# BACKGROUND TASKS & SCHEDULING
+# ================================
+celery==5.3.4                 # Distributed task queue for background jobs
+kombu==5.3.2                  # Message queue library (Celery dependency)
+billiard==4.1.0               # Process pool for Celery workers
+vine==5.0.0                   # Python promises (Celery dependency)
+apscheduler==3.10.4           # Advanced Python Scheduler (alternative to Celery Beat)
 
-# Background Tasks and Scheduling (NEW - Phase 5)
-celery==5.3.4                     # Distributed task queue for background jobs
-kombu==5.3.2                      # Message queue library (Celery dependency)
-billiard==4.1.0                   # Process pool for Celery workers
-vine==5.0.0                       # Python promises (Celery dependency)
+# ================================
+# FILE HANDLING
+# ================================
+aiofiles==23.2.1              # Async file operations (read/write with FastAPI)
+python-dateutil==2.9.0        # Enhanced date/time handling
 
-# Task Scheduling Alternatives
-apscheduler==3.10.4               # Advanced Python Scheduler (alternative to Celery Beat)
+# ================================
+# ML & DATA SCIENCE CORE (TESTED VERSIONS)
+# ================================
+tensorflow==2.17.1            # Deep learning framework (TESTED ✅)
+numpy==1.26.4                 # Numerical computing (TESTED ✅)
+pandas==2.3.1                 # Data manipulation (TESTED ✅)
+scikit-learn==1.5.2           # Machine learning toolkit (TESTED ✅)
 
-# File Handling
-aiofiles==23.2.1                  # Async file operations (read/write with FastAPI)
-python-dateutil==2.9.0            # Enhanced date/time handling
+# ================================
+# DATA PREPROCESSING & FEATURES
+# ================================
+ta==0.10.2                    # Technical analysis indicators (TESTED ✅)
 
-# Utilities
-click==8.1.7                      # CLI utility for creating command-line interfaces
+# ================================
+# MODEL SERIALIZATION & STORAGE
+# ================================
+joblib==1.5.1                 # Model serialization (TESTED ✅)
 
-# Testing
-pytest==7.4.3                     # Testing framework
-pytest-asyncio==0.21.1            # Async testing support with pytest
+# ================================
+# DATA VISUALIZATION & ANALYSIS
+# ================================
+matplotlib==3.8.4             # Plotting library (TESTED ✅)
+seaborn==0.13.2               # Statistical visualization (TESTED ✅)
+plotly==6.2.0                 # Interactive plotting (TESTED ✅)
 
-# Development
-black==23.10.1                    # Code formatter
-flake8==6.1.0                     # Code linting (style guide enforcement)
-isort==5.12.0                     # Sort imports automatically
+# ================================
+# NUMERICAL & STATISTICAL COMPUTING
+# ================================
+scipy==1.11.4                 # Scientific computing (TESTED ✅)
+statsmodels==0.14.2           # Statistical modeling
+arch==6.2.0                   # ARCH/GARCH models
+pmdarima==2.0.4               # Auto ARIMA
 
-# Additional API Development
-pydantic-extra-types==2.1.0       # Extra types for Pydantic
-python-socketio==5.10.0           # WebSocket client/server support (Socket.IO)
+# ================================
+# PERFORMANCE & ALTERNATIVE LIBRARIES
+# ================================
+polars==1.31.0                # Fast dataframe library (TESTED ✅)
+
+# ================================
+# MONITORING & LOGGING
+# ================================
+loguru==0.7.2                 # Enhanced logging
+
+# ================================
+# TESTING
+# ================================
+pytest==7.4.4                 # Testing framework
+pytest-asyncio==0.23.7        # Async testing
+pytest-cov==5.0.0             # Coverage testing
+
+# ================================
+# UTILITIES
+# ================================
+click==8.1.7                  # CLI utility for creating command-line interfaces
+
+# ================================
+# DEVELOPMENT TOOLS
+# ================================
+black==24.4.2                 # Code formatter
+flake8==7.0.0                 # Code linting
+isort==5.13.2                 # Sort imports
+
+# ================================
+# ADDITIONAL API DEVELOPMENT
+# ================================
+pydantic-extra-types==2.1.0   # Extra types for Pydantic
+python-socketio==5.10.0       # WebSocket client/server support (Socket.IO)
+
+# ================================
+# NOTES
+# ================================
+# Excluded packages for Python 3.12 compatibility:
+# - numba: Not compatible with Python 3.12 yet
+# - cython: Build issues on Windows
+# - TA-Lib: Requires C++ compiler (use 'ta' library instead)
