@@ -1,0 +1,23 @@
+Database Schema Export Information
+========================================
+
+Export Date: 2025-07-26 00:32:00
+Export Method: Docker Container pg_dump
+Source Database: cryptopredict
+Source Host: localhost:5432
+Source User: postgres
+Schema File: temp/schema_backup_20250726_003156.sql
+Export Type: Schema Only (No Data)
+
+Files to transfer to new system:
+1. temp/schema_backup_20250726_003156.sql
+2. temp/schema_backup_20250726_003156_info.txt
+3. backend/alembic/versions/* (all migration files)
+4. backend/alembic.ini
+
+Next steps on target system:
+1. Setup Docker and Docker Compose
+2. Clone project from GitHub
+3. Copy migration files to backend/alembic/versions/
+4. Run: python temp/import_schema.py
+   OR: python temp/setup_new_database.py
