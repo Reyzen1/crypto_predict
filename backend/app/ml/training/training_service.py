@@ -84,40 +84,14 @@ class MLTrainingService:
                 
         except Exception as e:
             logger.warning(f"⚠️ Comprehensive training failed for {crypto_symbol}: {str(e)}")
-            logger.info(f"🔄 Falling back to simple training for {crypto_symbol}")
-            
-            # Fall back to simple training
-            try:
-                fallback_result = await self.train_model_for_crypto_simple(
-                    crypto_symbol=crypto_symbol,
-                    training_config=training_config,
-                    db=db
-                )
-                
-                if fallback_result.get('success', False):
-                    # Add fallback indicator to result
-                    fallback_result['used_fallback'] = True
-                    fallback_result['fallback_reason'] = str(e)
-                    fallback_result['message'] = f"Training completed using simple fallback method: {fallback_result.get('message', '')}"
-                    logger.info(f"✅ Fallback training succeeded for {crypto_symbol}")
-                    return fallback_result
-                else:
-                    logger.error(f"❌ Both comprehensive and fallback training failed for {crypto_symbol}")
-                    return {
-                        'success': False,
-                        'error': f"Both methods failed. Main: {str(e)}, Fallback: {fallback_result.get('error', 'Unknown')}",
-                        'crypto_symbol': crypto_symbol,
-                        'message': f'All training methods failed for {crypto_symbol}'
-                    }
-                    
-            except Exception as fallback_error:
-                logger.error(f"❌ Fallback training also failed for {crypto_symbol}: {str(fallback_error)}")
-                return {
-                    'success': False,
-                    'error': f"Both methods failed. Main: {str(e)}, Fallback: {str(fallback_error)}",
-                    'crypto_symbol': crypto_symbol,
-                    'message': f'All training methods failed for {crypto_symbol}'
-                }
+          
+            logger.error(f"❌ Comprehensive training failed for {crypto_symbol}: {str(e)}")
+            return {
+                'success': False,
+                'error': f"Comprehensive training failed. Main: {str(e)}",
+                'crypto_symbol': crypto_symbol,
+                'message': f'Comprehensive training failed for {crypto_symbol}'
+            }
 
     async def _train_model_comprehensive(
         self,
@@ -125,9 +99,7 @@ class MLTrainingService:
         training_config: Optional[Dict[str, Any]] = None,
         db: Optional[Session] = None
     ) -> Dict[str, Any]:
-        """
-        Fixed comprehensive training method
-        """
+
         # Create database session if not provided
         if db is None:
             db = SessionLocal()
@@ -332,102 +304,6 @@ class MLTrainingService:
         logger.info(f"Data split - Train: {len(X_train)}, Val: {len(X_val)}, Test: {len(X_test)}")
         
         return X_train, y_train, X_val, y_val, X_test, y_test
-    
-    async def train_model_for_crypto_simple(
-        self,
-        crypto_symbol: str,
-        training_config: Optional[Dict[str, Any]] = None,
-        db: Optional[Session] = None
-    ) -> Dict[str, Any]:
-        """Simple, robust training method as fallback"""
-        
-        try:
-            logger.info(f"Starting simple training for {crypto_symbol}")
-            
-            # Get training data from database
-            if db is None:
-                db = SessionLocal()
-                should_close_db = True
-            else:
-                should_close_db = False
-            
-            try:
-                # Get crypto record
-                crypto = cryptocurrency_repository.get_by_symbol(db, crypto_symbol)
-                if not crypto:
-                    raise ValueError(f"Cryptocurrency {crypto_symbol} not found")
-                
-                # Get price data using existing repository
-                from app.repositories.ml_repository import ml_repository
-                training_df = ml_repository.get_training_data_for_crypto(
-                    db=db,
-                    crypto_id=crypto.id,
-                    days_back=30,
-                    min_records=50
-                )
-                
-                if training_df.empty or len(training_df) < 50:
-                    raise ValueError(f"Insufficient training data: {len(training_df)} records")
-                
-                logger.info(f"Loaded {len(training_df)} training records")
-                
-                # Simple LSTM training with minimal config
-                lstm_model = LSTMPredictor(
-                    sequence_length=20,
-                    n_features=3,
-                    lstm_units=[16, 16],
-                    epochs=3,
-                    batch_size=16
-                )
-                
-                # Prepare data
-                X, y, target_scaler, feature_scaler = lstm_model.prepare_data(training_df)
-                logger.info(f"Data prepared: X={X.shape}, y={y.shape}")
-                
-                # Simple train/val split
-                train_size = int(0.8 * len(X))
-                X_train, X_val = X[:train_size], X[train_size:]
-                y_train, y_val = y[:train_size], y[train_size:]
-                
-                # Train model
-                training_metrics = lstm_model.train(X_train, y_train, X_val, y_val, save_model=False)
-                
-                # Simple evaluation
-                try:
-                    evaluation_metrics = lstm_model.evaluate(X_val, y_val)
-                except:
-                    evaluation_metrics = {'rmse': 0.0, 'mae': 0.0, 'r2_score': 0.0}
-                
-                # Simple success result
-                model_id = f"{crypto_symbol}_simple_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                
-                result = {
-                    'success': True,
-                    'crypto_symbol': crypto_symbol,
-                    'model_id': model_id,
-                    'message': 'Simple training completed successfully',
-                    'training_metrics': training_metrics,
-                    'evaluation_metrics': evaluation_metrics,
-                    'data_points_used': len(training_df),
-                    'features_count': lstm_model.n_features,
-                    'training_duration': training_metrics.get('training_duration_seconds', 0)
-                }
-                
-                logger.info(f"✅ Simple training completed for {crypto_symbol}")
-                return result
-                
-            finally:
-                if should_close_db:
-                    db.close()
-            
-        except Exception as e:
-            logger.error(f"Simple training failed for {crypto_symbol}: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e),
-                'crypto_symbol': crypto_symbol,
-                'message': f'Simple training failed: {str(e)}'
-            }
     
     async def _load_training_data(self, db: Session, crypto_id: int) -> pd.DataFrame:
         """Load training data from database using existing repository"""
