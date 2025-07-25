@@ -32,15 +32,15 @@ class PredictionBase(BaseSchema):
         le=1, 
         description="Prediction confidence (0-1)"
     )
-    target_date: datetime = Field(description="Date/time the prediction is for")
+    target_datetime: datetime = Field(description="Date/time the prediction is for")
     features_used: Optional[str] = Field(
         default=None, 
         description="JSON string of features used in prediction"
     )
     
-    @field_validator('target_date')
+    @field_validator('target_datetime')
     @classmethod
-    def validate_target_date(cls, v):
+    def validate_target_datetime(cls, v):
         """Validate that target date is in the future"""
         now = datetime.now(timezone.utc)
         
@@ -48,7 +48,7 @@ class PredictionBase(BaseSchema):
             v = v.replace(tzinfo=timezone.utc)
         
         if v <= now:
-            raise ValueError('Target date must be in the future')
+            raise ValueError('Target datetime must be in the future')
         return v
     
     @field_validator('features_used')
@@ -185,7 +185,7 @@ class PredictionResult(BaseModel):
     model_name: str = Field(description="Model used for prediction")
     predicted_price: Decimal = Field(description="Predicted price")
     confidence_score: Decimal = Field(description="Confidence score")
-    target_date: datetime = Field(description="Target prediction date")
+    target_datetime: datetime = Field(description="Target prediction date")
     features_used: List[str] = Field(description="Features used in prediction")
     model_accuracy: Optional[float] = Field(
         default=None, 
@@ -300,7 +300,7 @@ class PredictionComparison(BaseModel):
         default=None, 
         description="Absolute error amount"
     )
-    target_date: datetime = Field(description="Prediction target date")
+    target_datetime: datetime = Field(description="Prediction target datetime")
     is_expired: bool = Field(description="Whether prediction period has passed")
 
 
