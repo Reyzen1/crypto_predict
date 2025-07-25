@@ -252,7 +252,8 @@ async def test_prediction_storage(crypto_id, model_id):
             db=db,
             crypto_id=crypto_id,
             model_id=model_id,
-            prediction_data=prediction_data
+            prediction_data=prediction_data,
+            user_id=1  
         )
         
         print(f"✅ Stored prediction: ID {prediction.id}")

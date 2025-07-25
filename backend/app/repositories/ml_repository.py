@@ -221,14 +221,22 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
         Returns:
             Created Prediction object
         """
+
+        if user_id is None:
+            user_id = 1  # Default system user
+        
+        target_datetime = prediction_data.get('target_datetime', datetime.utcnow() + timedelta(hours=24))
+        target_date = target_datetime.date() if hasattr(target_datetime, 'date') else target_datetime
+ 
+
         prediction_create = PredictionCreate(
             crypto_id=crypto_id,
             user_id=user_id,
             model_name=prediction_data.get('model_name', 'lstm'),
-            model_version=model_id,
             predicted_price=Decimal(str(prediction_data['predicted_price'])),
             confidence_score=Decimal(str(prediction_data.get('confidence_score', 0.5))),
             prediction_horizon=prediction_data.get('prediction_horizon', 24),
+            target_date=target_date,
             target_datetime=prediction_data.get('target_datetime', datetime.utcnow() + timedelta(hours=24)),
             input_price=Decimal(str(prediction_data.get('input_price', 0.0))),
             input_features=prediction_data.get('input_features'),
@@ -256,8 +264,8 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
         query = db.query(Prediction).filter(Prediction.crypto_id == crypto_id)
         
         if model_id:
-            query = query.filter(Prediction.model_version == model_id)
-        
+            query = query.filter(Prediction.notes.contains(model_id))
+
         return (
             query.order_by(desc(Prediction.created_at))
             .limit(limit)
@@ -346,7 +354,7 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
         )
         
         if model_id:
-            query = query.filter(Prediction.model_version == model_id)
+            query = query.filter(Prediction.notes.contains(model_id))
         
         predictions = query.all()
         
