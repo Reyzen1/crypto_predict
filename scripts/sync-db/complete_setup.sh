@@ -49,6 +49,16 @@ find_compose_file() {
 }
 
 # Check if this is a fresh setup or existing
+
+# Check for development mode
+check_dev_mode() {
+    if [ -f "backend/.dev_mode_no_alembic" ]; then
+        echo "development"
+    else
+        echo "production"
+    fi
+}
+
 check_setup_type() {
     if docker-compose -f "$COMPOSE_FILE" exec postgres psql -U postgres -d cryptopredict -c "SELECT 1 FROM alembic_version LIMIT 1;" 2>/dev/null | grep -q "1"; then
         echo "existing"
@@ -115,7 +125,15 @@ existing_setup() {
     print_status "Checking for migration updates..."
     cd backend
     
-    # Check current vs head
+    
+    # Check for development mode
+    dev_mode=$(check_dev_mode)
+    if [ "$dev_mode" = "development" ]; then
+        print_status "Development mode detected - skipping Alembic"
+        print_success "Development mode uses direct model creation"
+    else
+        # Original Alembic logic here
+        # Check current vs head
     current=$(alembic current 2>/dev/null | tail -1 | awk '{print $1}')
     heads=$(alembic heads --resolve-dependencies 2>/dev/null | wc -l)
     

@@ -27,28 +27,6 @@ from app.models import Base, User, Cryptocurrency, PriceData, Prediction
 Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI application with metadata
-
-# Development mode check - auto-create tables without Alembic
-from pathlib import Path
-import os
-
-# Check if development mode is enabled
-dev_mode_file = Path(__file__).parent.parent / ".dev_mode_no_alembic"
-if dev_mode_file.exists():
-    print("🔧 Development Mode: Creating tables directly from models")
-    try:
-        # Import all models to ensure they're registered with SQLAlchemy
-        from app.models import Base, User, Cryptocurrency, PriceData, Prediction
-        
-        # Create all tables
-        Base.metadata.create_all(bind=engine)
-        print("✅ Tables created from models (Development Mode)")
-    except Exception as e:
-        print(f"⚠️  Error creating tables in dev mode: {e}")
-else:
-    print("🏭 Production Mode: Alembic should handle migrations")
-
-
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.DESCRIPTION,

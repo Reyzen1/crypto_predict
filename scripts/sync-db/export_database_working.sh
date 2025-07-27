@@ -62,8 +62,9 @@ main() {
     
     print_status "Using compose file: $COMPOSE_FILE"
     
-    # Create backup directory
-    BACKUP_DIR="database_backup_$(date +%Y%m%d_%H%M%S)"
+    # Create backup directory structure
+    BACKUP_BASE_DIR="scripts/sync-db/database_backup"
+    BACKUP_DIR="$BACKUP_BASE_DIR/backup_$(date +%Y%m%d_%H%M%S)"
     mkdir -p "$BACKUP_DIR"
     print_success "Created backup directory: $BACKUP_DIR"
     
@@ -169,10 +170,11 @@ main() {
 
 3. **Run import:**
    \`\`\`bash
-   # Manual import (recommended)
-   ./scripts/sync-db/import_database.sh $BACKUP_DIR
+   # Using working import script (recommended)
+   ./scripts/sync-db/import_database_working.sh $BACKUP_DIR
    
-   # Or use manual steps from README
+   # Or using standard import script
+   ./scripts/sync-db/import_database.sh $BACKUP_DIR
    \`\`\`
 
 4. **Start application:**
@@ -242,9 +244,20 @@ EOF
     echo ""
     echo "🚀 Next Steps:"
     echo "   1. Copy '$BACKUP_DIR' to target system"
-    echo "   2. On target: git clone [repo] && cd crypto_predict"
-    echo "   3. On target: ./scripts/sync-db/import_database.sh $BACKUP_DIR"
-    echo "   4. On target: docker-compose -f docker-compose-backend.yml up -d"
+    echo "   2. Place backup folder in target system's project root"
+    echo "   3. On target: git clone [repo] && cd crypto_predict"
+    echo "   4. On target: ./scripts/sync-db/import_database_working.sh $BACKUP_DIR"
+    echo "   5. On target: docker-compose -f docker-compose-backend.yml up -d"
+    echo ""
+    echo "💡 Or copy just the backup folder contents and use relative path:"
+    echo "   ./scripts/sync-db/import_database_working.sh scripts/sync-db/database_backup/backup_YYYYMMDD_HHMMSS"
+    echo ""
+    echo "📁 Backup Structure:"
+    echo "   scripts/sync-db/database_backup/"
+    echo "   └── backup_$(date +%Y%m%d_%H%M%S)/"
+    echo "       ├── postgres.tar.gz"
+    echo "       ├── redis.tar.gz"
+    echo "       └── README.md"
     echo ""
     echo "💡 The backup includes ALL your data and is ready for transfer!"
 }

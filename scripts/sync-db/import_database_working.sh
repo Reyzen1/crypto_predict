@@ -39,8 +39,9 @@ show_usage() {
     echo "Import database from exported backup directory"
     echo ""
     echo "Example:"
+    echo "  $0 scripts/sync-db/database_backup/backup_20250726_123456"
     echo "  $0 database_backup_20250726_123456"
-    echo "  $0 /path/to/database_backup_20250726_123456"
+    echo "  $0 /path/to/backup_directory"
     echo ""
     echo "Options:"
     echo "  --help    Show this help message"
@@ -128,8 +129,18 @@ main() {
     
     print_status "Proceeding with import..."
     
-    # Stop containers
-    print_status "Stopping containers..."
+    # Stop ALL containers to avoid port conflicts
+    print_status "Stopping all Docker containers to avoid port conflicts..."
+    docker stop $(docker ps -q) 2>/dev/null || true
+    sleep 2
+    
+    # Clean up networks to avoid conflicts
+    print_status "Cleaning up Docker networks..."
+    docker network rm crypto_predict_default 2>/dev/null || true
+    docker network prune -f 2>/dev/null || true
+    
+    # Stop our specific containers
+    print_status "Stopping project containers..."
     docker-compose -f "$COMPOSE_FILE" down 2>/dev/null || true
     sleep 3
     
@@ -154,12 +165,14 @@ main() {
     docker cp "$backup_dir/postgres.tar.gz" temp_import_container:/data/
     if [ -f "$backup_dir/redis.tar.gz" ]; then
         docker cp "$backup_dir/redis.tar.gz" temp_import_container:/data/
+        print_status "Both PostgreSQL and Redis files copied"
+    else
+        print_status "PostgreSQL file copied (Redis not found)"
     fi
     docker rm temp_import_container
     
-    # Verify files were copied
-    print_status "Verifying backup files in temp volume..."
-    docker run --rm -v temp_import:/data alpine ls -la /data/
+    # Skip verification and proceed directly to import
+    print_status "Proceeding with import (skipping verification to avoid Git Bash issues)..."
     
     # Import PostgreSQL data
     print_status "Importing PostgreSQL data..."
@@ -278,6 +291,7 @@ main() {
     echo ""
     echo "🧹 Optional cleanup:"
     echo "   rm -rf '$backup_dir'  # Remove backup after verification"
+    echo "   # Or keep backups organized in scripts/sync-db/database_backup/"
     echo ""
     print_success "Database migration completed successfully!"
 }
