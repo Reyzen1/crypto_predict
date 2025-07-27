@@ -1,9 +1,25 @@
 # File: backend/app/ml/training/training_service.py
 # Fixed ML Training Service with corrected scaler handling
 
+import os
+import warnings
+
+# Suppress TensorFlow C++ messages completely
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Only FATAL errors
+
+# Suppress all Python warnings including Keras warnings
+warnings.filterwarnings('ignore')
+
+# Configure TensorFlow logging before importing TensorFlow
+import logging
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
+
+# Now import TensorFlow and suppress its logger
+import tensorflow as tf
+tf.get_logger().setLevel('FATAL')
+
 import asyncio
 import logging
-import os
 import json
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timedelta, timezone

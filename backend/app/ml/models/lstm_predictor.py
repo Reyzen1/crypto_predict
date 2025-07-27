@@ -1,13 +1,28 @@
 # File: backend/app/ml/models/lstm_predictor.py
 # LSTM Neural Network for cryptocurrency price prediction - CLEAN FIXED VERSION
 
+import os
+import warnings
+
+# Suppress TensorFlow C++ messages completely
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Only FATAL errors
+
+# Suppress all Python warnings including Keras input_shape warnings
+warnings.filterwarnings('ignore')
+
+# Configure TensorFlow logging before importing TensorFlow
+import logging
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
+
+# Now import TensorFlow and suppress its logger
+import tensorflow as tf
+tf.get_logger().setLevel('FATAL')
+
 import numpy as np
 import pandas as pd
 from typing import Tuple, Optional, Dict, Any, List
 from datetime import datetime, timedelta
 import pickle
-import os
-import logging
 
 # TensorFlow and Keras imports
 import tensorflow as tf

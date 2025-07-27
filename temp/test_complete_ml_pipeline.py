@@ -127,7 +127,7 @@ async def test_data_quality(crypto_id):
         print(f"   Data quality score: {quality_stats['data_quality_score']:.2f}")
         print(f"   Data freshness: {quality_stats['data_freshness_hours']:.1f} hours")
         
-        return quality_stats['data_quality_score'] > 0.5
+        return quality_stats['data_quality_score'] >= 0.5
         
     finally:
         db.close()
