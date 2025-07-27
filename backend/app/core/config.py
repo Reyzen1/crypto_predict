@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres123@localhost:5432/cryptopredict"
     
     # Redis settings
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = ""  # Disabled temporarily
     
     # External API settings
     COINGECKO_API_KEY: Optional[str] = None
