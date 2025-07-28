@@ -46,7 +46,6 @@ def get_current_user_token(
     
     return credentials.credentials
 
-
 def get_current_user(
     db: Session = Depends(get_db),
     token: Optional[str] = Depends(get_current_user_token)
@@ -64,28 +63,49 @@ def get_current_user(
         )
     
     try:
+        # FIXED: Use correct settings keys - check both variations
+        secret_key = getattr(settings, 'SECRET_KEY', None) or getattr(settings, 'JWT_SECRET_KEY', None)
+        algorithm = getattr(settings, 'ALGORITHM', None) or getattr(settings, 'JWT_ALGORITHM', None)
+        
+        if not secret_key or not algorithm:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="JWT configuration error"
+            )
+        
         # Decode JWT token
         payload = jwt.decode(
             token, 
-            settings.JWT_SECRET_KEY, 
-            algorithms=[settings.JWT_ALGORITHM]
+            secret_key, 
+            algorithms=[algorithm]
         )
         
-        user_id: int = payload.get("sub")
+        # FIXED: Try both user_id and sub keys
+        user_id: int = payload.get("user_id")
         if user_id is None:
             # Try alternative key formats
-            user_id = payload.get("user_id")
+            user_id = payload.get("sub")
             if user_id is None:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid authentication credentials",
+                    detail="Invalid token payload - missing user identifier",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
             
-    except JWTError:
+    except JWTError as e:
+        # Log the actual error for debugging
+        logger.error(f"JWT validation error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        # Log unexpected errors
+        logger.error(f"Unexpected authentication error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication error",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -99,7 +119,6 @@ def get_current_user(
         )
     
     return user
-
 
 def get_current_active_user(
     current_user: User = Depends(get_current_user)
@@ -144,21 +163,31 @@ def get_optional_current_user(
         return None
     
     try:
+        # FIXED: Use correct settings keys - check both variations
+        secret_key = getattr(settings, 'SECRET_KEY', None) or getattr(settings, 'JWT_SECRET_KEY', None)
+        algorithm = getattr(settings, 'ALGORITHM', None) or getattr(settings, 'JWT_ALGORITHM', None)
+        
+        if not secret_key or not algorithm:
+            return None
+        
         # Decode JWT token
         payload = jwt.decode(
             token, 
-            settings.JWT_SECRET_KEY, 
-            algorithms=[settings.JWT_ALGORITHM]
+            secret_key, 
+            algorithms=[algorithm]
         )
         
-        user_id: int = payload.get("sub")
+        # FIXED: Try both user_id and sub keys
+        user_id: int = payload.get("user_id")
         if user_id is None:
             # Try alternative key format
-            user_id = payload.get("user_id")
+            user_id = payload.get("sub")
             if user_id is None:
                 return None
             
     except JWTError:
+        return None
+    except Exception:
         return None
     
     # Get user from database
@@ -167,7 +196,6 @@ def get_optional_current_user(
         return user if user and user.is_active else None
     except Exception:
         return None
-
 
 def get_current_superuser(
     current_user: User = Depends(get_current_active_user)

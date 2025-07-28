@@ -1,0 +1,52 @@
+{
+  "model_info": {
+    "model_type": "lstm",
+    "crypto_symbol": "BTC",
+    "model_version": "20250728_113533",
+    "created_at": "2025-07-28T11:35:33.813339",
+    "framework": "tensorflow"
+  },
+  "training_metrics": {
+    "training_duration_seconds": 3.844755,
+    "final_loss": 15.575085639953613,
+    "final_val_loss": 14.838608741760254,
+    "final_mae": 0.5297986268997192,
+    "final_val_mae": 0.3060203194618225,
+    "epochs_trained": 3,
+    "best_epoch": "3",
+    "training_completed_at": "2025-07-28T11:35:33.304379",
+    "mse": 3833973.6689727167,
+    "mae": 1646.7663324652776,
+    "rmse": 1958.05354088511,
+    "r2_score": 0.00875300600202844,
+    "mape": 3.2548508889611054
+  },
+  "features": {
+    "feature_names": [
+      "price_features",
+      "price_features"
+    ],
+    "feature_count": 2,
+    "feature_engineering": {}
+  },
+  "training_config": {
+    "sequence_length": 15,
+    "lstm_units": [
+      50,
+      50,
+      50
+    ],
+    "epochs": 3,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "dropout_rate": 0.2,
+    "validation_split": 0.2,
+    "early_stopping_patience": 10
+  },
+  "data_info": {
+    "features_count": 2,
+    "data_points": 249
+  },
+  "model_status": "trained",
+  "last_updated": "2025-07-28T11:35:33.813358"
+}

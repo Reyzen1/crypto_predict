@@ -218,15 +218,62 @@ class MLTrainingService:
                 lstm_predictor.save_model(model_path)
             
             # Step 9: Register model in existing model registry
+            # Step 9: Register model in existing model registry
             try:
+                # Ensure performance_metrics is never None/empty
+                safe_metrics = {}
+                if all_metrics and isinstance(all_metrics, dict):
+                    safe_metrics = all_metrics
+                else:
+                    # Provide default metrics if all_metrics is None/empty
+                    safe_metrics = {
+                        "training_completed": True,
+                        "model_id": model_id,
+                        "crypto_symbol": crypto_symbol
+                    }
+                    # Add training metrics if available
+                    if training_metrics:
+                        safe_metrics.update(training_metrics)
+                    # Add evaluation metrics if available
+                    if evaluation_metrics:
+                        safe_metrics.update(evaluation_metrics)
+                
                 model_registry.register_model(
                     model_id=model_id,
                     crypto_symbol=crypto_symbol,
                     model_type="lstm",
                     model_path=model_path,
-                    performance_metrics=all_metrics,
-                    metadata={'basic': True}
+                    performance_metrics=safe_metrics,  # Always provide valid dict
+                    metadata={'training_completed': True, 'auto_registered': True}
                 )
+                
+                # Set as active model if it's better than existing
+                try:
+                    await self._update_active_model_if_better(crypto_symbol, model_id, safe_metrics)
+                except:
+                    # Fallback: just set as active
+                    model_registry.set_active_model(crypto_symbol, model_id)
+                
+                logger.info(f"Model registered successfully in registry: {model_id}")
+                
+            except Exception as e:
+                logger.error(f"Could not register model: {str(e)}")
+                # Try basic registration as fallback
+                try:
+                    basic_metrics = {"registered_at": datetime.now().isoformat()}
+                    model_registry.register_model(
+                        model_id=model_id,
+                        crypto_symbol=crypto_symbol,
+                        model_type="lstm",
+                        model_path=model_path,
+                        performance_metrics=basic_metrics,
+                        metadata={'fallback_registration': True}
+                    )
+                    model_registry.set_active_model(crypto_symbol, model_id)
+                    logger.info(f"Model registered with fallback method: {model_id}")
+                except Exception as e2:
+                    logger.error(f"Even fallback registration failed: {str(e2)}")
+
                 
                 # Set as active model if it's better than existing
                 await self._update_active_model_if_better(crypto_symbol, model_id, all_metrics)

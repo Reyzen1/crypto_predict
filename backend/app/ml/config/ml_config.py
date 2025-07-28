@@ -1,53 +1,42 @@
 # File: backend/app/ml/config/ml_config.py
-# Configuration settings for ML models - FIXED protected namespace warning
+# Complete fixed version of ML configuration
 
-try:
-    from pydantic_settings import BaseSettings
-except ImportError:
-    from pydantic import BaseSettings
-
-from pydantic import Field, ConfigDict
-from typing import List, Dict, Any, Optional
-from enum import Enum
+from typing import Dict, List, Optional, Any
+from pydantic import BaseModel, Field
 from datetime import datetime
-import os
-
-
-class ModelType(str, Enum):
-    LSTM = "lstm"
-    LINEAR_REGRESSION = "linear_regression"
-    RANDOM_FOREST = "random_forest"
+from enum import Enum
 
 
 class ScalingMethod(str, Enum):
-    MINMAX = "minmax"
+    """Scaling methods for feature normalization"""
     STANDARD = "standard"
+    MINMAX = "minmax"
     ROBUST = "robust"
+    QUANTILE = "quantile"
 
 
-class MLConfig(BaseSettings):
-    """Machine Learning configuration settings"""
+class MLConfig(BaseModel):
+    """ML Configuration settings"""
     
-    # Fix protected namespace warning
-    model_config = ConfigDict(
-        env_file=".env",
-        env_prefix="ML_",
-        case_sensitive=False,
-        protected_namespaces=('settings_',)  # This fixes the warning
-    )
-    
-    # LSTM Model Parameters
-    lstm_sequence_length: int = Field(default=60)
+    # Model hyperparameters
+    sequence_length: int = Field(default=60)
+    lstm_sequence_length: int = Field(default=60)  # Add missing attribute
     lstm_units: List[int] = Field(default=[50, 50, 50])
-    lstm_dropout_rate: float = Field(default=0.2)
-    lstm_learning_rate: float = Field(default=0.001)
-    lstm_batch_size: int = Field(default=32)
-    lstm_epochs: int = Field(default=100)
-    lstm_validation_split: float = Field(default=0.2)
+    dropout_rate: float = Field(default=0.2)
+    lstm_dropout_rate: float = Field(default=0.2)  # Add missing attribute
+    learning_rate: float = Field(default=0.001)
+    lstm_learning_rate: float = Field(default=0.001)  # Add missing attribute
+    batch_size: int = Field(default=32)
+    lstm_batch_size: int = Field(default=32)  # Add missing attribute
+    epochs: int = Field(default=100)
+    lstm_epochs: int = Field(default=100)  # Add missing attribute
+    validation_split: float = Field(default=0.2)
+    lstm_validation_split: float = Field(default=0.2)  # Add missing attribute
+    early_stopping_patience: int = Field(default=10)
     
-    # Data Processing Parameters - REDUCED requirements
-    scaling_method: ScalingMethod = Field(default=ScalingMethod.MINMAX)
-    handle_missing: str = Field(default="interpolate")
+    # Data preprocessing
+    scaling_method: ScalingMethod = Field(default=ScalingMethod.STANDARD)
+    handle_missing: bool = Field(default=True)
     add_technical_indicators: bool = Field(default=True)
     add_time_features: bool = Field(default=True)
     add_price_features: bool = Field(default=True)
@@ -68,7 +57,7 @@ ml_config = MLConfig()
 
 
 class ModelRegistry:
-    """Simple model registry"""
+    """Simple model registry - FIXED VERSION"""
     
     def __init__(self):
         self.models: Dict[str, Dict[str, Any]] = {}
@@ -77,7 +66,9 @@ class ModelRegistry:
     def register_model(self, model_id: str, crypto_symbol: str, model_type: str, 
                       model_path: str, performance_metrics: Dict[str, float], 
                       metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Register a new model"""
         self.models[model_id] = {
+            'model_id': model_id,  # Add model_id to the data
             'crypto_symbol': crypto_symbol,
             'model_type': model_type,
             'model_path': model_path,
@@ -88,6 +79,7 @@ class ModelRegistry:
         }
     
     def set_active_model(self, crypto_symbol: str, model_id: str) -> None:
+        """Set a model as active for a cryptocurrency"""
         if model_id not in self.models:
             raise ValueError(f"Model {model_id} not found")
         if crypto_symbol in self.active_models:
@@ -98,23 +90,47 @@ class ModelRegistry:
         self.models[model_id]['is_active'] = True
     
     def get_active_model(self, crypto_symbol: str) -> Optional[Dict[str, Any]]:
+        """Get the active model for a cryptocurrency"""
         if crypto_symbol not in self.active_models:
             return None
         model_id = self.active_models[crypto_symbol]
         return self.models.get(model_id)
     
     def list_models(self, crypto_symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List all models, optionally filtered by crypto symbol - FIXED VERSION"""
         models = list(self.models.values())
         if crypto_symbol:
-            models = [m for m in models if m['crypto_symbol'] == crypto_symbol]
-        return sorted(models, key=lambda x: x['registered_at'], reverse=True)
+            models = [m for m in models if m.get('crypto_symbol') == crypto_symbol]
+        
+        # FIXED: Safe sorting - handle missing 'registered_at' key
+        def get_sort_key(model):
+            # Try 'registered_at' first, fallback to other timestamps
+            if 'registered_at' in model:
+                return model['registered_at']
+            elif 'metadata' in model and 'created_at' in model['metadata']:
+                return model['metadata']['created_at']
+            else:
+                # Fallback to current time as ISO string
+                return datetime.now().isoformat()
+        
+        try:
+            return sorted(models, key=get_sort_key, reverse=True)
+        except Exception as e:
+            # If sorting fails, return unsorted list
+            return models
+    
+    def get_model_info(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """Get information about a specific model"""
+        return self.models.get(model_id)
     
     def get_model_performance(self, model_id: str) -> Optional[Dict[str, float]]:
+        """Get performance metrics for a model"""
         if model_id not in self.models:
             return None
         return self.models[model_id]['performance_metrics']
     
     def remove_model(self, model_id: str) -> bool:
+        """Remove a model from registry"""
         if model_id not in self.models:
             return False
         crypto_symbol = self.models[model_id]['crypto_symbol']
