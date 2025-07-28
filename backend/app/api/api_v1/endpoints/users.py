@@ -125,13 +125,13 @@ def create_user(
             )
         
         # Hash password
-        hashed_password = security.hash_password(user_data.password)
+        password_hash = security.hash_password(user_data.password)
         
         # Create user using your existing repository
         new_user = user_repository.create_user(
             db,
             email=user_data.email,
-            password_hash=hashed_password,
+            password_hash=password_hash,
             first_name=user_data.first_name,
             last_name=user_data.last_name,
             is_active=True,  # Direct activation for admin-created users

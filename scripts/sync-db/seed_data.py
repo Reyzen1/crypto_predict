@@ -33,7 +33,7 @@ def create_seed_data():
         if not test_user:
             test_user = User(
                 email="test@cryptopredict.com",
-                hashed_password=pwd_context.hash("test_password"),
+                password_hash=pwd_context.hash("test_password"),
                 first_name="Test",
                 last_name="User",
                 is_active=True,
@@ -98,7 +98,7 @@ def create_seed_data():
         if not admin_user:
             admin_user = User(
                 email="admin@cryptopredict.com",
-                hashed_password=pwd_context.hash("admin_password"),
+                password_hash=pwd_context.hash("admin_password"),
                 first_name="Admin",
                 last_name="User",
                 is_active=True,

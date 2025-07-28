@@ -20,7 +20,7 @@ class User(Base):
     # User credentials
     email = Column(String(255), unique=True, index=True, nullable=False)
     # username = Column(String(50), unique=True, index=True, nullable=False)  # COMMENTED OUT - تعلیق شده
-    hashed_password = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=False)
     
     # User information
     first_name = Column(String(50), nullable=True)
@@ -44,11 +44,11 @@ class User(Base):
     
     def verify_password(self, plain_password: str) -> bool:
         """Verify a plain password against the hashed password"""
-        return pwd_context.verify(plain_password, self.hashed_password)
+        return pwd_context.verify(plain_password, self.password_hash)
     
     def set_password(self, plain_password: str) -> None:
         """Set the user's password (hashed)"""
-        self.hashed_password = pwd_context.hash(plain_password)
+        self.password_hash = pwd_context.hash(plain_password)
     
     @property
     def full_name(self) -> str:

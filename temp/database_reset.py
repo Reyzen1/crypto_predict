@@ -51,7 +51,7 @@ def main():
         # Create system user
         user = User(
             email="system@cryptopredict.local",
-            hashed_password=pwd_context.hash("SystemPassword123!"),
+            password_hash=pwd_context.hash("SystemPassword123!"),
             first_name="System",
             last_name="User",
             is_active=True,

@@ -26,9 +26,9 @@ class SecurityManager:
         """Hash a plain password"""
         return self.pwd_context.hash(password)
 
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+    def verify_password(self, plain_password: str, password_hash: str) -> bool:
         """Verify a password against its hash"""
-        return self.pwd_context.verify(plain_password, hashed_password)
+        return self.pwd_context.verify(plain_password, password_hash)
 
     def create_access_token(self, data: Dict[str, Any]) -> str:
         """Create JWT access token - FIXED UTC usage"""
@@ -105,9 +105,9 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(plain_password: str, password_hash: str) -> bool:
     """Standalone function to verify password (for backward compatibility)"""
-    return security.verify_password(plain_password, hashed_password)
+    return security.verify_password(plain_password, password_hash)
 
 
 def get_password_hash(password: str) -> str:

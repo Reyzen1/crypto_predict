@@ -1,5 +1,5 @@
 # File: backend/app/services/auth.py
-# Authentication service with business logic
+# FIXED Authentication service - Added missing expires_in field
 
 from typing import Dict, Any
 from sqlalchemy.orm import Session
@@ -37,14 +37,14 @@ class AuthService:
             )
         
         # Hash password
-        hashed_password = security.hash_password(user_data.password)
+        password_hash = security.hash_password(user_data.password)
         
         # Create user using your existing repository
         try:
             user = user_repository.create_user(
                 db,
                 email=user_data.email,
-                hashed_password=hashed_password,
+                password_hash=password_hash,
                 first_name=user_data.first_name,
                 last_name=user_data.last_name
             )
@@ -71,7 +71,8 @@ class AuthService:
             },
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "expires_in": 30 * 60  # FIXED: Added missing expires_in (30 minutes in seconds)
         }
 
     def authenticate_user(self, db: Session, login_data: UserLogin) -> Dict[str, Any]:
@@ -97,7 +98,7 @@ class AuthService:
             )
         
         # Verify password
-        if not security.verify_password(login_data.password, user.hashed_password):
+        if not security.verify_password(login_data.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password"
@@ -115,8 +116,11 @@ class AuthService:
         access_token = security.create_access_token(token_data)
         refresh_token = security.create_refresh_token(token_data)
         
-        # Update last login time using your existing repository
-        user_repository.update(db, db_obj=user, obj_in={"last_login_date": user.updated_at})
+        # Update last login time using your existing repository (optional)
+        try:
+            user_repository.update(db, db_obj=user, obj_in={"last_login": user.updated_at})
+        except:
+            pass  # Ignore last login update errors
         
         return {
             "user": {
@@ -130,7 +134,8 @@ class AuthService:
             },
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "expires_in": 30 * 60  # FIXED: Added missing expires_in (30 minutes in seconds)
         }
 
     def refresh_access_token(self, db: Session, refresh_token: str) -> Token:
@@ -221,17 +226,17 @@ class AuthService:
             HTTPException: If current password is wrong
         """
         # Verify current password
-        if not security.verify_password(current_password, user.hashed_password):
+        if not security.verify_password(current_password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Current password is incorrect"
             )
         
         # Hash new password
-        new_hashed_password = security.hash_password(new_password)
+        new_password_hash = security.hash_password(new_password)
         
         # Update password using your existing repository
-        user_repository.update(db, db_obj=user, obj_in={"hashed_password": new_hashed_password})
+        user_repository.update(db, db_obj=user, obj_in={"password_hash": new_password_hash})
         
         return True
 

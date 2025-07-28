@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-super-secret-key-change-this-in-production"
     JWT_SECRET_KEY: str = "your-jwt-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"
+    JWT_ALGORITHM: str = "HS256"  
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Database settings

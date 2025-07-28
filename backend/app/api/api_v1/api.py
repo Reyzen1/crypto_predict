@@ -1,12 +1,12 @@
-# File: ./backend/app/api/api_v1/api.py
-# Main API router for CryptoPredict MVP - Updated with External API endpoints
-# Aggregates all API endpoints and provides version 1 routing
+# File: backend/app/api/api_v1/api.py
+# Updated API router with ML Training endpoints
 
 from fastapi import APIRouter
 
-# Import endpoint routers
+# Import existing endpoint routers
 from app.api.api_v1.endpoints import auth, users, crypto, prices, health, external, tasks
-# from app.api.api_v1.endpoints import predictions  # To be created later
+# Import new ML training endpoints
+from app.api.api_v1.endpoints import ml_training
 
 # Create main API router
 api_router = APIRouter()
@@ -45,8 +45,8 @@ async def api_info():
             "prices": "/api/v1/prices",
             "external": "/api/v1/external",
             "tasks": "/api/v1/tasks",
-            "tasks": "/api/v1/tasks",
             "system": "/api/v1/system",
+            "ml": "/api/v1/ml",  # NEW: ML endpoints
             "docs": "/docs",
             "redoc": "/redoc"
         },
@@ -57,8 +57,9 @@ async def api_info():
             "External API integration (CoinGecko)",
             "Background data synchronization",
             "Background task management",
-            "Background task management",
             "System health monitoring",
+            "ML model training and management",  # NEW
+            "Real-time predictions",  # NEW
             "RESTful API design",
             "Automatic API documentation"
         ]
@@ -84,6 +85,9 @@ api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks
 
 # Include system health router
 api_router.include_router(health.router, prefix="/system", tags=["System Health"])
+
+# NEW: Include ML training router
+api_router.include_router(ml_training.router, prefix="/ml", tags=["Machine Learning"])
 
 # Include other routers (uncomment when endpoints are created)
 # api_router.include_router(predictions.router, prefix="/predictions", tags=["Predictions"])
