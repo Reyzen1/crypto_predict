@@ -1,0 +1,123 @@
+{
+  "models": {
+    "BTC_lstm_20250729_101444": {
+      "model_id": "BTC_lstm_20250729_101444",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250729_101444.h5",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.68,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-29T14:46:01.513775",
+        "file_modified": "2025-07-29T13:44:44.692356",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-29T14:46:01.513775",
+      "is_active": true
+    },
+    "BTC_lstm_20250729_102745": {
+      "model_id": "BTC_lstm_20250729_102745",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250729_102745.h5",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.68,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-29T14:46:01.513775",
+        "file_modified": "2025-07-29T13:57:45.890526",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-29T14:46:01.513775",
+      "is_active": false
+    },
+    "BTC_lstm_20250729_101444_config": {
+      "model_id": "BTC_lstm_20250729_101444_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250729_101444_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-29T14:46:01.513775",
+        "file_modified": "2025-07-29T13:44:44.692356",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-29T14:46:01.513775",
+      "is_active": false
+    },
+    "BTC_lstm_20250729_101444_scalers": {
+      "model_id": "BTC_lstm_20250729_101444_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250729_101444_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-29T14:46:01.513775",
+        "file_modified": "2025-07-29T13:44:44.692356",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-29T14:46:01.513775",
+      "is_active": false
+    },
+    "BTC_lstm_20250729_102745_config": {
+      "model_id": "BTC_lstm_20250729_102745_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250729_102745_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-29T14:46:01.513775",
+        "file_modified": "2025-07-29T13:57:45.892533",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-29T14:46:01.513775",
+      "is_active": false
+    },
+    "BTC_lstm_20250729_102745_scalers": {
+      "model_id": "BTC_lstm_20250729_102745_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250729_102745_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-29T14:46:01.513775",
+        "file_modified": "2025-07-29T13:57:45.892533",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-29T14:46:01.513775",
+      "is_active": false
+    }
+  },
+  "active_models": {
+    "BTC": "BTC_lstm_20250729_101444"
+  },
+  "saved_at": "2025-07-29T15:15:46.241685",
+  "version": "1.0"
+}

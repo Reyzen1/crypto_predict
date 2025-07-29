@@ -55,7 +55,7 @@ class MLTrainingService:
     def __init__(self):
         """Initialize training service with existing components"""
         self.data_processor = CryptoPriceDataProcessor(
-            scaling_method=ml_config.scaling_method.value,
+            scaling_method=ml_config.scaling_method,
             handle_missing=ml_config.handle_missing,
             add_technical_indicators=ml_config.add_technical_indicators,
             add_time_features=ml_config.add_time_features,

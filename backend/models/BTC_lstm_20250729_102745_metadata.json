@@ -2,24 +2,24 @@
   "model_info": {
     "model_type": "lstm",
     "crypto_symbol": "BTC",
-    "model_version": "20250728_131747",
-    "created_at": "2025-07-28T13:17:47.537546",
+    "model_version": "20250729_102745",
+    "created_at": "2025-07-29T10:27:45.835672",
     "framework": "tensorflow"
   },
   "training_metrics": {
-    "training_duration_seconds": 5.14809,
-    "final_loss": 13.745752334594727,
-    "final_val_loss": 13.19921875,
-    "final_mae": 0.38181057572364807,
-    "final_val_mae": 0.3599029779434204,
+    "training_duration_seconds": 4.240551,
+    "final_loss": 14.32312297821045,
+    "final_val_loss": 13.743038177490234,
+    "final_mae": 0.4949357211589813,
+    "final_val_mae": 0.3041893243789673,
     "epochs_trained": 5,
     "best_epoch": "5",
-    "training_completed_at": "2025-07-28T13:17:46.922634",
-    "mse": 20581996.63476527,
-    "mae": 4218.034621212122,
-    "rmse": 4536.738546000339,
-    "r2_score": -5.59862574484497,
-    "mape": 8.408912678206452
+    "training_completed_at": "2025-07-29T10:27:45.367919",
+    "mse": 14917173.881267533,
+    "mae": 3386.7624857954547,
+    "rmse": 3862.275738637459,
+    "r2_score": -3.782473214819058,
+    "mape": 6.71654481229163
   },
   "features": {
     "feature_names": [
@@ -48,5 +48,5 @@
     "data_points": 249
   },
   "model_status": "trained",
-  "last_updated": "2025-07-28T13:17:47.537555"
+  "last_updated": "2025-07-29T10:27:45.835672"
 }
