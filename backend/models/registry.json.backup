@@ -17,7 +17,7 @@
         "registration_source": "startup_scan"
       },
       "registered_at": "2025-07-29T14:46:01.513775",
-      "is_active": false
+      "is_active": true
     },
     "BTC_lstm_20250729_102745": {
       "model_id": "BTC_lstm_20250729_102745",
@@ -115,7 +115,9 @@
       "is_active": false
     }
   },
-  "active_models": {},
-  "saved_at": "2025-07-29T15:15:35.986352",
+  "active_models": {
+    "BTC": "BTC_lstm_20250729_101444"
+  },
+  "saved_at": "2025-07-29T18:50:12.141587",
   "version": "1.0"
 }

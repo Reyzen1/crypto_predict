@@ -1,7 +1,7 @@
 # CryptoPredict Database Export
 
-**Export Date:** Mon Jul 28 01:08:48 IST 2025
-**Source Computer:** DESKTOP-M6P1TMF
+**Export Date:** Tue Jul 29 18:51:55 IST 2025
+**Source Computer:** DESKTOP-52VKHGP
 **Export Method:** Docker Volume Transfer (Temp Volume)
 
 ## Contents
@@ -35,10 +35,10 @@
 3. **Run import:**
    ```bash
    # Using working import script (recommended)
-   ./scripts/sync-db/import_database_working.sh scripts/sync-db/database_backup/backup_20250728_010827
+   ./scripts/sync-db/import_database_working.sh scripts/sync-db/database_backup/backup_20250729_185145
    
    # Or using standard import script
-   ./scripts/sync-db/import_database.sh scripts/sync-db/database_backup/backup_20250728_010827
+   ./scripts/sync-db/import_database.sh scripts/sync-db/database_backup/backup_20250729_185145
    ```
 
 4. **Start application:**
@@ -69,8 +69,8 @@ docker volume create cryptopredict_redis_data
 # Create temp volume and copy files
 docker volume create temp_restore
 docker create --name restore_temp -v temp_restore:/data alpine
-docker cp ./scripts/sync-db/database_backup/backup_20250728_010827/postgres.tar.gz restore_temp:/data/
-docker cp ./scripts/sync-db/database_backup/backup_20250728_010827/redis.tar.gz restore_temp:/data/
+docker cp ./scripts/sync-db/database_backup/backup_20250729_185145/postgres.tar.gz restore_temp:/data/
+docker cp ./scripts/sync-db/database_backup/backup_20250729_185145/redis.tar.gz restore_temp:/data/
 docker rm restore_temp
 
 # Extract to final volumes
