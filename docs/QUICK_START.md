@@ -1,143 +1,170 @@
-# CryptoPredict MVP - Quick Start Guide
+# 🚀 Quick Start Guide
 
-## 🚀 سریع‌ترین راه راه‌اندازی
+## ⚡ Get Started in 2 Minutes
 
-### پیش‌نیازها:
-- Docker Desktop نصب و اجرا شده
-- Python 3.12 (یا Python 3.x)
-- Node.js و npm
-- Git Bash (برای Windows)
-
-### 📋 مراحل:
-
-#### 1. راه‌اندازی اولیه (یکبار):
+### 1. Environment Setup
 ```bash
-# اجازه اجرا به اسکریپت‌ها
-chmod +x scripts/*.sh
-
-# راه‌اندازی کامل
-./scripts/quick-setup.sh
+# Ensure you have your .env file configured
+# DATABASE_URL=postgresql://postgres:admin123@localhost:5433/cryptopredict
+# REDIS_URL=redis://localhost:6379/0
 ```
 
-#### 2. شروع سرویس‌ها:
-
-**Terminal 1 - Backend:**
+### 2. Switch to Local Development
 ```bash
-./scripts/start-backend.sh
+chmod +x dev-mode-switcher.sh
+./dev-mode-switcher.sh local
 ```
 
-**Terminal 2 - Frontend:**
+### 3. Start Services
 ```bash
-./scripts/start-frontend.sh
+# Terminal 1 - Backend
+./start-backend-local.sh
+
+# Terminal 2 - Frontend
+./start-frontend-local.sh
 ```
 
-#### 3. دسترسی به برنامه:
+### 4. Access Applications
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
+- **API Docs**: http://localhost:8000/docs
 
-#### 4. متوقف کردن:
+---
+
+## 🔄 Switch Development Modes
+
+### To Local Development
 ```bash
-# متوقف کردن دیتابیس‌ها
-./scripts/stop-db.sh
+./dev-mode-switcher.sh local
+```
+**Uses**: PostgreSQL (localhost:5433) + Redis (localhost:6379)
 
-# Backend و Frontend با Ctrl+C متوقف می‌شوند
+### To Docker Development
+```bash
+./dev-mode-switcher.sh docker
+```
+**Uses**: Docker containers for all services
+
+### Check Current Status
+```bash
+./dev-mode-switcher.sh status
 ```
 
 ---
 
-## 📁 فایل‌های مورد نیاز
+## 💡 Key Features
 
-این فایل‌ها را در پوشه `scripts/` ایجاد کنید:
+### ✅ Automatic Configuration
+- Reads from `.env` file automatically
+- Smart backup and restore of configurations
+- No manual file editing required
 
-### 1. `scripts/quick-setup.sh`
+### ✅ Flexible Database Support
+- Local PostgreSQL (any port)
+- Docker PostgreSQL
+- Auto-detects connection settings
+
+### ✅ Environment Management
+- One command to switch modes
+- Preserves your API keys and settings
+- Safe backup system
+
+---
+
+## 🔧 Prerequisites
+
+### For Local Development
+- PostgreSQL running on any port
+- Redis running on default port (6379)
+- Python virtual environment in `backend/venv/`
+- Node.js dependencies in `frontend/node_modules/`
+
+### For Docker Development
+- Docker and Docker Compose installed
+
+---
+
+## 📋 Common Commands
+
 ```bash
-#!/bin/bash
-# محتویات artifact بالا
-```
+# Check what's running
+./dev-mode-switcher.sh status
 
-### 2. `scripts/start-backend.sh`
-```bash
-#!/bin/bash
-# محتویات artifact بالا
-```
+# Switch modes
+./dev-mode-switcher.sh local   # Local development
+./dev-mode-switcher.sh docker  # Docker development
 
-### 3. `scripts/start-frontend.sh`
-```bash
-#!/bin/bash
-# محتویات artifact بالا
-```
+# Start development servers
+./start-backend-local.sh       # Backend server
+./start-frontend-local.sh      # Frontend server
 
-### 4. `scripts/stop-db.sh`
-```bash
-#!/bin/bash
-# محتویات artifact بالا
-```
-
-### 5. `docker-compose-backend.yml`
-```yaml
-# محتویات artifact بالا (بدون خط version)
+# Database operations
+createdb -h localhost -p 5433 -U postgres cryptopredict  # Create DB
+psql -h localhost -p 5433 -U postgres cryptopredict      # Connect to DB
 ```
 
 ---
 
-## 🔧 عیب‌یابی
+## 🆘 Troubleshooting
 
-### مشکل: اسکریپت اجرا نمی‌شود
+### Backend Won't Start
 ```bash
-chmod +x scripts/*.sh
-```
+# Check database connection
+pg_isready -h localhost -p 5433
 
-### مشکل: Virtual Environment یافت نمی‌شود
-```bash
+# Check if virtual environment is active
+echo $VIRTUAL_ENV
+
+# Activate virtual environment manually
 cd backend
-python -m venv venv
-# یا
-py -3.12 -m venv venv
+source venv/Scripts/activate  # Windows Git Bash
+source venv/bin/activate      # Linux/Mac
 ```
 
-### مشکل: Docker در دسترس نیست
+### Frontend Won't Start
 ```bash
-# Docker Desktop را شروع کنید
-docker info
+# Check if Node.js dependencies are installed
+cd frontend
+ls node_modules/
+
+# Install dependencies if missing
+npm install
 ```
 
-### مشکل: نصب packages Python
+### Database Issues
 ```bash
-cd backend
-source venv/Scripts/activate
-pip install --upgrade pip
-pip install fastapi uvicorn sqlalchemy psycopg2-binary redis pydantic
+# Create database if it doesn't exist
+createdb -h localhost -p 5433 -U postgres cryptopredict
+
+# Check if PostgreSQL is running on correct port
+netstat -tulpn | grep 5433
+```
+
+### Switch Not Working
+```bash
+# Check current environment
+cat .env | grep DATABASE_URL
+
+# Manually restore backup if needed
+cp .env.local.backup .env      # Restore local config
+cp .env.docker.backup .env     # Restore Docker config
 ```
 
 ---
 
-## 🎯 بعد از راه‌اندازی موفق
+## 📖 Next Steps
 
-شما آماده هستید برای:
-- ✅ Backend API در http://localhost:8000
-- ✅ Frontend در http://localhost:3000
-- ✅ Database PostgreSQL و Redis
-- ✅ ادامه توسعه طبق Phase 1
-
-### گام بعدی:
-- تنظیم SQLAlchemy و Alembic
-- ایجاد مدل‌های دیتابیس
-- تنظیم CORS و Security middleware
+1. **API Development**: Check http://localhost:8000/docs for API documentation
+2. **Frontend Development**: Visit http://localhost:3000 to see the UI
+3. **Database Management**: Tables are created automatically from models
+4. **Configuration**: All settings are in `.env` file
+5. **Advanced Setup**: See `docs/INFRASTRUCTURE_SETUP.md` for detailed information
 
 ---
 
-## 📞 کمک
+## 💡 Pro Tips
 
-اگر مشکلی داشتید:
-1. اطمینان حاصل کنید که Docker اجرا شده است
-2. Python 3.12 یا بالاتر نصب باشد
-3. Node.js و npm نصب باشد
-4. از Git Bash استفاده کنید (برای Windows)
-
-### Reset کامل:
-```bash
-./scripts/stop-db.sh
-docker system prune -f
-./scripts/quick-setup.sh
-```
+- Use `./dev-mode-switcher.sh status` to debug configuration issues
+- Your API keys and custom settings are preserved when switching modes
+- Tables are created automatically - no manual migration needed for development
+- Both startup scripts show detailed environment information when starting
