@@ -1,32 +1,45 @@
-# File: ./backend/alembic/env.py
-# Alembic environment configuration for CryptoPredict MVP
+# File: backend/alembic/env.py
+# Alembic environment configuration with dynamic database URL
 
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from alembic import context
 import os
 import sys
+from logging.config import fileConfig
+from pathlib import Path
 
-# Add the backend directory to the Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
 
-# Import our application configuration and models
-from app.core.config import settings
+from alembic import context
+
+# Add the backend directory to Python path
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
+
+# Import app modules
 from app.core.database import Base
-from app.models import *  # Import all models
+from app.models import User, Cryptocurrency, PriceData, Prediction
+
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    # Look for .env in project root (one level up from backend)
+    env_path = backend_dir.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+    else:
+        # Fallback to backend directory
+        load_dotenv(backend_dir / '.env')
+except ImportError:
+    pass
 
 # this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# access to the values within the .env file in use.
 config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-# Set the sqlalchemy.url in the alembic configuration
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -36,6 +49,26 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+
+def get_database_url():
+    """Get database URL from environment variable"""
+    
+    # Try to get from environment variable first
+    database_url = os.getenv('DATABASE_URL')
+    
+    if database_url:
+        return database_url
+    
+    # If not found, try to import from config
+    try:
+        from app.core.config import settings
+        return settings.DATABASE_URL
+    except ImportError:
+        pass
+    
+    # Fallback to default for development
+    return "postgresql://postgres:admin123@localhost:5433/cryptopredict"
 
 
 def run_migrations_offline() -> None:
@@ -50,12 +83,14 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = get_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        compare_server_default=True,
     )
 
     with context.begin_transaction():
@@ -69,20 +104,26 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # Override the sqlalchemy.url with our application configuration
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
     
+    # Get database URL
+    database_url = get_database_url()
+    
+    # Override the sqlalchemy.url in the alembic configuration
+    config.set_main_option('sqlalchemy.url', database_url)
+    
+    # Create engine
     connectable = engine_from_config(
-        configuration,
+        config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, 
-            target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
         )
 
         with context.begin_transaction():
