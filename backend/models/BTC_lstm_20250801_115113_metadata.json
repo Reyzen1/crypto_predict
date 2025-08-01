@@ -2,24 +2,24 @@
   "model_info": {
     "model_type": "lstm",
     "crypto_symbol": "BTC",
-    "model_version": "20250729_102745",
-    "created_at": "2025-07-29T10:27:45.835672",
+    "model_version": "20250801_115113",
+    "created_at": "2025-08-01T11:51:13.581205",
     "framework": "tensorflow"
   },
   "training_metrics": {
-    "training_duration_seconds": 4.240551,
-    "final_loss": 14.32312297821045,
-    "final_val_loss": 13.743038177490234,
-    "final_mae": 0.4949357211589813,
-    "final_val_mae": 0.3041893243789673,
+    "training_duration_seconds": 15.743223,
+    "final_loss": 16.40553092956543,
+    "final_val_loss": 16.32457733154297,
+    "final_mae": 0.4538217782974243,
+    "final_val_mae": 0.8415235280990601,
     "epochs_trained": 5,
     "best_epoch": "5",
-    "training_completed_at": "2025-07-29T10:27:45.367919",
-    "mse": 14917173.881267533,
-    "mae": 3386.7624857954547,
-    "rmse": 3862.275738637459,
-    "r2_score": -3.782473214819058,
-    "mape": 6.71654481229163
+    "training_completed_at": "2025-08-01T11:51:12.891189",
+    "mse": 411383826.4635367,
+    "mae": 20268.003054373996,
+    "rmse": 20282.599105231475,
+    "r2_score": -775.671504484538,
+    "mape": 17.119906584488376
   },
   "features": {
     "feature_names": [
@@ -45,8 +45,8 @@
   },
   "data_info": {
     "features_count": 2,
-    "data_points": 249
+    "data_points": 91
   },
   "model_status": "trained",
-  "last_updated": "2025-07-29T10:27:45.835672"
+  "last_updated": "2025-08-01T11:51:13.581205"
 }

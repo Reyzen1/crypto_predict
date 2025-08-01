@@ -100,6 +100,25 @@ class Settings(BaseSettings):
         os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://testserver")
     )
     
+    # ML & Data Configuration
+    ML_MIN_TRAINING_RECORDS: int = int(os.getenv("ML_MIN_TRAINING_RECORDS", "70"))
+    ML_DEFAULT_SEQUENCE_LENGTH: int = int(os.getenv("ML_DEFAULT_SEQUENCE_LENGTH", "60"))
+    ML_HISTORICAL_DAYS: int = int(os.getenv("ML_HISTORICAL_DAYS", "90"))
+    ML_MAX_DATA_AGE_HOURS: int = int(os.getenv("ML_MAX_DATA_AGE_HOURS", "6"))
+    ML_STARTUP_MIN_RECORDS: int = int(os.getenv("ML_STARTUP_MIN_RECORDS", "30"))
+    
+    # Data Sync Configuration
+    SYNC_RETRY_ATTEMPTS: int = int(os.getenv("SYNC_RETRY_ATTEMPTS", "3"))
+    SYNC_MAJOR_CRYPTOS: str = os.getenv("SYNC_MAJOR_CRYPTOS","BTC,ETH,ADA,DOT")
+    
+    # External API Configuration
+    EXTERNAL_API_RATE_LIMIT: int = int(os.getenv("EXTERNAL_API_RATE_LIMIT", "50"))
+    EXTERNAL_API_RETRY_DELAY: int = int(os.getenv("EXTERNAL_API_RETRY_DELAY", "60"))
+    
+    @property
+    def major_cryptos_list(self) -> List[str]:
+        return [symbol.strip() for symbol in self.SYNC_MAJOR_CRYPTOS.split(",")]
+
     @field_validator('BACKEND_CORS_ORIGINS', mode='before')
     @classmethod
     def assemble_cors_origins(cls, v) -> List[str]:

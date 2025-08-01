@@ -11,13 +11,13 @@
         "discovery_method": "file_scan"
       },
       "metadata": {
-        "discovered_at": "2025-07-29T14:46:01.513775",
-        "file_modified": "2025-07-29T13:44:44.692356",
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-29T21:17:55.161787",
         "auto_registered": true,
         "registration_source": "startup_scan"
       },
-      "registered_at": "2025-07-29T14:46:01.513775",
-      "is_active": true
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
     },
     "BTC_lstm_20250729_102745": {
       "model_id": "BTC_lstm_20250729_102745",
@@ -30,12 +30,69 @@
         "discovery_method": "file_scan"
       },
       "metadata": {
-        "discovered_at": "2025-07-29T14:46:01.513775",
-        "file_modified": "2025-07-29T13:57:45.890526",
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-29T21:17:55.306097",
         "auto_registered": true,
         "registration_source": "startup_scan"
       },
-      "registered_at": "2025-07-29T14:46:01.513775",
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_071202": {
+      "model_id": "BTC_lstm_20250731_071202",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_071202.h5",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.68,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-31T10:42:02.430227",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_072118": {
+      "model_id": "BTC_lstm_20250731_072118",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_072118.h5",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.68,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-31T10:51:18.471309",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_151053": {
+      "model_id": "BTC_lstm_20250731_151053",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_151053.h5",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.68,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-31T18:40:54.307805",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:28:35.435844",
       "is_active": false
     },
     "BTC_lstm_20250729_101444_config": {
@@ -49,12 +106,12 @@
         "discovery_method": "file_scan"
       },
       "metadata": {
-        "discovered_at": "2025-07-29T14:46:01.513775",
-        "file_modified": "2025-07-29T13:44:44.692356",
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-29T21:17:55.161787",
         "auto_registered": true,
         "registration_source": "startup_scan"
       },
-      "registered_at": "2025-07-29T14:46:01.513775",
+      "registered_at": "2025-07-31T19:28:35.435844",
       "is_active": false
     },
     "BTC_lstm_20250729_101444_scalers": {
@@ -68,12 +125,12 @@
         "discovery_method": "file_scan"
       },
       "metadata": {
-        "discovered_at": "2025-07-29T14:46:01.513775",
-        "file_modified": "2025-07-29T13:44:44.692356",
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-29T21:17:55.299978",
         "auto_registered": true,
         "registration_source": "startup_scan"
       },
-      "registered_at": "2025-07-29T14:46:01.513775",
+      "registered_at": "2025-07-31T19:28:35.435844",
       "is_active": false
     },
     "BTC_lstm_20250729_102745_config": {
@@ -87,12 +144,12 @@
         "discovery_method": "file_scan"
       },
       "metadata": {
-        "discovered_at": "2025-07-29T14:46:01.513775",
-        "file_modified": "2025-07-29T13:57:45.892533",
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-29T21:17:55.306097",
         "auto_registered": true,
         "registration_source": "startup_scan"
       },
-      "registered_at": "2025-07-29T14:46:01.513775",
+      "registered_at": "2025-07-31T19:28:35.435844",
       "is_active": false
     },
     "BTC_lstm_20250729_102745_scalers": {
@@ -106,18 +163,1172 @@
         "discovery_method": "file_scan"
       },
       "metadata": {
-        "discovered_at": "2025-07-29T14:46:01.513775",
-        "file_modified": "2025-07-29T13:57:45.892533",
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-29T21:17:55.308215",
         "auto_registered": true,
         "registration_source": "startup_scan"
       },
-      "registered_at": "2025-07-29T14:46:01.513775",
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_071202_config": {
+      "model_id": "BTC_lstm_20250731_071202_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_071202_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-31T10:42:02.430227",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_071202_scalers": {
+      "model_id": "BTC_lstm_20250731_071202_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_071202_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-31T10:42:02.430227",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_072118_config": {
+      "model_id": "BTC_lstm_20250731_072118_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_072118_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-31T10:51:18.471309",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_072118_scalers": {
+      "model_id": "BTC_lstm_20250731_072118_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_072118_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-31T10:51:18.471309",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_151053_config": {
+      "model_id": "BTC_lstm_20250731_151053_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_151053_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-31T18:40:54.307805",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_151053_scalers": {
+      "model_id": "BTC_lstm_20250731_151053_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_151053_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:28:35.435844",
+        "file_modified": "2025-07-31T18:40:54.307805",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:28:35.435844",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_155943": {
+      "model_id": "BTC_lstm_20250731_155943",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_155943.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 8.92718,
+        "final_loss": 16.713167190551758,
+        "final_val_loss": 16.449941635131836,
+        "final_mae": 0.6838952898979187,
+        "final_val_mae": 0.7923900485038757,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T15:59:43.355135",
+        "mse": 370356703.3639381,
+        "mae": 19231.342898123996,
+        "rmse": 19244.653890468857,
+        "r2_score": -698.2144063376279,
+        "mape": 16.244358030761987
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T19:29:44.010977",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_155943_config": {
+      "model_id": "BTC_lstm_20250731_155943_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_155943_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:36:08.889824",
+        "file_modified": "2025-07-31T19:29:44.010977",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:36:08.889824",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_155943_scalers": {
+      "model_id": "BTC_lstm_20250731_155943_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_155943_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:36:08.889824",
+        "file_modified": "2025-07-31T19:29:44.010977",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:36:08.889824",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_160718": {
+      "model_id": "BTC_lstm_20250731_160718",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_160718.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 8.875763,
+        "final_loss": 16.706462860107422,
+        "final_val_loss": 16.4478759765625,
+        "final_mae": 0.823668897151947,
+        "final_val_mae": 0.8750209808349609,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T16:07:17.674881",
+        "mse": 489387692.82773983,
+        "mae": 22108.777273123997,
+        "rmse": 22122.10868854368,
+        "r2_score": -922.9387919846369,
+        "mape": 18.67514160901714
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T19:37:18.330511",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_160718_config": {
+      "model_id": "BTC_lstm_20250731_160718_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_160718_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:41:23.956410",
+        "file_modified": "2025-07-31T19:37:18.314868",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:41:23.956410",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_160718_scalers": {
+      "model_id": "BTC_lstm_20250731_160718_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_160718_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:41:23.956410",
+        "file_modified": "2025-07-31T19:37:18.314868",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:41:23.956410",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_161154": {
+      "model_id": "BTC_lstm_20250731_161154",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_161154.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 8.976877,
+        "final_loss": 16.47515869140625,
+        "final_val_loss": 16.336057662963867,
+        "final_mae": 0.6406380534172058,
+        "final_val_mae": 0.9118350148200989,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T16:11:54.404180",
+        "mse": 544853595.2135007,
+        "mae": 23329.854616873996,
+        "rmse": 23342.0992032315,
+        "r2_score": -1027.655562752872,
+        "mape": 19.70685414022207
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T19:41:55.075456",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_161154_config": {
+      "model_id": "BTC_lstm_20250731_161154_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_161154_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:44:21.199676",
+        "file_modified": "2025-07-31T19:41:55.075457",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:44:21.199676",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_161154_scalers": {
+      "model_id": "BTC_lstm_20250731_161154_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_161154_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:44:21.199676",
+        "file_modified": "2025-07-31T19:41:55.075457",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:44:21.199676",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_161506": {
+      "model_id": "BTC_lstm_20250731_161506",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_161506.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 11.424983,
+        "final_loss": 16.612335205078125,
+        "final_val_loss": 16.4689884185791,
+        "final_mae": 0.6099347472190857,
+        "final_val_mae": 0.8760731816291809,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T16:15:05.982818",
+        "mse": 457487639.8289774,
+        "mae": 21369.821804373998,
+        "rmse": 21388.960700066225,
+        "r2_score": -862.7131327294563,
+        "mape": 18.050225220751464
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T19:45:06.737220",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_161506_config": {
+      "model_id": "BTC_lstm_20250731_161506_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_161506_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:50:40.146615",
+        "file_modified": "2025-07-31T19:45:06.735219",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:50:40.146615",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_161506_scalers": {
+      "model_id": "BTC_lstm_20250731_161506_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_161506_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:50:40.147615",
+        "file_modified": "2025-07-31T19:45:06.735219",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:50:40.147615",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_162313": {
+      "model_id": "BTC_lstm_20250731_162313",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_162313.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 9.027421,
+        "final_loss": 16.508960723876953,
+        "final_val_loss": 16.34854507446289,
+        "final_mae": 0.7045116424560547,
+        "final_val_mae": 0.9135739207267761,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T16:23:12.418300",
+        "mse": 543322536.3305098,
+        "mae": 23296.752273123995,
+        "rmse": 23309.28004745127,
+        "r2_score": -1024.7650023331066,
+        "mape": 19.678842447608634
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T19:53:13.159237",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_162313_config": {
+      "model_id": "BTC_lstm_20250731_162313_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_162313_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:57:03.032603",
+        "file_modified": "2025-07-31T19:53:13.159238",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:57:03.032603",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_162313_scalers": {
+      "model_id": "BTC_lstm_20250731_162313_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_162313_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T19:57:03.032603",
+        "file_modified": "2025-07-31T19:53:13.159238",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T19:57:03.032603",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_162757": {
+      "model_id": "BTC_lstm_20250731_162757",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_162757.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 8.963217,
+        "final_loss": 16.684314727783203,
+        "final_val_loss": 16.303180694580078,
+        "final_mae": 0.945237934589386,
+        "final_val_mae": 0.9162819981575012,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T16:27:57.202744",
+        "mse": 575164284.8683888,
+        "mae": 23973.233523123996,
+        "rmse": 23982.582948222836,
+        "r2_score": -1084.880585765079,
+        "mape": 20.250870565219582
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T19:57:57.858335",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_162757_config": {
+      "model_id": "BTC_lstm_20250731_162757_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_162757_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:00:42.010286",
+        "file_modified": "2025-07-31T19:57:57.842692",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:00:42.010286",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_162757_scalers": {
+      "model_id": "BTC_lstm_20250731_162757_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_162757_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:00:42.010286",
+        "file_modified": "2025-07-31T19:57:57.842692",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:00:42.010286",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_163112": {
+      "model_id": "BTC_lstm_20250731_163112",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_163112.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 9.729043,
+        "final_loss": 16.448514938354492,
+        "final_val_loss": 16.428903579711914,
+        "final_mae": 0.5079548358917236,
+        "final_val_mae": 0.953525960445404,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T16:31:11.720081",
+        "mse": 588747317.4252735,
+        "mae": 24254.058523123997,
+        "rmse": 24264.115838523223,
+        "r2_score": -1110.524652577592,
+        "mape": 20.488005310217098
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T20:01:12.415834",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_163112_config": {
+      "model_id": "BTC_lstm_20250731_163112_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_163112_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:04:32.549066",
+        "file_modified": "2025-07-31T20:01:12.414836",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:04:32.549066",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_163112_scalers": {
+      "model_id": "BTC_lstm_20250731_163112_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_163112_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:04:32.549066",
+        "file_modified": "2025-07-31T20:01:12.413855",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:04:32.549066",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_163908": {
+      "model_id": "BTC_lstm_20250731_163908",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_163908.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 8.864299,
+        "final_loss": 16.691120147705078,
+        "final_val_loss": 16.645442962646484,
+        "final_mae": 0.5612658858299255,
+        "final_val_mae": 0.9180867075920105,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T16:39:07.625094",
+        "mse": 510900480.809789,
+        "mae": 22581.809304373997,
+        "rmse": 22603.107768839865,
+        "r2_score": -963.5538291661144,
+        "mape": 19.073914180118283
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T20:09:08.358734",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_164759": {
+      "model_id": "BTC_lstm_20250731_164759",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_164759.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 8.538035,
+        "final_loss": 16.40840721130371,
+        "final_val_loss": 16.35296630859375,
+        "final_mae": 0.6340853571891785,
+        "final_val_mae": 0.9779859185218811,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T16:47:58.473256",
+        "mse": 653066452.3145993,
+        "mae": 25545.710085623996,
+        "rmse": 25555.1648852947,
+        "r2_score": -1231.955870938979,
+        "mape": 21.57928185882673
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T20:17:59.113186",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_170337": {
+      "model_id": "BTC_lstm_20250731_170337",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_170337.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 10.260058,
+        "final_loss": 16.69257926940918,
+        "final_val_loss": 16.46477508544922,
+        "final_mae": 0.7789785265922546,
+        "final_val_mae": 0.8831264972686768,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T17:03:37.319149",
+        "mse": 545108146.3007,
+        "mae": 23337.385085623995,
+        "rmse": 23347.551184239856,
+        "r2_score": -1028.1361421124514,
+        "mape": 19.713582069686225
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T20:33:38.031340",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_163908_config": {
+      "model_id": "BTC_lstm_20250731_163908_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_163908_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:58:26.994803",
+        "file_modified": "2025-07-31T20:09:08.296241",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:58:26.994803",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_163908_scalers": {
+      "model_id": "BTC_lstm_20250731_163908_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_163908_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:58:26.995413",
+        "file_modified": "2025-07-31T20:09:08.280612",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:58:26.995413",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_164759_config": {
+      "model_id": "BTC_lstm_20250731_164759_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_164759_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:58:26.995413",
+        "file_modified": "2025-07-31T20:17:59.097543",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:58:26.995413",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_164759_scalers": {
+      "model_id": "BTC_lstm_20250731_164759_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_164759_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:58:26.995413",
+        "file_modified": "2025-07-31T20:17:59.097543",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:58:26.995413",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_170337_config": {
+      "model_id": "BTC_lstm_20250731_170337_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_170337_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:58:26.996431",
+        "file_modified": "2025-07-31T20:33:38.029343",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:58:26.996431",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_170337_scalers": {
+      "model_id": "BTC_lstm_20250731_170337_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_170337_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T20:58:26.996431",
+        "file_modified": "2025-07-31T20:33:38.019342",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T20:58:26.996431",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_195459": {
+      "model_id": "BTC_lstm_20250731_195459",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_195459.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 16.524887,
+        "final_loss": 16.463830947875977,
+        "final_val_loss": 16.208955764770508,
+        "final_mae": 0.7151538729667664,
+        "final_val_mae": 0.8694422841072083,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T19:54:58.392329",
+        "mse": 413745874.00903213,
+        "mae": 20318.455398123995,
+        "rmse": 20340.744185231575,
+        "r2_score": -780.1309287564997,
+        "mape": 17.16174232815035
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T23:24:59.367858",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_195459_config": {
+      "model_id": "BTC_lstm_20250731_195459_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_195459_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T23:33:08.621584",
+        "file_modified": "2025-07-31T23:24:59.367858",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T23:33:08.621584",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_195459_scalers": {
+      "model_id": "BTC_lstm_20250731_195459_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_195459_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T23:33:08.622589",
+        "file_modified": "2025-07-31T23:24:59.336608",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T23:33:08.622589",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_200506": {
+      "model_id": "BTC_lstm_20250731_200506",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_200506.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 9.66943,
+        "final_loss": 16.422866821289062,
+        "final_val_loss": 16.342144012451172,
+        "final_mae": 0.5748274922370911,
+        "final_val_mae": 0.8952592015266418,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T20:05:05.829062",
+        "mse": 520288769.1660411,
+        "mae": 22798.051491873997,
+        "rmse": 22809.839306010927,
+        "r2_score": -981.278434688085,
+        "mape": 19.2576536594902
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T23:35:06.576209",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_200506_config": {
+      "model_id": "BTC_lstm_20250731_200506_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_200506_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T23:40:44.805359",
+        "file_modified": "2025-07-31T23:35:06.575265",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T23:40:44.805359",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_200506_scalers": {
+      "model_id": "BTC_lstm_20250731_200506_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_200506_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T23:40:44.805359",
+        "file_modified": "2025-07-31T23:35:06.556516",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T23:40:44.805359",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_201634": {
+      "model_id": "BTC_lstm_20250731_201634",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_201634.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 9.046004,
+        "final_loss": 16.186227798461914,
+        "final_val_loss": 16.140195846557617,
+        "final_mae": 0.44636571407318115,
+        "final_val_mae": 0.9225482940673828,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T20:16:34.371200",
+        "mse": 517718300.80494946,
+        "mae": 22737.653835623998,
+        "rmse": 22753.42393585962,
+        "r2_score": -976.4255226365805,
+        "mape": 19.206120217093154
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T23:46:35.042519",
+      "is_active": true
+    },
+    "BTC_lstm_20250731_201634_config": {
+      "model_id": "BTC_lstm_20250731_201634_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_201634_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T23:49:36.564850",
+        "file_modified": "2025-07-31T23:46:35.042520",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T23:49:36.564850",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_201634_scalers": {
+      "model_id": "BTC_lstm_20250731_201634_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_201634_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-07-31T23:49:36.564850",
+        "file_modified": "2025-07-31T23:46:35.026879",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-07-31T23:49:36.564850",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_202033": {
+      "model_id": "BTC_lstm_20250731_202033",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_202033.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 9.631321,
+        "final_loss": 16.45663833618164,
+        "final_val_loss": 16.453083038330078,
+        "final_mae": 0.46831557154655457,
+        "final_val_mae": 0.9071143269538879,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-07-31T20:20:32.381117",
+        "mse": 517975410.2872554,
+        "mae": 22746.386648123997,
+        "rmse": 22759.07314209556,
+        "r2_score": -976.9109321145281,
+        "mape": 19.213878054329435
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-07-31T23:50:33.122102",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_202033_config": {
+      "model_id": "BTC_lstm_20250731_202033_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_202033_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-08-01T14:22:11.138722",
+        "file_modified": "2025-07-31T23:50:33.121099",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-08-01T14:22:11.139723",
+      "is_active": false
+    },
+    "BTC_lstm_20250731_202033_scalers": {
+      "model_id": "BTC_lstm_20250731_202033_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250731_202033_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-08-01T14:22:11.139723",
+        "file_modified": "2025-07-31T23:50:33.104300",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-08-01T14:22:11.139723",
+      "is_active": false
+    },
+    "BTC_lstm_20250801_115113": {
+      "model_id": "BTC_lstm_20250801_115113",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250801_115113.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 15.743223,
+        "final_loss": 16.40553092956543,
+        "final_val_loss": 16.32457733154297,
+        "final_mae": 0.4538217782974243,
+        "final_val_mae": 0.8415235280990601,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-08-01T11:51:12.891189",
+        "mse": 411383826.4635367,
+        "mae": 20268.003054373996,
+        "rmse": 20282.599105231475,
+        "r2_score": -775.671504484538,
+        "mape": 17.119906584488376
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-08-01T15:21:13.857597",
+      "is_active": false
+    },
+    "BTC_lstm_20250801_115113_config": {
+      "model_id": "BTC_lstm_20250801_115113_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250801_115113_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-08-01T15:23:35.731911",
+        "file_modified": "2025-08-01T15:21:13.857598",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-08-01T15:23:35.731911",
+      "is_active": false
+    },
+    "BTC_lstm_20250801_115113_scalers": {
+      "model_id": "BTC_lstm_20250801_115113_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250801_115113_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-08-01T15:23:35.731911",
+        "file_modified": "2025-08-01T15:21:13.841925",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-08-01T15:23:35.731911",
+      "is_active": false
+    },
+    "BTC_lstm_20250801_120413": {
+      "model_id": "BTC_lstm_20250801_120413",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250801_120413.h5",
+      "performance_metrics": {
+        "training_duration_seconds": 15.819651,
+        "final_loss": 16.371549606323242,
+        "final_val_loss": 16.348539352416992,
+        "final_mae": 0.48611995577812195,
+        "final_val_mae": 0.9175055623054504,
+        "epochs_trained": 5,
+        "best_epoch": 5,
+        "training_completed_at": "2025-08-01T12:04:12.781164",
+        "mse": 521231357.9979929,
+        "mae": 22815.287429373995,
+        "rmse": 22830.491847483114,
+        "r2_score": -983.057993919948,
+        "mape": 19.271750592395872
+      },
+      "metadata": {
+        "training_completed": true,
+        "auto_registered": true
+      },
+      "registered_at": "2025-08-01T15:34:13.783017",
+      "is_active": false
+    },
+    "BTC_lstm_20250801_120413_config": {
+      "model_id": "BTC_lstm_20250801_120413_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250801_120413_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-08-01T15:35:23.814251",
+        "file_modified": "2025-08-01T15:34:13.782003",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-08-01T15:35:23.814251",
+      "is_active": false
+    },
+    "BTC_lstm_20250801_120413_scalers": {
+      "model_id": "BTC_lstm_20250801_120413_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250801_120413_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-08-01T15:35:23.814251",
+        "file_modified": "2025-08-01T15:34:13.758172",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-08-01T15:35:23.814251",
       "is_active": false
     }
   },
   "active_models": {
-    "BTC": "BTC_lstm_20250729_101444"
+    "BTC": "BTC_lstm_20250731_201634"
   },
-  "saved_at": "2025-07-30T18:23:22.275209",
+  "last_updated": "2025-08-01T12:05:27.587333",
   "version": "1.0"
 }

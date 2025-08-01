@@ -24,7 +24,7 @@ def check_user_in_database():
         # Check if user exists
         result = db.execute(
             text("SELECT id, email, password_hash, is_active FROM users WHERE email = :email"),
-            {"email": "test@example.com"}
+            {"email": "testuser2@example.com"}
         )
         user = result.fetchone()
         
@@ -40,7 +40,7 @@ def check_user_in_database():
         
         # Test password verification
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        password_valid = pwd_context.verify("testpassword123", user[2])
+        password_valid = pwd_context.verify("TestPassword123!", user[2])
         
         if password_valid:
             print("✅ Password verification works")
@@ -71,8 +71,8 @@ def test_auth_service_directly():
         
         # Create login data
         login_data = UserLogin(
-            email="test@example.com",
-            password="testpassword123"
+            email="testuser2@example.com",
+            password="TestPassword123!"
         )
         
         print("🔑 Testing auth service authenticate_user...")

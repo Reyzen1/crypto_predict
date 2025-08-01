@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 # API Configuration
 API_BASE_URL = "http://localhost:8000/api/v1"
 TEST_USER_EMAIL = "testuser2@example.com"
-TEST_USER_PASSWORD = "TestPassword123!"  # Strong password
+TEST_USER_PASSWORD = "TestPassword123!"  
 
 class MLTrainingAPITester:
     def __init__(self, base_url: str = API_BASE_URL):
@@ -55,17 +55,20 @@ class MLTrainingAPITester:
             register_data = {
                 "email": TEST_USER_EMAIL,
                 "password": TEST_USER_PASSWORD,
-                "confirm_password": TEST_USER_PASSWORD,  # Required field
+                "confirm_password": TEST_USER_PASSWORD, 
                 "first_name": "Test",
                 "last_name": "User"
             }
             
+            url = "http://127.0.0.1:8000/api/v1/auth/register"
+
             response = requests.post(
-                f"{self.base_url}/auth/register", 
+                url,
                 json=register_data,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
+                timeout=10
             )
-            
+                
             if response.status_code in [200, 201]:
                 self.print_result(True, "User registered successfully")
             elif response.status_code == 400:

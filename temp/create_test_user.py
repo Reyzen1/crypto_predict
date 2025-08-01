@@ -23,8 +23,8 @@ def create_test_user_simple():
         db = SessionLocal()
         
         # Test user data
-        test_email = "test@example.com"
-        test_password = "testpassword123"
+        test_email = "testuser2@example.com"
+        test_password = "TestPassword123!"
         test_name = "Test User"
         
         # Check if user already exists
@@ -236,8 +236,8 @@ def main():
     print("\nYou can now run:")
     print("  python temp/test_ml_training_api_fixed.py")
     print("\nTest credentials:")
-    print("  Email: test@example.com")
-    print("  Password: testpassword123")
+    print("  Email: testuser2@example.com")
+    print("  Password: TestPassword123!")
     print("\nAvailable data:")
     print("  • Test user account")
     print("  • BTC cryptocurrency entry")

@@ -17,7 +17,7 @@ def cleanup_test_user():
         db = SessionLocal()
         
         # پیدا کردن user قدیمی
-        old_user = db.query(User).filter(User.email == "test@example.com").first()
+        old_user = db.query(User).filter(User.email == "testuser2@example.com").first()
         
         if old_user:
             print(f"🗑️ Found old test user: {old_user.email}")
@@ -41,7 +41,7 @@ def main():
     success = cleanup_test_user()
     
     if success:
-        print("\n✅ Cleanup completed. You can now use test@example.com again.")
+        print("\n✅ Cleanup completed. You can now use testuser2@example.com again.")
     else:
         print("\n❌ Cleanup failed. Use testuser2@example.com instead.")
 

@@ -3,6 +3,7 @@
 
 import asyncio
 from typing import Dict, List, Optional, Any
+from datetime import timezone
 from datetime import datetime, timedelta
 import logging
 from sqlalchemy.orm import Session
@@ -585,6 +586,178 @@ class DataSyncService:
                 "message": "Data integrity validation failed"
             }
 
+    async def check_and_ensure_historical_data(
+        self, 
+        crypto_symbol: str, 
+        min_records: Optional[int] = None,
+        max_age_hours: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Check if sufficient historical data exists, sync if needed
+        IMPROVED: Prioritizes existing database data and avoids unnecessary API calls
+        """
+        
+        # Use settings defaults if not provided
+        min_records = min_records or getattr(settings, 'ML_MIN_TRAINING_RECORDS')
+        max_age_hours = max_age_hours or getattr(settings, 'ML_MAX_DATA_AGE_HOURS')
+        
+        logger.info(f"Checking historical data for {crypto_symbol} (min: {min_records}, max_age: {max_age_hours}h)")
+        
+        try:
+            db = SessionLocal()
+            
+            try:
+                crypto = cryptocurrency_repository.get_by_symbol(db, crypto_symbol)
+                if not crypto:
+                    logger.warning(f"Cryptocurrency {crypto_symbol} not found in database")
+                    return {
+                        "sufficient": False,
+                        "error": f"Cryptocurrency {crypto_symbol} not found",
+                        "action_taken": "none",
+                        "records_count": 0
+                    }
+                
+                # Check existing data using settings
+                historical_days = getattr(settings, 'ML_HISTORICAL_DAYS', 90)
+                end_date = datetime.now(timezone.utc)
+                start_date = end_date - timedelta(days=historical_days)
+                
+                existing_records = price_data_repository.get_price_history(
+                    db=db,
+                    crypto_id=crypto.id,
+                    start_date=start_date,
+                    end_date=end_date,
+                    limit=2000  # Sufficient for analysis
+                )
+                
+                records_count = len(existing_records)
+                logger.info(f"Found {records_count} existing records for {crypto_symbol}")
+                
+                # Check data sufficiency first (most important)
+                data_sufficient = records_count >= min_records
+                
+                # Check data freshness
+                data_fresh = True
+                latest_timestamp = None
+                
+                if existing_records:
+                    latest_record = max(existing_records, key=lambda x: x.timestamp)
+                    latest_timestamp = latest_record.timestamp
+                    age_hours = (datetime.now(timezone.utc) - latest_timestamp).total_seconds() / 3600
+                    data_fresh = age_hours <= max_age_hours
+                    logger.info(f"Latest record age: {age_hours:.1f} hours (fresh: {data_fresh})")
+                else:
+                    data_fresh = False
+                    logger.info("No existing records found")
+                
+                # DECISION LOGIC: Prioritize sufficient data over freshness
+                if data_sufficient:
+                    if data_fresh:
+                        # Perfect case: sufficient and fresh data
+                        return {
+                            "sufficient": True,
+                            "records_count": records_count,
+                            "action_taken": "none",
+                            "data_quality": "excellent",
+                            "latest_timestamp": latest_timestamp.isoformat() if latest_timestamp else None,
+                            "message": f"Excellent data available for {crypto_symbol} ({records_count} records)"
+                        }
+                    else:
+                        # Good case: sufficient but old data - ML can still work
+                        logger.info(f"Data for {crypto_symbol} is sufficient but not fresh - ML training can proceed")
+                        return {
+                            "sufficient": True,
+                            "records_count": records_count,
+                            "action_taken": "none", 
+                            "data_quality": "good",
+                            "latest_timestamp": latest_timestamp.isoformat() if latest_timestamp else None,
+                            "message": f"Good data available for {crypto_symbol} ({records_count} records, but older data)"
+                        }
+                
+                # Only try API sync if we really need more data AND API key is available
+                api_key_available = bool(getattr(settings, 'COINGECKO_API_KEY', None))
+                
+                if not data_sufficient and api_key_available:
+                    logger.info(f"Insufficient data ({records_count} < {min_records}), attempting API sync...")
+                    
+                    try:
+                        sync_result = await external_api_service.sync_historical_data(
+                            db=db,
+                            crypto_symbol=crypto_symbol,
+                            days=historical_days,
+                            save_to_db=True
+                        )
+                        
+                        if sync_result.get("success"):
+                            new_records = sync_result.get("saved_records", 0)
+                            total_records = records_count + new_records
+                            
+                            return {
+                                "sufficient": total_records >= min_records,
+                                "records_count": total_records,
+                                "action_taken": "synced",
+                                "sync_result": sync_result,
+                                "data_quality": "fresh",
+                                "message": f"Data synced for {crypto_symbol}: {new_records} new records (total: {total_records})"
+                            }
+                        else:
+                            # API sync failed, but we might still have usable data
+                            logger.warning(f"API sync failed for {crypto_symbol}, using existing data")
+                            return {
+                                "sufficient": records_count > 0,  # Any data is better than none
+                                "records_count": records_count,
+                                "action_taken": "sync_failed_using_existing",
+                                "data_quality": "limited",
+                                "error": sync_result.get("error", "API sync failed"),
+                                "message": f"Using existing data for {crypto_symbol} ({records_count} records)"
+                            }
+                            
+                    except Exception as api_error:
+                        logger.warning(f"API sync error for {crypto_symbol}: {str(api_error)}")
+                        # Fall back to existing data if any
+                        return {
+                            "sufficient": records_count > 0,
+                            "records_count": records_count,
+                            "action_taken": "api_error_using_existing",
+                            "data_quality": "limited", 
+                            "error": f"API error: {str(api_error)}",
+                            "message": f"API failed, using existing data for {crypto_symbol} ({records_count} records)"
+                        }
+                
+                elif not data_sufficient and not api_key_available:
+                    # No API key available
+                    logger.warning(f"Insufficient data and no API key available for {crypto_symbol}")
+                    return {
+                        "sufficient": records_count > 50,  # Lower threshold when no API
+                        "records_count": records_count,
+                        "action_taken": "no_api_key",
+                        "data_quality": "limited",
+                        "error": "No API key available for data sync",
+                        "message": f"Limited data for {crypto_symbol} ({records_count} records, no API key)"
+                    }
+                
+                else:
+                    # Edge case
+                    return {
+                        "sufficient": False,
+                        "records_count": records_count,
+                        "action_taken": "insufficient_data",
+                        "data_quality": "poor",
+                        "message": f"Insufficient data for {crypto_symbol} ({records_count} records)"
+                    }
+            
+            finally:
+                db.close()
+        
+        except Exception as e:
+            logger.error(f"Error checking historical data for {crypto_symbol}: {e}")
+            return {
+                "sufficient": False,
+                "error": str(e),
+                "action_taken": "error",
+                "records_count": 0,
+                "message": f"Error checking data for {crypto_symbol}: {str(e)}"
+            }
 
 # Global service instance
 data_sync_service = DataSyncService()

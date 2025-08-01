@@ -162,6 +162,72 @@ class PriceDataRepository(BaseRepository[PriceData, dict, dict]):
             "data_quality": "Good" if total_count > 100 else "Limited"
         }
 
+    def get_by_timestamp(
+        self, 
+        db: Session, 
+        crypto_id: int, 
+        timestamp: datetime
+    ) -> Optional[PriceData]:
+        """
+        Get price data for a specific timestamp
+        
+        Args:
+            db: Database session
+            crypto_id: Cryptocurrency ID
+            timestamp: Exact timestamp to search for
+            
+        Returns:
+            PriceData object if found, None otherwise
+        """
+        return (
+            db.query(PriceData)
+            .filter(PriceData.crypto_id == crypto_id)
+            .filter(PriceData.timestamp == timestamp)
+            .first()
+        )
+    
+    def get_by_crypto_and_timestamp(
+        self, 
+        db: Session, 
+        crypto_id: int, 
+        timestamp: datetime
+    ) -> Optional[PriceData]:
+        """
+        Get price data for specific crypto and timestamp - alternative name
+        
+        Args:
+            db: Database session
+            crypto_id: Cryptocurrency ID
+            timestamp: Exact timestamp to search for
+            
+        Returns:
+            PriceData object if found, None otherwise
+        """
+        return self.get_by_timestamp(db, crypto_id, timestamp)
+    
+    def exists_by_timestamp(
+        self, 
+        db: Session, 
+        crypto_id: int, 
+        timestamp: datetime
+    ) -> bool:
+        """
+        Check if price data exists for specific timestamp
+        
+        Args:
+            db: Database session
+            crypto_id: Cryptocurrency ID
+            timestamp: Target timestamp
+            
+        Returns:
+            True if data exists, False otherwise
+        """
+        return (
+            db.query(PriceData)
+            .filter(PriceData.crypto_id == crypto_id)
+            .filter(PriceData.timestamp == timestamp)
+            .first()
+        ) is not None
 
 # Create global instance
 price_data_repository = PriceDataRepository()

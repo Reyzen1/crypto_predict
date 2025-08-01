@@ -82,7 +82,8 @@ def get_db() -> Generator[Session, None, None]:
     try:
         yield db
     except Exception as e:
-        logger.error(f"Database session error: {e}")
+        if "connection" in str(e).lower() or "timeout" in str(e).lower():
+            logger.error(f"🔴 Database connection issue: {str(e)}")
         db.rollback()
         raise
     finally:
@@ -101,13 +102,15 @@ def get_redis() -> Optional[Redis]:
 
 def check_db_connection() -> bool:
     """
-    Check if database connection is healthy - FIXED: Made synchronous
+    Check if database connection is healthy - FIXED: Using text() properly
     Returns True if connection is successful
     """
     try:
+        from sqlalchemy import text  # Import text function
+        
         db = SessionLocal()
-        # Execute a simple query to test connection
-        db.execute("SELECT 1")
+        # Execute a simple query to test connection with proper text() wrapper
+        db.execute(text("SELECT 1"))
         db.close()
         return True
     except Exception as e:

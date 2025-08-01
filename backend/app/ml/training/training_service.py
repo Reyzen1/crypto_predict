@@ -44,6 +44,8 @@ from app.repositories import (
 from app.models import Cryptocurrency, PriceData, Prediction
 from app.schemas.prediction import PredictionCreate
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -83,6 +85,43 @@ class MLTrainingService:
         """
         logger.info(f"Starting model training for {crypto_symbol}")
         
+
+    async def train_model_for_crypto(
+        self,
+        crypto_symbol: str,
+        training_config: Optional[Dict[str, Any]] = None,
+        db: Optional[Session] = None
+    ) -> Dict[str, Any]:
+        """
+        Train LSTM model for a specific cryptocurrency with automatic fallback
+        """
+        logger.info(f"Starting model training for {crypto_symbol}")
+        
+        # Check and ensure historical data using settings
+        try:
+            from app.services.data_sync import data_sync_service
+            
+            data_check = await data_sync_service.check_and_ensure_historical_data(
+                crypto_symbol=crypto_symbol
+                # Uses settings.ML_MIN_TRAINING_RECORDS and settings.ML_MAX_DATA_AGE_HOURS by default
+            )
+            
+            if not data_check.get("sufficient"):
+                return {
+                    'success': False,
+                    'error': f"❌ Unable to ensure sufficient historical data for {crypto_symbol}",
+                    'details': data_check.get("error", "Data sync failed"),
+                    'requirements': f"Minimum {settings.ML_MIN_TRAINING_RECORDS} records needed",
+                    'recommendation': "Check external API connectivity and try again"
+                }
+            
+            if data_check.get("action_taken") == "synced":
+                logger.info(f"✅ Automatically synced historical data for {crypto_symbol}")
+        
+        except Exception as e:
+            logger.warning(f"Data sync failed, proceeding with existing data: {e}")
+
+
         # First, try comprehensive training
         try:
             result = await self._train_model_comprehensive(
@@ -453,7 +492,8 @@ class MLTrainingService:
                     logger.info(f"Kept existing active model for {crypto_symbol} (better performance)")
         except Exception as e:
             logger.warning(f"Could not update active model: {str(e)}")
-    
+
+
     async def _store_training_results(
         self,
         db: Session,
@@ -462,7 +502,7 @@ class MLTrainingService:
         metrics: Dict[str, float],
         data_points: int
     ) -> None:
-        """Store training results in database"""
+        """Store training results in database - FIXED VERSION"""
         
         try:
             # Convert numpy types to Python native types for JSON serialization
@@ -490,28 +530,29 @@ class MLTrainingService:
             future_date = datetime.now(timezone.utc) + timedelta(days=1)
             
             # Create a training record in predictions table for tracking
-            prediction_data = PredictionCreate(
-                crypto_id=crypto_id,
-                user_id=1,  # System user for training records
-                model_name="lstm_training_result",
-                predicted_price=dummy_price,  # Valid positive price
-                confidence_score=Decimal(str(confidence_score)),  # Valid confidence
-                prediction_horizon=0,  # Training record indicator
-                target_date=future_date.date(),  # Future date
-                target_datetime=future_date,
-                input_price=dummy_price,
-                features_used=json.dumps({
+            prediction_data = {
+                'crypto_id': crypto_id,
+                'user_id': None,
+                'model_name': "lstm_training_result",
+                'model_version': "1.0",
+                'predicted_price': dummy_price,
+                'confidence_score': Decimal(str(confidence_score)),
+                'prediction_horizon': 24,
+                'target_datetime': future_date,
+                'input_price': dummy_price,
+                'features_used': json.dumps({
                     'training_metrics': clean_metrics,
-                    'data_points': data_points,
+                    'data_points': int(data_points),
                     'model_id': model_id,
                     'is_training_record': True
                 }),
-                notes=f"Training completed for model {model_id}"
-            )
-            
-            # Use existing repository to store
-            prediction_repository.create(db, obj_in=prediction_data)
+                'notes': f"Training completed for model {model_id}"
+            }
+            from app.models import Prediction
+            prediction_obj = Prediction(**prediction_data)
+            db.add(prediction_obj)
             db.commit()
+            db.refresh(prediction_obj)
             
             logger.info(f"Stored training results in database for model {model_id}")
             
@@ -519,25 +560,35 @@ class MLTrainingService:
             logger.warning(f"Could not store training results: {str(e)}")
             # Try with ultra-minimal data
             try:
+                db.rollback()  # Roll back the failed transaction
+                
                 future_date = datetime.now(timezone.utc) + timedelta(days=1)
-                minimal_prediction = PredictionCreate(
-                    crypto_id=crypto_id,
-                    user_id=1,
-                    model_name="lstm_training",
-                    predicted_price=Decimal('1.0'),  # Valid positive price
-                    confidence_score=Decimal('0.5'),  # Valid confidence
-                    prediction_horizon=0,
-                    target_date=future_date.date(),  # Future date
-                    target_datetime=future_date,
-                    input_price=Decimal('1.0'),
-                    notes=f"Training record for {model_id}"
-                )
-                prediction_repository.create(db, obj_in=minimal_prediction)
+                minimal_data = {
+                    'crypto_id': crypto_id,
+                    'user_id': None,
+                    'model_name': "lstm_training",
+                    'model_version': "1.0",
+                    'predicted_price': Decimal('1.0'),
+                    'confidence_score': Decimal('0.5'),
+                    'prediction_horizon': 24,  
+                    'target_datetime': future_date,
+                    'input_price': Decimal('1.0'),
+                    'notes': f"Training record for {model_id}"
+                }
+                minimal_obj = Prediction(**minimal_data)
+                db.add(minimal_obj)
                 db.commit()
+                db.refresh(minimal_obj)
                 logger.info(f"Stored minimal training record for {model_id}")
+                
             except Exception as e2:
                 logger.error(f"Could not store even minimal training record: {str(e2)}")
-    
+                try:
+                    db.rollback()
+                except:
+                    pass
+
+
     async def get_training_status(self, crypto_symbol: str) -> Dict[str, Any]:
         """Get training status for a cryptocurrency"""
         

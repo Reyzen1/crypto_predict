@@ -73,7 +73,7 @@ def test_token_creation():
         security = SecurityManager()
         
         # Test token creation
-        test_data = {"user_id": 1, "email": "test@example.com"}
+        test_data = {"user_id": 1, "email": "testuser2@example.com"}
         token = security.create_access_token(test_data)
         
         print(f"✅ Token created successfully")

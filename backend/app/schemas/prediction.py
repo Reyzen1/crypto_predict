@@ -32,6 +32,11 @@ class PredictionBase(BaseSchema):
         le=1, 
         description="Prediction confidence (0-1)"
     )
+    prediction_horizon: int = Field(  
+        ge=1, 
+        le=365, 
+        description="Prediction horizon in hours"
+    )
     target_datetime: datetime = Field(description="Date/time the prediction is for")
     features_used: Optional[str] = Field(
         default=None, 

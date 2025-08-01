@@ -9,7 +9,10 @@ from app.models import User
 from app.schemas.user import UserRegister, UserLogin, Token
 from app.repositories import user_repository
 from app.core.security import security
+import logging
 
+# Custom logger for auth access
+logger = logging.getLogger(__name__)
 
 class AuthService:
     """Authentication service handling user registration, login, and token management"""
@@ -31,9 +34,11 @@ class AuthService:
         # Check if user already exists
         existing_user = user_repository.get_by_email(db, user_data.email)
         if existing_user:
+            detail_text=f"Email already registered: {user_data.email}"
+            logger.warning(f"❌ HTTP_400_BAD_REQUEST Registration failed: {detail_text}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                detail=detail_text
             )
         
         # Hash password
@@ -49,9 +54,11 @@ class AuthService:
                 last_name=user_data.last_name
             )
         except Exception as e:
+            detail_text=f"Failed to create user: {user_data.email}"
+            logger.warning(f"❌ HTTP_400_BAD_REQUEST Registration failed: {detail_text}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to create user"
+                detail=detail_text
             )
         
         # Generate tokens
@@ -72,7 +79,7 @@ class AuthService:
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-            "expires_in": 30 * 60  # FIXED: Added missing expires_in (30 minutes in seconds)
+            "expires_in": 30 * 60  
         }
 
     def authenticate_user(self, db: Session, login_data: UserLogin) -> Dict[str, Any]:
@@ -92,23 +99,29 @@ class AuthService:
         # Get user by email using your existing repository
         user = user_repository.get_by_email(db, login_data.email)
         if not user:
+            detail_text=f"Invalid email or password: {login_data.email}"
+            logger.warning(f"🔐 HTTP_401_BAD_REQUEST: {detail_text}")
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+                status_code=status.HTTP_401_BAD_REQUEST,
+                detail=detail_text
             )
         
         # Verify password
         if not security.verify_password(login_data.password, user.password_hash):
+            detail_text=f"Invalid email or password: {login_data.email}"
+            logger.warning(f"🔐 HTTP_401_UNAUTHORIZED: {detail_text}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+                detail=detail_text
             )
         
         # Check if user is active
         if not user.is_active:
+            detail_text=f"User account is disabled: {login_data.email}"
+            logger.warning(f"🔐 HTTP_401_UNAUTHORIZED: {detail_text}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User account is disabled"
+                detail=detail_text
             )
         
         # Generate tokens
@@ -156,19 +169,24 @@ class AuthService:
         try:
             payload = security.verify_token(refresh_token, token_type="refresh")
         except HTTPException:
+            detail_text=f"Invalid refresh token: refresh_token={refresh_token}"
+            logger.warning(f"🔐 HTTP_401_UNAUTHORIZED: {detail_text}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token"
+                detail=detail_text
             )
         
         # Get user using your existing repository
         user_id = payload.get("user_id")
         user = user_repository.get(db, user_id)
         if not user or not user.is_active:
+            detail_text=f"User not found or inactive: user_id={user_id}"
+            logger.warning(f"🔐 HTTP_401_UNAUTHORIZED: {detail_text}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found or inactive"
+                detail=detail_text
             )
+
         
         # Generate new access token
         token_data = {"user_id": user.id, "email": user.email}
@@ -196,9 +214,11 @@ class AuthService:
         """
         user = user_repository.get(db, user_id)
         if not user:
+            detail_text=f"User not found: user_id={user_id}"
+            logger.warning(f"🔐 HTTP_404_NOT_FOUND: {detail_text}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                detail=detail_text
             )
         
         return user_repository.verify_user(db, user_id)
@@ -227,9 +247,11 @@ class AuthService:
         """
         # Verify current password
         if not security.verify_password(current_password, user.password_hash):
+            detail_text=f"Password is incorrect: {user.email}"
+            logger.warning(f"🔐 HTTP_400_BAD_REQUEST: {detail_text}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Current password is incorrect"
+                detail=detail_text
             )
         
         # Hash new password

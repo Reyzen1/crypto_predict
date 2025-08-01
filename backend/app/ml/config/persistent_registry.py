@@ -8,10 +8,29 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
+import numpy as np
+from decimal import Decimal
+
 
 logger = logging.getLogger(__name__)
 
 
+class MLJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder for ML registry data"""
+    
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+    
 class PersistentModelRegistry:
     """
     Model Registry with persistence support
@@ -254,29 +273,21 @@ class PersistentModelRegistry:
                     logger.error(f"❌ Failed to set active model for {crypto_symbol}: {str(e)}")
     
     def save_registry(self) -> bool:
-        """Save current registry state to file"""
+        """Save current registry state to file with improved error handling"""
         try:
-            registry_data = {
+            os.makedirs(os.path.dirname(self.registry_file), exist_ok=True)
+            
+            data = {
                 'models': self.models,
                 'active_models': self.active_models,
-                'saved_at': datetime.now().isoformat(),
+                'last_updated': datetime.utcnow().isoformat(),
                 'version': '1.0'
             }
             
-            # Create backup of existing file
-            if os.path.exists(self.registry_file):
-                backup_file = f"{self.registry_file}.backup"
-                try:
-                    import shutil
-                    shutil.copy2(self.registry_file, backup_file)
-                except:
-                    pass  # Backup is not critical
-            
-            # Write new registry file
             with open(self.registry_file, 'w') as f:
-                json.dump(registry_data, f, indent=2)
+                json.dump(data, f, cls=MLJSONEncoder, indent=2)  # Using custom encoder
             
-            logger.debug(f"💾 Registry saved to {self.registry_file}")
+            logger.info(f"✅ Registry saved successfully: {len(self.models)} models")
             return True
             
         except Exception as e:

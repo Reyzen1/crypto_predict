@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
+import logging
 import redis
 from redis import Redis
 
@@ -16,6 +17,9 @@ from app.repositories import user_repository
 
 # HTTP Bearer security scheme
 security = HTTPBearer(auto_error=False)
+
+# Logger for authentication
+logger = logging.getLogger(__name__)
 
 
 def get_redis() -> Generator[Redis, None, None]:
