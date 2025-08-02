@@ -1,18 +1,17 @@
 # File: backend/app/api/api_v1/endpoints/tasks.py
-"""
-Task Management API Endpoints 
-Provides REST API for managing background tasks and monitoring
-Complete and tested implementation for CryptoPredict MVP - COMPLETELY UNIQUE Operation IDs
-"""
+# Task Management API Endpoints with ML Tasks Integration
+# Provides REST API for managing both data collection and ML background tasks
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import logging
 from datetime import datetime, timezone
 import asyncio
 
 from app.core.deps import get_current_active_user
 from app.models.user import User
+
+# Import data collection tasks
 from app.tasks.price_collector import (
     sync_all_prices,
     sync_historical_data,
@@ -21,6 +20,17 @@ from app.tasks.price_collector import (
     sync_specific_cryptocurrency,
     get_task_status
 )
+
+# Import ML tasks (NEW)
+from app.tasks.ml_tasks import (
+    start_auto_training,
+    start_prediction_generation,
+    start_performance_evaluation,
+    start_prediction_cleanup,
+    get_task_status as get_ml_task_status
+)
+
+# Import scheduler utilities
 from app.tasks.scheduler import task_scheduler, get_next_run_times
 from app.tasks.celery_app import celery_app
 
@@ -31,8 +41,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+# =====================================
+# DATA COLLECTION TASK ENDPOINTS (EXISTING)
+# =====================================
+
 @router.post("/start", operation_id="start_tasks")
-async def start_background_tasks_manually(  # FIXED: Completely unique function name
+async def start_background_tasks_manually(
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """
@@ -40,615 +54,601 @@ async def start_background_tasks_manually(  # FIXED: Completely unique function 
     
     Requires authentication. Initiates all scheduled background tasks
     for data collection and synchronization.
-    
-    Returns:
-        dict: Summary of started tasks
     """
     try:
-        logger.info(f"User {current_user.email} starting background tasks")
+        logger.info(f"User {current_user.id} starting all background tasks")
         
-        # Task mapping for manual execution
-        task_map = {
-            "sync_prices": {
-                "func": sync_all_prices,
-                "description": "Synchronize current cryptocurrency prices"
-            },
-            "sync_historical": {
-                "func": sync_historical_data,
-                "description": "Synchronize historical price data"
-            },
-            "discover_new": {
-                "func": discover_new_cryptocurrencies,
-                "description": "Discover new cryptocurrencies"
-            }
-        }
-        
-        started_tasks = []
-        
-        # Start each task
-        for task_name, task_info in task_map.items():
-            try:
-                result = task_info["func"].delay()
-                started_tasks.append({
-                    "task_name": task_name,
-                    "task_id": result.id,
-                    "description": task_info["description"],
-                    "status": "started"
-                })
-            except Exception as e:
-                logger.error(f"Failed to start task {task_name}: {e}")
-                started_tasks.append({
-                    "task_name": task_name,
-                    "task_id": None,
-                    "description": task_info["description"],
-                    "status": "failed",
-                    "error": str(e)
-                })
+        # Start data collection tasks
+        sync_task_id = sync_all_prices.delay().id
+        historical_task_id = sync_historical_data.delay().id
+        discovery_task_id = discover_new_cryptocurrencies.delay().id
         
         return {
-            "status": "success",
-            "message": "Background tasks started",
+            "success": True,
+            "message": "Background tasks started successfully",
+            "tasks": {
+                "sync_prices": sync_task_id,
+                "sync_historical": historical_task_id,
+                "discover_cryptos": discovery_task_id
+            },
             "started_by": current_user.email,
-            "tasks": started_tasks,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "started_at": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
-        logger.error(f"Failed to start background tasks: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start tasks: {str(e)}")
+        logger.error(f"Failed to start background tasks: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start tasks: {str(e)}"
+        )
 
 
-@router.post("/stop", operation_id="stop_tasks")
-async def stop_background_tasks_manually(  # FIXED: Completely unique function name
+@router.post("/sync/prices", operation_id="sync_prices_manually")
+async def sync_prices_manually(
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """
-    Stop all running background tasks
+    Manually trigger price synchronization
     
-    Requires authentication. Attempts to gracefully stop all running
-    background tasks. This operation may take a few moments to complete.
-    
-    Returns:
-        dict: Summary of stopped tasks
+    Forces immediate price data sync for all active cryptocurrencies.
     """
     try:
-        logger.info(f"User {current_user.email} stopping background tasks")
+        logger.info(f"User {current_user.id} starting manual price sync")
         
-        # Get active tasks
-        active_tasks = celery_app.control.inspect().active()
-        
-        if not active_tasks:
-            return {
-                "status": "success",
-                "message": "No active tasks to stop",
-                "stopped_by": current_user.email,
-                "active_tasks": 0,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-        
-        # Stop active tasks
-        stopped_count = 0
-        for worker_name, tasks in active_tasks.items():
-            for task in tasks:
-                task_id = task.get('id')
-                if task_id:
-                    celery_app.control.revoke(task_id, terminate=True)
-                    stopped_count += 1
+        task_id = sync_all_prices.delay().id
         
         return {
-            "status": "success",
-            "message": f"Stopped {stopped_count} background tasks",
-            "stopped_by": current_user.email,
-            "stopped_tasks": stopped_count,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "success": True,
+            "message": "Price sync task started",
+            "task_id": task_id,
+            "task_type": "sync_all_prices",
+            "status_endpoint": f"/api/v1/tasks/status/{task_id}",
+            "started_by": current_user.email,
+            "started_at": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
-        logger.error(f"Failed to stop background tasks: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to stop tasks: {str(e)}")
+        logger.error(f"Failed to start price sync: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start price sync: {str(e)}"
+        )
 
 
-@router.get("/status", operation_id="get_tasks_status")
-async def get_background_tasks_status() -> Dict[str, Any]:  # FIXED: Completely unique function name
+@router.post("/sync/historical", operation_id="sync_historical_manually")
+async def sync_historical_manually(
+    days_back: int = 30,
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
     """
-    Get comprehensive status of all background tasks
-    
-    No authentication required. Returns detailed information about
-    all background tasks including active, scheduled, and completed tasks.
-    
-    Returns:
-        dict: Comprehensive task status information
+    Manually trigger historical data synchronization
     """
     try:
-        # Get Celery inspector
-        inspector = celery_app.control.inspect()
+        logger.info(f"User {current_user.id} starting historical sync for {days_back} days")
         
-        # Get various task states
-        active_tasks = inspector.active() or {}
-        scheduled_tasks = inspector.scheduled() or {}
-        reserved_tasks = inspector.reserved() or {}
-        
-        # Get stats
-        stats = inspector.stats() or {}
-        
-        # Calculate totals
-        total_active = sum(len(tasks) for tasks in active_tasks.values())
-        total_scheduled = sum(len(tasks) for tasks in scheduled_tasks.values())
-        total_reserved = sum(len(tasks) for tasks in reserved_tasks.values())
+        task_id = sync_historical_data.delay(days_back=days_back).id
         
         return {
-            "status": "success",
-            "message": "Task status retrieved successfully",
-            "summary": {
-                "total_active": total_active,
-                "total_scheduled": total_scheduled,
-                "total_reserved": total_reserved,
-                "workers_online": len(stats)
-            },
-            "active_tasks": active_tasks,
-            "scheduled_tasks": scheduled_tasks,
-            "reserved_tasks": reserved_tasks,
-            "worker_stats": stats,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "success": True,
+            "message": "Historical sync task started",
+            "task_id": task_id,
+            "task_type": "sync_historical_data",
+            "days_back": days_back,
+            "status_endpoint": f"/api/v1/tasks/status/{task_id}",
+            "started_by": current_user.email,
+            "started_at": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
-        logger.error(f"Failed to get task status: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get task status: {str(e)}")
+        logger.error(f"Failed to start historical sync: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start historical sync: {str(e)}"
+        )
 
 
-@router.post("/manual/{task_name}", operation_id="run_manual_task")
-async def run_background_task_manually(  # FIXED: Completely unique function name
-    task_name: str,
-    days: Optional[int] = None,
+@router.post("/discover", operation_id="discover_cryptocurrencies_manually")
+async def discover_cryptocurrencies_manually(
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Manually trigger cryptocurrency discovery
+    """
+    try:
+        logger.info(f"User {current_user.id} starting cryptocurrency discovery")
+        
+        task_id = discover_new_cryptocurrencies.delay().id
+        
+        return {
+            "success": True,
+            "message": "Cryptocurrency discovery task started",
+            "task_id": task_id,
+            "task_type": "discover_new_cryptocurrencies",
+            "status_endpoint": f"/api/v1/tasks/status/{task_id}",
+            "started_by": current_user.email,
+            "started_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start discovery: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start discovery: {str(e)}"
+        )
+
+
+@router.post("/cleanup", operation_id="cleanup_old_data_manually")
+async def cleanup_old_data_manually(
+    days_to_keep: int = 90,
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Manually trigger data cleanup
+    """
+    try:
+        if days_to_keep < 7 or days_to_keep > 365:
+            raise HTTPException(
+                status_code=400,
+                detail="days_to_keep must be between 7 and 365"
+            )
+        
+        logger.info(f"User {current_user.id} starting data cleanup (keeping {days_to_keep} days)")
+        
+        task_id = cleanup_old_data.delay(days_to_keep=days_to_keep).id
+        
+        return {
+            "success": True,
+            "message": "Data cleanup task started",
+            "task_id": task_id,
+            "task_type": "cleanup_old_data",
+            "days_to_keep": days_to_keep,
+            "status_endpoint": f"/api/v1/tasks/status/{task_id}",
+            "started_by": current_user.email,
+            "started_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start cleanup: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start cleanup: {str(e)}"
+        )
+
+
+# =====================================
+# ML TASK ENDPOINTS (NEW)
+# =====================================
+
+@router.post("/ml/auto-train", operation_id="start_ml_auto_training")
+async def start_ml_auto_training(
+    force_retrain: bool = False,
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Start automatic model training for all cryptocurrencies
+    
+    Requires authentication. Trains ML models for all active cryptocurrencies.
+    This process can take 30-120 minutes depending on the amount of data and
+    number of cryptocurrencies.
+    """
+    try:
+        logger.info(f"User {current_user.id} starting auto ML training (force_retrain: {force_retrain})")
+        
+        # Start the training task
+        task_id = start_auto_training(force_retrain=force_retrain)
+        
+        return {
+            "success": True,
+            "message": "Auto training task started successfully",
+            "task_id": task_id,
+            "task_type": "auto_train_models",
+            "force_retrain": force_retrain,
+            "status_endpoint": f"/api/v1/tasks/ml/status/{task_id}",
+            "estimated_duration": "30-120 minutes",
+            "started_by": current_user.email,
+            "started_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start auto training: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start auto training: {str(e)}"
+        )
+
+
+@router.post("/ml/predictions/generate", operation_id="start_ml_prediction_generation")
+async def start_ml_prediction_generation(
+    crypto_symbols: Optional[List[str]] = None,
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Start scheduled prediction generation
+    
+    Requires authentication. Generates predictions for specified or all cryptocurrencies.
+    If crypto_symbols is not provided, predictions will be generated for all active
+    cryptocurrencies with trained models.
+    """
+    try:
+        symbols_text = f"for {len(crypto_symbols)} specific cryptocurrencies" if crypto_symbols else "for all cryptocurrencies"
+        logger.info(f"User {current_user.id} starting prediction generation {symbols_text}")
+        
+        # Start the prediction generation task
+        task_id = start_prediction_generation(crypto_symbols=crypto_symbols)
+        
+        return {
+            "success": True,
+            "message": "Prediction generation task started successfully",
+            "task_id": task_id,
+            "task_type": "generate_scheduled_predictions",
+            "crypto_symbols": crypto_symbols,
+            "status_endpoint": f"/api/v1/tasks/ml/status/{task_id}",
+            "estimated_duration": "5-15 minutes",
+            "started_by": current_user.email,
+            "started_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start prediction generation: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start prediction generation: {str(e)}"
+        )
+
+
+@router.post("/ml/performance/evaluate", operation_id="start_ml_performance_evaluation")
+async def start_ml_performance_evaluation(
     crypto_symbol: Optional[str] = None,
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """
-    Execute a specific task manually
+    Start model performance evaluation
     
-    Requires authentication. Allows manual execution of specific background tasks
-    with optional parameters for customization.
-    
-    Args:
-        task_name: Name of task to execute
-        days: Number of days (for historical sync)
-        crypto_symbol: Cryptocurrency symbol (for specific sync)
-        
-    Returns:
-        dict: Task execution result
+    Requires authentication. Evaluates the accuracy and performance of prediction models
+    by comparing predictions with actual market prices. If crypto_symbol is not provided,
+    all cryptocurrencies will be evaluated.
     """
     try:
-        # Task mapping
-        task_map = {
-            "sync_prices": {
-                "func": sync_all_prices,
-                "description": "Synchronize current cryptocurrency prices"
-            },
-            "sync_historical": {
-                "func": sync_historical_data,
-                "description": "Synchronize historical price data"
-            },
-            "discover_cryptos": {
-                "func": discover_new_cryptocurrencies,
-                "description": "Discover new cryptocurrencies"
-            },
-            "sync_specific": {
-                "func": sync_specific_cryptocurrency,
-                "description": "Synchronize specific cryptocurrency data"
-            },
-            "cleanup_data": {
-                "func": cleanup_old_data,
-                "description": "Clean up old price data"
-            }
+        eval_text = f"for {crypto_symbol}" if crypto_symbol else "for all cryptocurrencies"
+        logger.info(f"User {current_user.id} starting performance evaluation {eval_text}")
+        
+        # Start the performance evaluation task
+        task_id = start_performance_evaluation(crypto_symbol=crypto_symbol)
+        
+        return {
+            "success": True,
+            "message": "Performance evaluation task started successfully",
+            "task_id": task_id,
+            "task_type": "evaluate_model_performance",
+            "crypto_symbol": crypto_symbol,
+            "status_endpoint": f"/api/v1/tasks/ml/status/{task_id}",
+            "estimated_duration": "10-30 minutes",
+            "started_by": current_user.email,
+            "started_at": datetime.now(timezone.utc).isoformat()
         }
         
-        if task_name not in task_map:
+    except Exception as e:
+        logger.error(f"Failed to start performance evaluation: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start performance evaluation: {str(e)}"
+        )
+
+
+@router.post("/ml/cleanup", operation_id="start_ml_prediction_cleanup")
+async def start_ml_prediction_cleanup(
+    days_to_keep: int = 90,
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Start prediction data cleanup
+    
+    Requires authentication. Cleans up old prediction data to manage database size.
+    Only predictions older than the specified days will be removed, while preserving
+    recent data for analytics and model evaluation.
+    """
+    try:
+        if days_to_keep < 7 or days_to_keep > 365:
             raise HTTPException(
                 status_code=400,
-                detail=f"Unknown task: {task_name}. Available tasks: {list(task_map.keys())}"
+                detail="days_to_keep must be between 7 and 365"
             )
         
-        task_info = task_map[task_name]
-        task_func = task_info["func"]
+        logger.info(f"User {current_user.id} starting prediction cleanup (keeping {days_to_keep} days)")
         
-        # Execute task with appropriate parameters
-        if task_name == "sync_historical":
-            days = days or 30
-            result_task = task_func.delay(days=days)
-            parameters = {"days": days}
-        elif task_name == "sync_specific":
-            if not crypto_symbol:
-                raise HTTPException(
-                    status_code=400,
-                    detail="crypto_symbol parameter is required for sync_specific task"
-                )
-            result_task = task_func.delay(crypto_symbol=crypto_symbol.upper())
-            parameters = {"crypto_symbol": crypto_symbol.upper()}
-        elif task_name == "discover_cryptos":
-            result_task = task_func.delay(limit=100)
-            parameters = {"limit": 100}
-        elif task_name == "cleanup_data":
-            result_task = task_func.delay(days_to_keep=365)
-            parameters = {"days_to_keep": 365}
-        else:
-            result_task = task_func.delay()
-            parameters = {}
+        # Start the cleanup task
+        task_id = start_prediction_cleanup(days_to_keep=days_to_keep)
         
         return {
-            "status": "success",
-            "message": f"Task '{task_name}' started manually",
-            "task_id": result_task.id,
-            "task_name": task_name,
-            "description": task_info["description"],
-            "parameters": parameters,
-            "started_by": current_user.email,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to run manual task {task_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to run task: {str(e)}")
-
-
-@router.get("/result/{task_id}", operation_id="get_task_result")
-async def fetch_task_execution_result(  # FIXED: Completely unique function name
-    task_id: str,
-    current_user: User = Depends(get_current_active_user)
-) -> Dict[str, Any]:
-    """
-    Get result of a specific task by ID
-    
-    Requires authentication. Retrieves the execution result, status,
-    and metadata for a specific background task.
-    
-    Args:
-        task_id: Unique identifier of the task
-        
-    Returns:
-        dict: Comprehensive task result information
-    """
-    try:
-        # Get task result from Celery
-        result = celery_app.AsyncResult(task_id)
-        
-        # Determine task state description
-        state_descriptions = {
-            "PENDING": "Task is waiting to be processed",
-            "STARTED": "Task has been started and is running",
-            "SUCCESS": "Task completed successfully",
-            "FAILURE": "Task failed to complete",
-            "RETRY": "Task is being retried after failure",
-            "REVOKED": "Task was cancelled/revoked"
-        }
-        
-        return {
-            "status": "success",
+            "success": True,
+            "message": "Prediction cleanup task started successfully",
             "task_id": task_id,
-            "task_status": result.status,
-            "status_description": state_descriptions.get(result.status, "Unknown status"),
-            "task_result": result.result if result.ready() else None,
-            "task_info": result.info,
-            "ready": result.ready(),
-            "successful": result.successful() if result.ready() else None,
-            "failed": result.failed() if result.ready() else None,
-            "date_done": result.date_done.isoformat() if result.date_done else None,
-            "traceback": result.traceback if result.failed() else None,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "task_type": "cleanup_old_predictions",
+            "days_to_keep": days_to_keep,
+            "status_endpoint": f"/api/v1/tasks/ml/status/{task_id}",
+            "estimated_duration": "5-15 minutes",
+            "started_by": current_user.email,
+            "started_at": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
-        logger.error(f"Failed to get task result for {task_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get task result: {str(e)}")
+        logger.error(f"Failed to start prediction cleanup: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start prediction cleanup: {str(e)}"
+        )
 
 
-@router.delete("/revoke/{task_id}", operation_id="revoke_task")
-async def cancel_background_task(  # FIXED: Completely unique function name
+@router.get("/ml/status/{task_id}", operation_id="get_ml_task_status")
+async def get_ml_task_status_endpoint(
     task_id: str,
-    terminate: bool = False,
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """
-    Revoke (cancel) a specific task
+    Get status of ML task
     
-    Requires authentication. Cancels a running or pending task.
-    Use terminate=True to forcefully kill a running task.
-    
-    Args:
-        task_id: Unique identifier of the task to revoke
-        terminate: Whether to terminate the task immediately (default: False)
-        
-    Returns:
-        dict: Revocation result
+    Requires authentication. Returns detailed status of ML background tasks
+    including progress, results, and any errors that may have occurred.
     """
     try:
-        logger.info(f"User {current_user.email} revoking task: {task_id}")
+        # Get task status
+        task_status = get_ml_task_status(task_id)
         
-        # Revoke the task
-        result = task_scheduler.revoke_task(task_id, terminate=terminate)
-        
-        result["revoked_by"] = current_user.email
-        result["terminate_used"] = terminate
-        return result
+        return {
+            "success": True,
+            "task_status": task_status,
+            "requested_by": current_user.email,
+            "requested_at": datetime.now(timezone.utc).isoformat()
+        }
         
     except Exception as e:
-        logger.error(f"Failed to revoke task {task_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to revoke task: {str(e)}")
+        logger.error(f"Failed to get ML task status {task_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get task status: {str(e)}"
+        )
 
 
-@router.post("/purge", operation_id="purge_queue")
-async def clear_task_queue(  # FIXED: Completely unique function name
-    queue_name: str = "default",
+# =====================================
+# GENERAL TASK STATUS AND INFO ENDPOINTS
+# =====================================
+
+@router.get("/status/{task_id}", operation_id="get_task_status")
+async def get_task_status_endpoint(
+    task_id: str,
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """
-    Purge all tasks from a specific queue
-    
-    Requires authentication. Removes all pending tasks from the specified queue.
-    Use with extreme caution as this will cancel all waiting tasks.
-    
-    Args:
-        queue_name: Name of queue to purge (default: "default")
-        
-    Returns:
-        dict: Purge operation result
+    Get status of any background task
     """
     try:
-        logger.warning(f"User {current_user.email} purging queue: {queue_name}")
+        # Try to get status from data collection tasks first
+        task_status = get_task_status(task_id)
         
-        # Purge the queue
-        result = task_scheduler.purge_queue(queue_name)
-        
-        result["purged_by"] = current_user.email
-        result["queue_name"] = queue_name
-        return result
+        return {
+            "success": True,
+            "task_status": task_status,
+            "requested_by": current_user.email,
+            "requested_at": datetime.now(timezone.utc).isoformat()
+        }
         
     except Exception as e:
-        logger.error(f"Failed to purge queue {queue_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to purge queue: {str(e)}")
+        logger.error(f"Failed to get task status {task_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get task status: {str(e)}"
+        )
 
 
-@router.get("/schedules", operation_id="get_schedules")
-async def retrieve_task_schedules() -> Dict[str, Any]:  # FIXED: Completely unique function name
+@router.get("/schedule", operation_id="get_task_schedule")
+async def get_task_schedule(
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
     """
-    Get information about all scheduled tasks
+    Get scheduled task information
     
-    No authentication required. Returns information about periodic task schedules,
-    next execution times, and scheduling configuration.
-    
-    Returns:
-        dict: Complete scheduling information
+    Returns comprehensive information about all scheduled tasks including
+    next run times, schedules, and task categories.
     """
     try:
-        # Get next run times for scheduled tasks
+        logger.info(f"User {current_user.id} requesting task schedule")
+        
+        # Get next run times for all tasks
         next_runs = get_next_run_times()
         
-        # Task schedule information
-        schedules = {
-            "sync_all_prices": {
-                "description": "Synchronize current prices for all cryptocurrencies",
-                "schedule": "Every 5 minutes",
-                "cron": "*/5 * * * *",
-                "queue": "price_data",
-                "enabled": True
-            },
-            "sync_historical_data": {
-                "description": "Synchronize historical price data",
-                "schedule": "Every hour at minute 0",
-                "cron": "0 * * * *",
-                "queue": "price_data",
-                "enabled": True
-            },
-            "discover_new_cryptocurrencies": {
-                "description": "Discover and add new cryptocurrencies",
-                "schedule": "Daily at 2:00 AM",
-                "cron": "0 2 * * *",
-                "queue": "scheduling",
-                "enabled": True
-            },
-            "cleanup_old_data": {
-                "description": "Clean up old price data",
-                "schedule": "Weekly on Sunday at 3:00 AM",
-                "cron": "0 3 * * 0",
-                "queue": "scheduling",
-                "enabled": True
-            }
-        }
+        # Get schedule info from scheduler
+        schedule_info = task_scheduler.get_schedule_info()
         
         return {
-            "status": "success",
-            "message": "Task schedules retrieved successfully",
-            "schedules": schedules,
-            "next_execution_times": next_runs,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "success": True,
+            "message": "Task schedule retrieved successfully",
+            "next_runs": next_runs,
+            "schedule_info": schedule_info,
+            "requested_by": current_user.email,
+            "requested_at": datetime.now(timezone.utc).isoformat()
         }
         
     except Exception as e:
-        logger.error(f"Failed to get task schedules: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get schedules: {str(e)}")
+        logger.error(f"Failed to get task schedule: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get task schedule: {str(e)}"
+        )
 
 
-@router.get("/health", operation_id="task_health")
-async def monitor_task_system_health() -> Dict[str, Any]:  # FIXED: Completely unique function name
+@router.get("/info", operation_id="get_task_info")
+async def get_task_info(
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
     """
-    Check health status of the task system
+    Get comprehensive task system information
     
-    No authentication required. Performs comprehensive health checks
-    on the background task system including Celery workers, Redis broker,
-    and task queue status.
-    
-    Returns:
-        dict: Comprehensive health status
+    Returns detailed information about available tasks, their purposes,
+    schedules, and management endpoints.
     """
     try:
-        health_status = {
-            "status": "healthy",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "checks": {}
-        }
+        logger.info(f"User {current_user.id} requesting task info")
         
-        # Check Celery workers
+        # Get Celery worker status
         try:
-            inspector = celery_app.control.inspect()
-            stats = inspector.stats() or {}
-            active_workers = len(stats)
+            inspect = celery_app.control.inspect()
+            active_workers = inspect.active()
+            worker_stats = inspect.stats()
             
-            health_status["checks"]["celery_workers"] = {
-                "status": "healthy" if active_workers > 0 else "unhealthy",
-                "active_workers": active_workers,
-                "worker_details": stats
+            celery_status = {
+                "workers_online": len(active_workers) if active_workers else 0,
+                "active_tasks": sum(len(tasks) for tasks in active_workers.values()) if active_workers else 0,
+                "worker_stats": worker_stats
             }
-            
-            if active_workers == 0:
-                health_status["status"] = "unhealthy"
-                
         except Exception as e:
-            health_status["checks"]["celery_workers"] = {
-                "status": "error",
+            logger.warning(f"Could not get Celery status: {str(e)}")
+            celery_status = {
+                "workers_online": "unknown",
+                "active_tasks": "unknown",
                 "error": str(e)
             }
-            health_status["status"] = "unhealthy"
         
-        # Check Redis broker
-        try:
-            # Simple broker connectivity test
-            from app.core.database import check_redis_connection
-            redis_healthy = check_redis_connection()
-            
-            health_status["checks"]["redis_broker"] = {
-                "status": "healthy" if redis_healthy else "unhealthy",
-                "connection": "active" if redis_healthy else "failed"
-            }
-            
-            if not redis_healthy:
-                health_status["status"] = "unhealthy"
+        return {
+            "success": True,
+            "message": "Task system information retrieved successfully",
+            "system_info": {
+                "celery_status": celery_status,
+                "total_task_types": 12,  # 8 data collection + 4 ML tasks
+                "data_collection_tasks": 4,
+                "ml_tasks": 4
+            },
+            "available_tasks": {
+                # Data Collection Tasks
+                "sync_all_prices": {
+                    "description": "Synchronize current price data for all cryptocurrencies",
+                    "endpoint": "/api/v1/tasks/sync/prices",
+                    "method": "POST",
+                    "schedule": "Every 5 minutes",
+                    "type": "periodic/manual",
+                    "estimated_duration": "2-5 minutes",
+                    "dependencies": ["External APIs", "Database"],
+                    "category": "data_collection"
+                },
+                "sync_historical_data": {
+                    "description": "Synchronize historical price data for backtesting",
+                    "endpoint": "/api/v1/tasks/sync/historical",
+                    "method": "POST",
+                    "schedule": "Every hour",
+                    "type": "periodic/manual",
+                    "estimated_duration": "5-15 minutes",
+                    "dependencies": ["External APIs", "Database"],
+                    "category": "data_collection",
+                    "parameters": {
+                        "days_back": "integer - Number of days to sync (default: 30)"
+                    }
+                },
+                "discover_new_cryptocurrencies": {
+                    "description": "Discover and add new cryptocurrencies to the system",
+                    "endpoint": "/api/v1/tasks/discover",
+                    "method": "POST",
+                    "schedule": "Daily at 2:00 AM",
+                    "type": "periodic/manual",
+                    "estimated_duration": "3-10 minutes",
+                    "dependencies": ["External APIs", "Database"],
+                    "category": "data_collection"
+                },
+                "cleanup_old_data": {
+                    "description": "Remove old price data to manage database size",
+                    "endpoint": "/api/v1/tasks/cleanup",
+                    "method": "POST",
+                    "schedule": "Weekly on Sunday at 3:00 AM",
+                    "type": "periodic/manual",
+                    "estimated_duration": "5-20 minutes",
+                    "dependencies": ["Database"],
+                    "category": "data_collection",
+                    "parameters": {
+                        "days_to_keep": "integer - Days of data to retain (7-365)"
+                    }
+                },
                 
-        except Exception as e:
-            health_status["checks"]["redis_broker"] = {
-                "status": "error",
-                "error": str(e)
-            }
-            health_status["status"] = "unhealthy"
-        
-        # Check task queues
-        try:
-            inspector = celery_app.control.inspect()
-            active_tasks = inspector.active() or {}
-            reserved_tasks = inspector.reserved() or {}
-            
-            total_active = sum(len(tasks) for tasks in active_tasks.values())
-            total_reserved = sum(len(tasks) for tasks in reserved_tasks.values())
-            
-            health_status["checks"]["task_queues"] = {
-                "status": "healthy",
-                "active_tasks": total_active,
-                "reserved_tasks": total_reserved,
-                "queue_details": {
-                    "active": active_tasks,
-                    "reserved": reserved_tasks
+                # ML Tasks (NEW)
+                "auto_train_models": {
+                    "description": "Automatically train ML models for all cryptocurrencies",
+                    "endpoint": "/api/v1/tasks/ml/auto-train",
+                    "method": "POST",
+                    "schedule": "Weekly on Sunday at 1:00 AM",
+                    "type": "periodic/manual",
+                    "estimated_duration": "30-120 minutes",
+                    "dependencies": ["Database", "Model Storage", "Price Data"],
+                    "category": "machine_learning",
+                    "parameters": {
+                        "force_retrain": "boolean - Force retrain even if models are recent"
+                    }
+                },
+                "generate_scheduled_predictions": {
+                    "description": "Generate predictions for all active cryptocurrencies",
+                    "endpoint": "/api/v1/tasks/ml/predictions/generate",
+                    "method": "POST", 
+                    "schedule": "Every 4 hours",
+                    "type": "periodic/manual",
+                    "estimated_duration": "5-15 minutes",
+                    "dependencies": ["Trained Models", "Database", "Price Data"],
+                    "category": "machine_learning",
+                    "parameters": {
+                        "crypto_symbols": "array - Specific cryptocurrencies or null for all"
+                    }
+                },
+                "evaluate_model_performance": {
+                    "description": "Evaluate accuracy and performance of prediction models",
+                    "endpoint": "/api/v1/tasks/ml/performance/evaluate",
+                    "method": "POST",
+                    "schedule": "Daily at 6:00 AM", 
+                    "type": "periodic/manual",
+                    "estimated_duration": "10-30 minutes",
+                    "dependencies": ["Database", "Realized Predictions"],
+                    "category": "machine_learning",
+                    "parameters": {
+                        "crypto_symbol": "string - Specific cryptocurrency or null for all"
+                    }
+                },
+                "cleanup_old_predictions": {
+                    "description": "Clean up old prediction data to manage database size",
+                    "endpoint": "/api/v1/tasks/ml/cleanup",
+                    "method": "POST",
+                    "schedule": "Weekly on Sunday at 4:00 AM",
+                    "type": "periodic/manual", 
+                    "estimated_duration": "5-15 minutes",
+                    "dependencies": ["Database"],
+                    "category": "machine_learning",
+                    "parameters": {
+                        "days_to_keep": "integer - Days of data to retain (7-365)"
+                    }
                 }
-            }
-            
-        except Exception as e:
-            health_status["checks"]["task_queues"] = {
-                "status": "error",
-                "error": str(e)
-            }
-            health_status["status"] = "degraded"
-        
-        return health_status
+            },
+            "management_endpoints": {
+                "get_task_status": "GET /api/v1/tasks/status/{task_id}",
+                "get_ml_task_status": "GET /api/v1/tasks/ml/status/{task_id}",
+                "get_schedule": "GET /api/v1/tasks/schedule",
+                "get_info": "GET /api/v1/tasks/info",
+                "start_all_tasks": "POST /api/v1/tasks/start",
+                "sync_prices": "POST /api/v1/tasks/sync/prices",
+                "sync_historical": "POST /api/v1/tasks/sync/historical",
+                "discover_cryptos": "POST /api/v1/tasks/discover",
+                "cleanup_data": "POST /api/v1/tasks/cleanup",
+                "ml_auto_train": "POST /api/v1/tasks/ml/auto-train",
+                "ml_generate_predictions": "POST /api/v1/tasks/ml/predictions/generate", 
+                "ml_evaluate_performance": "POST /api/v1/tasks/ml/performance/evaluate",
+                "ml_cleanup_predictions": "POST /api/v1/tasks/ml/cleanup"
+            },
+            "startup_commands": {
+                "celery_worker": "celery -A app.tasks.celery_app worker --loglevel=info",
+                "celery_beat": "celery -A app.tasks.celery_app beat --loglevel=info",
+                "flower_monitoring": "celery -A app.tasks.celery_app flower",
+                "ml_worker_only": "celery -A app.tasks.celery_app worker --loglevel=info --queues=ml_tasks",
+                "combined_worker": "celery -A app.tasks.celery_app worker --loglevel=info --queues=price_data,ml_tasks"
+            },
+            "requested_by": current_user.email,
+            "requested_at": datetime.now(timezone.utc).isoformat()
+        }
         
     except Exception as e:
-        logger.error(f"Failed to check task system health: {e}")
-        return {
-            "status": "error",
-            "error": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-
-@router.get("/info", operation_id="task_info")
-async def get_task_system_information() -> Dict[str, Any]:  # FIXED: Completely unique function name
-    """
-    Get comprehensive information about the task system
-    
-    No authentication required. Provides detailed information about available tasks,
-    their purposes, scheduling, and system requirements.
-    
-    Returns:
-        dict: Complete task system information
-    """
-    return {
-        "system_info": {
-            "name": "CryptoPredict Background Task System",
-            "version": "1.0.0",
-            "technology": "Celery with Redis broker",
-            "purpose": "Automated cryptocurrency data collection and processing"
-        },
-        "available_tasks": {
-            "sync_all_prices": {
-                "description": "Synchronize current prices for all active cryptocurrencies",
-                "schedule": "Every 5 minutes",
-                "type": "periodic",
-                "estimated_duration": "30-60 seconds",
-                "dependencies": ["CoinGecko API", "Database"]
-            },
-            "sync_historical_data": {
-                "description": "Synchronize historical price data for cryptocurrencies", 
-                "schedule": "Every hour at minute 0",
-                "type": "periodic",
-                "estimated_duration": "2-5 minutes",
-                "dependencies": ["CoinGecko API", "Database"]
-            },
-            "discover_new_cryptocurrencies": {
-                "description": "Discover and add new cryptocurrencies to the system",
-                "schedule": "Daily at 2:00 AM",
-                "type": "periodic",
-                "estimated_duration": "1-3 minutes",
-                "dependencies": ["CoinGecko API", "Database"]
-            },
-            "cleanup_old_data": {
-                "description": "Clean up old price data to manage database size",
-                "schedule": "Weekly on Sunday at 3:00 AM", 
-                "type": "periodic",
-                "estimated_duration": "5-15 minutes",
-                "dependencies": ["Database"]
-            },
-            "sync_specific_cryptocurrency": {
-                "description": "Synchronize data for a specific cryptocurrency",
-                "schedule": "On demand (manual execution)",
-                "type": "manual",
-                "estimated_duration": "10-30 seconds",
-                "dependencies": ["CoinGecko API", "Database"]
-            }
-        },
-        "system_requirements": {
-            "celery_worker": "Required for task execution",
-            "celery_beat": "Required for scheduled tasks", 
-            "redis": "Required as message broker and result backend",
-            "database": "Required for data persistence",
-            "external_apis": "CoinGecko API for cryptocurrency data"
-        },
-        "startup_commands": {
-            "start_workers": "./temp/start-celery.sh",
-            "worker_only": "celery -A app.tasks.celery_app worker --loglevel=info",
-            "beat_only": "celery -A app.tasks.celery_app beat --loglevel=info",
-            "flower_monitoring": "celery -A app.tasks.celery_app flower --port=5555"
-        },
-        "monitoring": {
-            "health_endpoint": "/api/v1/tasks/health",
-            "status_endpoint": "/api/v1/tasks/status", 
-            "schedules_endpoint": "/api/v1/tasks/schedules",
-            "flower_ui": "http://localhost:5555 (if running)"
-        },
-        "management_endpoints": {
-            "start_tasks": "POST /api/v1/tasks/start",
-            "stop_tasks": "POST /api/v1/tasks/stop",
-            "manual_execution": "POST /api/v1/tasks/manual/{task_name}",
-            "task_results": "GET /api/v1/tasks/result/{task_id}",
-            "revoke_task": "DELETE /api/v1/tasks/revoke/{task_id}"
-        },
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+        logger.error(f"Failed to get task info: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get task info: {str(e)}"
+        )

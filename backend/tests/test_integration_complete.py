@@ -624,7 +624,7 @@ class TestDataIntegration:
         """Test prediction storage and retrieval"""
         
         # Create a test prediction record
-        from app.schemas.prediction import PredictionCreate
+        from app.schemas.ml_prediction import PredictionCreate
         
         prediction_data = PredictionCreate(
             crypto_id=test_crypto.id,

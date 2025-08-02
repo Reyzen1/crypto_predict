@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from app.models import Prediction
 from app.repositories.base import BaseRepository
-from app.schemas.prediction import PredictionCreate, PredictionUpdate
+from app.schemas.ml_prediction import PredictionCreate, PredictionUpdate
 
 
 class PredictionRepository(BaseRepository[Prediction, PredictionCreate, PredictionUpdate]):

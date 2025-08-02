@@ -1,5 +1,6 @@
 # File: backend/app/tasks/ml_tasks.py
-# Background tasks for ML operations - Based on price_collector.py pattern
+# Background tasks for ML operations - Fixed async/await issues
+# Based on price_collector.py pattern with Celery compatibility
 
 import asyncio
 import logging
@@ -27,9 +28,109 @@ from app.repositories import (
 logger = logging.getLogger(__name__)
 
 
+# =====================================
+# HELPER FUNCTIONS FOR ASYNC OPERATIONS
+# =====================================
+
+def run_async_task(coro):
+    """
+    Helper function to run async operations in Celery tasks
+    
+    Since Celery tasks cannot be async, we use this helper to run
+    async operations synchronously within Celery workers.
+    """
+    try:
+        # Try to get existing event loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is running, create a new one
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(asyncio.run, coro)
+                return future.result()
+        else:
+            # If no loop is running, use asyncio.run
+            return asyncio.run(coro)
+    except RuntimeError:
+        # If no event loop exists, create one
+        return asyncio.run(coro)
+
+
+async def _async_check_training_needed(crypto_symbol: str, force_retrain: bool = False) -> bool:
+    """
+    Async helper to check if model training is needed for a cryptocurrency
+    
+    Args:
+        crypto_symbol: Cryptocurrency symbol to check
+        force_retrain: Force retrain even if model exists
+        
+    Returns:
+        bool: True if training is needed, False otherwise
+    """
+    if force_retrain:
+        return True
+    
+    try:
+        # Check if active model exists
+        active_model = model_registry.get_active_model(crypto_symbol)
+        if not active_model:
+            logger.info(f"No active model found for {crypto_symbol}, training needed")
+            return True
+        
+        # Check model age (retrain if older than 7 days)
+        model_created = active_model.get("created_at")
+        if model_created:
+            if isinstance(model_created, str):
+                model_created = datetime.fromisoformat(model_created.replace('Z', '+00:00'))
+            
+            age_days = (datetime.now(timezone.utc) - model_created).days
+            if age_days > 7:
+                logger.info(f"Model for {crypto_symbol} is {age_days} days old, training needed")
+                return True
+        
+        # Check model performance (retrain if accuracy < 70%)
+        performance = await prediction_service.get_model_performance(crypto_symbol)
+        if performance:
+            accuracy = performance.get("accuracy_percentage", 0)
+            if accuracy < 70:
+                logger.info(f"Model for {crypto_symbol} has low accuracy ({accuracy}%), training needed")
+                return True
+        
+        logger.info(f"Model for {crypto_symbol} is up to date")
+        return False
+        
+    except Exception as e:
+        logger.error(f"Error checking training need for {crypto_symbol}: {str(e)}")
+        return True  # Default to training if uncertain
+
+
+def check_training_needed(crypto_symbol: str, force_retrain: bool = False) -> bool:
+    """
+    Synchronous wrapper for checking if training is needed
+    
+    Args:
+        crypto_symbol: Cryptocurrency symbol to check
+        force_retrain: Force retrain even if model exists
+        
+    Returns:
+        bool: True if training is needed, False otherwise
+    """
+    return run_async_task(_async_check_training_needed(crypto_symbol, force_retrain))
+
+
+# =====================================
+# TASK STATUS MANAGEMENT
+# =====================================
+
 def get_task_status(task_id: str) -> Dict[str, Any]:
     """
     Get status of ML task - Similar to price_collector pattern
+    
+    Args:
+        task_id: Celery task identifier
+        
+    Returns:
+        Dict containing task status information
     """
     try:
         # Check if task exists in Celery
@@ -53,12 +154,23 @@ def get_task_status(task_id: str) -> Dict[str, Any]:
         }
 
 
+# =====================================
+# CELERY TASKS (SYNCHRONOUS IMPLEMENTATIONS)
+# =====================================
+
 @celery_app.task(bind=True, name="ml_tasks.auto_train_models")
 def auto_train_models(self, force_retrain: bool = False) -> Dict[str, Any]:
     """
     Automatically train models for all active cryptocurrencies
     
-    Similar to sync_all_prices pattern but for ML training
+    Similar to sync_all_prices pattern but for ML training.
+    This function runs synchronously in Celery worker process.
+    
+    Args:
+        force_retrain: Force retrain even if recent models exist
+        
+    Returns:
+        Dict containing task results and statistics
     """
     task_id = self.request.id
     logger.info(f"Starting auto train models task {task_id}")
@@ -80,84 +192,76 @@ def auto_train_models(self, force_retrain: bool = False) -> Dict[str, Any]:
             "started_at": datetime.now(timezone.utc).isoformat(),
             "cryptocurrencies_processed": 0,
             "models_trained": 0,
-            "models_failed": 0,
-            "training_results": [],
-            "errors": []
+            "training_skipped": 0,
+            "errors": [],
+            "success": False
         }
         
         try:
             # Get all active cryptocurrencies
-            cryptocurrencies = cryptocurrency_repository.get_all_active(db)
+            cryptocurrencies = cryptocurrency_repository.get_active_cryptocurrencies(db)
             total_cryptos = len(cryptocurrencies)
             
-            logger.info(f"Found {total_cryptos} cryptocurrencies for auto training")
+            if total_cryptos == 0:
+                results["completed_at"] = datetime.now(timezone.utc).isoformat()
+                results["success"] = True
+                results["summary"] = "No active cryptocurrencies found"
+                return results
             
+            current_task.update_state(
+                state='PROGRESS',
+                meta={
+                    'status': f'Found {total_cryptos} cryptocurrencies to process',
+                    'progress': 5,
+                    'current_step': 'Processing cryptocurrencies'
+                }
+            )
+            
+            # Process each cryptocurrency
             for i, crypto in enumerate(cryptocurrencies):
                 try:
-                    # Update progress
-                    progress = int((i / total_cryptos) * 100)
+                    progress = int((i / total_cryptos) * 90) + 5  # 5-95%
                     current_task.update_state(
                         state='PROGRESS',
                         meta={
-                            'status': f'Training models for {crypto.symbol}',
+                            'status': f'Processing {crypto.symbol}',
                             'progress': progress,
-                            'current_step': f'Processing {crypto.symbol} ({i+1}/{total_cryptos})',
-                            'crypto_symbol': crypto.symbol
+                            'current_step': f'Crypto {i+1}/{total_cryptos}',
+                            'current_crypto': crypto.symbol
                         }
                     )
                     
-                    # Check if training is needed
-                    needs_training = await _check_if_training_needed(
-                        db, crypto.symbol, force_retrain
-                    )
-                    
-                    if needs_training:
+                    # Check if training is needed (using sync wrapper)
+                    if check_training_needed(crypto.symbol, force_retrain):
                         logger.info(f"Training model for {crypto.symbol}")
                         
-                        # Start training
-                        training_result = await training_service.train_model(
-                            crypto_symbol=crypto.symbol,
-                            model_type="lstm",
-                            training_config={
-                                "epochs": 50,  # Reduced for background task
-                                "batch_size": 32,
-                                "sequence_length": 60,
-                                "validation_split": 0.2
-                            },
-                            data_days_back=365,
-                            force_retrain=force_retrain
-                        )
+                        # Start training using async wrapper
+                        async def _train_model():
+                            return await training_service.train_model(
+                                crypto_symbol=crypto.symbol,
+                                model_type="lstm",
+                                force_retrain=force_retrain
+                            )
+                        
+                        training_result = run_async_task(_train_model())
                         
                         if training_result.get("success", False):
                             results["models_trained"] += 1
-                            results["training_results"].append({
-                                "crypto_symbol": crypto.symbol,
-                                "status": "success",
-                                "model_path": training_result.get("model_path"),
-                                "training_metrics": training_result.get("training_metrics", {}),
-                                "evaluation_metrics": training_result.get("evaluation_metrics", {})
-                            })
                             logger.info(f"Successfully trained model for {crypto.symbol}")
                         else:
-                            results["models_failed"] += 1
-                            error_msg = training_result.get("error", "Unknown training error")
+                            error_msg = f"Training failed for {crypto.symbol}: {training_result.get('error', 'Unknown error')}"
                             results["errors"].append({
                                 "crypto_symbol": crypto.symbol,
                                 "error": error_msg
                             })
-                            logger.error(f"Failed to train model for {crypto.symbol}: {error_msg}")
+                            logger.error(error_msg)
                     else:
-                        logger.info(f"Model for {crypto.symbol} is up to date, skipping")
-                        results["training_results"].append({
-                            "crypto_symbol": crypto.symbol,
-                            "status": "skipped",
-                            "reason": "Model is up to date"
-                        })
+                        results["training_skipped"] += 1
+                        logger.info(f"Training skipped for {crypto.symbol} - model is up to date")
                     
                     results["cryptocurrencies_processed"] += 1
                     
                 except Exception as e:
-                    results["models_failed"] += 1
                     error_msg = f"Error processing {crypto.symbol}: {str(e)}"
                     results["errors"].append({
                         "crypto_symbol": crypto.symbol,
@@ -165,10 +269,10 @@ def auto_train_models(self, force_retrain: bool = False) -> Dict[str, Any]:
                     })
                     logger.error(error_msg)
             
-            # Final task completion
+            # Task completion
             results["completed_at"] = datetime.now(timezone.utc).isoformat()
             results["success"] = True
-            results["summary"] = f"Processed {results['cryptocurrencies_processed']} cryptocurrencies, trained {results['models_trained']} models, {results['models_failed']} failed"
+            results["summary"] = f"Processed {results['cryptocurrencies_processed']} cryptocurrencies, trained {results['models_trained']} models, skipped {results['training_skipped']}"
             
             current_task.update_state(
                 state='SUCCESS',
@@ -179,14 +283,14 @@ def auto_train_models(self, force_retrain: bool = False) -> Dict[str, Any]:
                 }
             )
             
-            logger.info(f"Auto train models task completed: {results['summary']}")
+            logger.info(f"Auto training task completed: {results['summary']}")
             return results
             
         finally:
             db.close()
             
     except Exception as e:
-        error_msg = f"Auto train models task failed: {str(e)}"
+        error_msg = f"Auto training task failed: {str(e)}"
         logger.error(error_msg)
         
         current_task.update_state(
@@ -209,9 +313,16 @@ def auto_train_models(self, force_retrain: bool = False) -> Dict[str, Any]:
 @celery_app.task(bind=True, name="ml_tasks.generate_scheduled_predictions")
 def generate_scheduled_predictions(self, crypto_symbols: Optional[List[str]] = None) -> Dict[str, Any]:
     """
-    Generate predictions for cryptocurrencies on schedule
+    Generate scheduled predictions for cryptocurrencies
     
-    Similar to sync_all_prices but for predictions
+    Synchronous Celery task that generates predictions for specified
+    or all active cryptocurrencies using available trained models.
+    
+    Args:
+        crypto_symbols: Optional list of symbols to generate predictions for
+        
+    Returns:
+        Dict containing prediction generation results
     """
     task_id = self.request.id
     logger.info(f"Starting scheduled predictions task {task_id}")
@@ -233,83 +344,72 @@ def generate_scheduled_predictions(self, crypto_symbols: Optional[List[str]] = N
             "cryptocurrencies_processed": 0,
             "predictions_generated": 0,
             "predictions_failed": 0,
-            "prediction_results": [],
-            "errors": []
+            "errors": [],
+            "success": False
         }
         
         try:
-            # Get cryptocurrencies to predict
+            # Get cryptocurrencies to process
             if crypto_symbols:
-                cryptocurrencies = []
-                for symbol in crypto_symbols:
-                    crypto = cryptocurrency_repository.get_by_symbol(db, symbol)
-                    if crypto:
-                        cryptocurrencies.append(crypto)
+                cryptocurrencies = [
+                    cryptocurrency_repository.get_by_symbol(db, symbol) 
+                    for symbol in crypto_symbols
+                ]
+                cryptocurrencies = [c for c in cryptocurrencies if c]  # Filter None values
             else:
-                cryptocurrencies = cryptocurrency_repository.get_all_active(db)
+                cryptocurrencies = cryptocurrency_repository.get_active_cryptocurrencies(db)
             
             total_cryptos = len(cryptocurrencies)
-            logger.info(f"Generating predictions for {total_cryptos} cryptocurrencies")
             
-            # Prediction timeframes to generate
-            timeframes = ["1h", "4h", "24h", "7d"]
+            if total_cryptos == 0:
+                results["completed_at"] = datetime.now(timezone.utc).isoformat()
+                results["success"] = True
+                results["summary"] = "No cryptocurrencies found for prediction"
+                return results
             
+            current_task.update_state(
+                state='PROGRESS',
+                meta={
+                    'status': f'Generating predictions for {total_cryptos} cryptocurrencies',
+                    'progress': 5,
+                    'current_step': 'Processing predictions'
+                }
+            )
+            
+            # Generate predictions for each cryptocurrency
             for i, crypto in enumerate(cryptocurrencies):
                 try:
-                    # Update progress
-                    progress = int((i / total_cryptos) * 100)
+                    progress = int((i / total_cryptos) * 90) + 5  # 5-95%
                     current_task.update_state(
                         state='PROGRESS',
                         meta={
                             'status': f'Generating predictions for {crypto.symbol}',
                             'progress': progress,
-                            'current_step': f'Processing {crypto.symbol} ({i+1}/{total_cryptos})',
-                            'crypto_symbol': crypto.symbol
+                            'current_step': f'Crypto {i+1}/{total_cryptos}',
+                            'current_crypto': crypto.symbol
                         }
                     )
                     
-                    crypto_predictions = []
+                    # Generate predictions using async wrapper
+                    async def _generate_predictions():
+                        return await prediction_service.predict_price(
+                            crypto_symbol=crypto.symbol,
+                            prediction_horizon=24  # 24 hours
+                        )
                     
-                    for timeframe in timeframes:
-                        try:
-                            # Generate prediction
-                            prediction_result = await prediction_service.predict_price(
-                                crypto_symbol=crypto.symbol,
-                                timeframe=timeframe,
-                                use_ensemble_models=True,
-                                include_technical_indicators=True
-                            )
-                            
-                            if prediction_result and prediction_result.get("success", False):
-                                crypto_predictions.append({
-                                    "timeframe": timeframe,
-                                    "predicted_price": float(prediction_result["predicted_price"]),
-                                    "confidence_score": prediction_result["confidence_score"],
-                                    "model_used": prediction_result["model_used"]
-                                })
-                                results["predictions_generated"] += 1
-                            else:
-                                results["predictions_failed"] += 1
-                                results["errors"].append({
-                                    "crypto_symbol": crypto.symbol,
-                                    "timeframe": timeframe,
-                                    "error": prediction_result.get("error", "Unknown prediction error")
-                                })
-                        
-                        except Exception as e:
-                            results["predictions_failed"] += 1
-                            results["errors"].append({
-                                "crypto_symbol": crypto.symbol,
-                                "timeframe": timeframe,
-                                "error": str(e)
-                            })
+                    prediction_result = run_async_task(_generate_predictions())
                     
-                    if crypto_predictions:
-                        results["prediction_results"].append({
+                    if prediction_result.get("success", False):
+                        results["predictions_generated"] += 1
+                        logger.info(f"Generated prediction for {crypto.symbol}")
+                    else:
+                        results["predictions_failed"] += 1
+                        error_msg = f"Prediction failed for {crypto.symbol}: {prediction_result.get('error', 'Unknown error')}"
+                        results["errors"].append({
                             "crypto_symbol": crypto.symbol,
-                            "predictions": crypto_predictions,
-                            "total_predictions": len(crypto_predictions)
+                            "error": error_msg
                         })
+                        logger.error(error_msg)
                     
                     results["cryptocurrencies_processed"] += 1
                     
@@ -367,7 +467,14 @@ def evaluate_model_performance(self, crypto_symbol: Optional[str] = None) -> Dic
     """
     Evaluate model performance and accuracy
     
-    Checks realized predictions vs actual prices
+    Synchronous Celery task that evaluates prediction accuracy
+    by comparing predictions with actual market prices.
+    
+    Args:
+        crypto_symbol: Optional specific cryptocurrency to evaluate
+        
+    Returns:
+        Dict containing performance evaluation results
     """
     task_id = self.request.id
     logger.info(f"Starting model performance evaluation task {task_id}")
@@ -387,9 +494,10 @@ def evaluate_model_performance(self, crypto_symbol: Optional[str] = None) -> Dic
             "task_id": task_id,
             "started_at": datetime.now(timezone.utc).isoformat(),
             "cryptocurrencies_evaluated": 0,
-            "total_predictions_evaluated": 0,
-            "performance_results": [],
-            "errors": []
+            "performance_updates": 0,
+            "evaluation_errors": 0,
+            "errors": [],
+            "success": False
         }
         
         try:
@@ -398,43 +506,59 @@ def evaluate_model_performance(self, crypto_symbol: Optional[str] = None) -> Dic
                 crypto = cryptocurrency_repository.get_by_symbol(db, crypto_symbol)
                 cryptocurrencies = [crypto] if crypto else []
             else:
-                cryptocurrencies = cryptocurrency_repository.get_all_active(db)
+                cryptocurrencies = cryptocurrency_repository.get_active_cryptocurrencies(db)
             
             total_cryptos = len(cryptocurrencies)
             
+            if total_cryptos == 0:
+                results["completed_at"] = datetime.now(timezone.utc).isoformat()
+                results["success"] = True
+                results["summary"] = "No cryptocurrencies found for evaluation"
+                return results
+            
+            current_task.update_state(
+                state='PROGRESS',
+                meta={
+                    'status': f'Evaluating {total_cryptos} cryptocurrencies',
+                    'progress': 5,
+                    'current_step': 'Processing evaluations'
+                }
+            )
+            
+            # Evaluate each cryptocurrency
             for i, crypto in enumerate(cryptocurrencies):
                 try:
-                    # Update progress
-                    progress = int((i / total_cryptos) * 100)
+                    progress = int((i / total_cryptos) * 90) + 5  # 5-95%
                     current_task.update_state(
                         state='PROGRESS',
                         meta={
                             'status': f'Evaluating {crypto.symbol}',
                             'progress': progress,
-                            'current_step': f'Processing {crypto.symbol} ({i+1}/{total_cryptos})',
-                            'crypto_symbol': crypto.symbol
+                            'current_step': f'Crypto {i+1}/{total_cryptos}',
+                            'current_crypto': crypto.symbol
                         }
                     )
                     
-                    # Get performance metrics
-                    performance_metrics = await prediction_service.evaluate_model_accuracy(
-                        crypto_symbol=crypto.symbol,
-                        days_back=30
-                    )
+                    # Evaluate performance using async wrapper
+                    async def _evaluate_performance():
+                        return await prediction_service.evaluate_model_accuracy(
+                            crypto_symbol=crypto.symbol,
+                            days_back=30  # Evaluate last 30 days
+                        )
                     
-                    if performance_metrics:
-                        results["performance_results"].append({
+                    evaluation_result = run_async_task(_evaluate_performance())
+                    
+                    if evaluation_result.get("success", False):
+                        results["performance_updates"] += 1
+                        logger.info(f"Updated performance metrics for {crypto.symbol}")
+                    else:
+                        results["evaluation_errors"] += 1
+                        error_msg = f"Evaluation failed for {crypto.symbol}: {evaluation_result.get('error', 'Unknown error')}"
+                        results["errors"].append({
                             "crypto_symbol": crypto.symbol,
-                            "total_predictions": performance_metrics.get("total_predictions", 0),
-                            "realized_predictions": performance_metrics.get("realized_predictions", 0),
-                            "accuracy_percentage": performance_metrics.get("accuracy_percentage"),
-                            "average_confidence": performance_metrics.get("average_confidence", 0.0),
-                            "rmse": performance_metrics.get("rmse"),
-                            "mae": performance_metrics.get("mae"),
-                            "model_performance": performance_metrics.get("model_performance", {})
+                            "error": error_msg
                         })
-                        
-                        results["total_predictions_evaluated"] += performance_metrics.get("total_predictions", 0)
+                        logger.error(error_msg)
                     
                     results["cryptocurrencies_evaluated"] += 1
                     
@@ -449,7 +573,7 @@ def evaluate_model_performance(self, crypto_symbol: Optional[str] = None) -> Dic
             # Task completion
             results["completed_at"] = datetime.now(timezone.utc).isoformat()
             results["success"] = True
-            results["summary"] = f"Evaluated {results['cryptocurrencies_evaluated']} cryptocurrencies, {results['total_predictions_evaluated']} predictions analyzed"
+            results["summary"] = f"Evaluated {results['cryptocurrencies_evaluated']} cryptocurrencies, updated {results['performance_updates']} performance records"
             
             current_task.update_state(
                 state='SUCCESS',
@@ -460,14 +584,14 @@ def evaluate_model_performance(self, crypto_symbol: Optional[str] = None) -> Dic
                 }
             )
             
-            logger.info(f"Model performance evaluation completed: {results['summary']}")
+            logger.info(f"Performance evaluation task completed: {results['summary']}")
             return results
             
         finally:
             db.close()
             
     except Exception as e:
-        error_msg = f"Model performance evaluation failed: {str(e)}"
+        error_msg = f"Performance evaluation task failed: {str(e)}"
         logger.error(error_msg)
         
         current_task.update_state(
@@ -490,12 +614,19 @@ def evaluate_model_performance(self, crypto_symbol: Optional[str] = None) -> Dic
 @celery_app.task(bind=True, name="ml_tasks.cleanup_old_predictions")
 def cleanup_old_predictions(self, days_to_keep: int = 90) -> Dict[str, Any]:
     """
-    Clean up old predictions to manage database size
+    Clean up old prediction data to manage database size
     
-    Similar to cleanup_old_data in price_collector
+    Synchronous Celery task that removes old prediction records
+    while preserving recent data and important analytics.
+    
+    Args:
+        days_to_keep: Number of days of prediction data to retain
+        
+    Returns:
+        Dict containing cleanup results
     """
     task_id = self.request.id
-    logger.info(f"Starting prediction cleanup task {task_id} - keeping {days_to_keep} days")
+    logger.info(f"Starting prediction cleanup task {task_id}")
     
     try:
         current_task.update_state(
@@ -513,8 +644,7 @@ def cleanup_old_predictions(self, days_to_keep: int = 90) -> Dict[str, Any]:
             "started_at": datetime.now(timezone.utc).isoformat(),
             "days_to_keep": days_to_keep,
             "predictions_deleted": 0,
-            "predictions_kept": 0,
-            "errors": []
+            "success": False
         }
         
         try:
@@ -524,22 +654,32 @@ def cleanup_old_predictions(self, days_to_keep: int = 90) -> Dict[str, Any]:
             current_task.update_state(
                 state='PROGRESS',
                 meta={
-                    'status': 'Cleaning up old predictions',
-                    'progress': 50,
-                    'current_step': f'Removing predictions older than {cutoff_date.date()}'
+                    'status': f'Cleaning predictions older than {cutoff_date.strftime("%Y-%m-%d")}',
+                    'progress': 10,
+                    'current_step': 'Identifying old records'
                 }
             )
             
-            # Get cleanup stats
-            cleanup_result = prediction_repository.cleanup_old_predictions(db, cutoff_date)
+            # Delete old predictions
+            deleted_count = prediction_repository.delete_old_predictions(db, cutoff_date)
+            results["predictions_deleted"] = deleted_count
             
-            results["predictions_deleted"] = cleanup_result.get("deleted_count", 0)
-            results["predictions_kept"] = cleanup_result.get("remaining_count", 0)
+            current_task.update_state(
+                state='PROGRESS',
+                meta={
+                    'status': f'Deleted {deleted_count} old predictions',
+                    'progress': 90,
+                    'current_step': 'Finalizing cleanup'
+                }
+            )
+            
+            # Commit the transaction
+            db.commit()
             
             # Task completion
             results["completed_at"] = datetime.now(timezone.utc).isoformat()
             results["success"] = True
-            results["summary"] = f"Deleted {results['predictions_deleted']} old predictions, kept {results['predictions_kept']} recent predictions"
+            results["summary"] = f"Deleted {deleted_count} predictions older than {days_to_keep} days"
             
             current_task.update_state(
                 state='SUCCESS',
@@ -550,14 +690,14 @@ def cleanup_old_predictions(self, days_to_keep: int = 90) -> Dict[str, Any]:
                 }
             )
             
-            logger.info(f"Prediction cleanup completed: {results['summary']}")
+            logger.info(f"Prediction cleanup task completed: {results['summary']}")
             return results
             
         finally:
             db.close()
             
     except Exception as e:
-        error_msg = f"Prediction cleanup failed: {str(e)}"
+        error_msg = f"Prediction cleanup task failed: {str(e)}"
         logger.error(error_msg)
         
         current_task.update_state(
@@ -577,71 +717,61 @@ def cleanup_old_predictions(self, days_to_keep: int = 90) -> Dict[str, Any]:
         }
 
 
-async def _check_if_training_needed(
-    db: Session, 
-    crypto_symbol: str, 
-    force_retrain: bool = False
-) -> bool:
-    """
-    Check if model training is needed for a cryptocurrency
-    """
-    if force_retrain:
-        return True
-    
-    try:
-        # Check if active model exists
-        active_model = model_registry.get_active_model(crypto_symbol)
-        if not active_model:
-            logger.info(f"No active model found for {crypto_symbol}, training needed")
-            return True
-        
-        # Check model age (retrain if older than 7 days)
-        model_created = active_model.get("created_at")
-        if model_created:
-            if isinstance(model_created, str):
-                model_created = datetime.fromisoformat(model_created.replace('Z', '+00:00'))
-            
-            age_days = (datetime.now(timezone.utc) - model_created).days
-            if age_days > 7:
-                logger.info(f"Model for {crypto_symbol} is {age_days} days old, training needed")
-                return True
-        
-        # Check model performance (retrain if accuracy < 70%)
-        performance = await prediction_service.get_model_performance(crypto_symbol)
-        if performance:
-            accuracy = performance.get("accuracy_percentage", 0)
-            if accuracy < 70:
-                logger.info(f"Model for {crypto_symbol} has low accuracy ({accuracy}%), training needed")
-                return True
-        
-        logger.info(f"Model for {crypto_symbol} is up to date")
-        return False
-        
-    except Exception as e:
-        logger.error(f"Error checking training need for {crypto_symbol}: {str(e)}")
-        return True  # Default to training if uncertain
+# =====================================
+# CONVENIENCE FUNCTIONS FOR MANUAL EXECUTION
+# =====================================
 
-
-# Convenience functions for manual task execution
 def start_auto_training(force_retrain: bool = False) -> str:
-    """Start auto training task manually"""
+    """
+    Start auto training task manually
+    
+    Args:
+        force_retrain: Force retrain even if models are recent
+        
+    Returns:
+        str: Task ID for monitoring
+    """
     task = auto_train_models.delay(force_retrain=force_retrain)
     return task.id
 
 
 def start_prediction_generation(crypto_symbols: Optional[List[str]] = None) -> str:
-    """Start prediction generation task manually"""
+    """
+    Start prediction generation task manually
+    
+    Args:
+        crypto_symbols: Optional list of specific cryptocurrencies
+        
+    Returns:
+        str: Task ID for monitoring
+    """
     task = generate_scheduled_predictions.delay(crypto_symbols=crypto_symbols)
     return task.id
 
 
 def start_performance_evaluation(crypto_symbol: Optional[str] = None) -> str:
-    """Start performance evaluation task manually"""
+    """
+    Start performance evaluation task manually
+    
+    Args:
+        crypto_symbol: Optional specific cryptocurrency to evaluate
+        
+    Returns:
+        str: Task ID for monitoring
+    """
     task = evaluate_model_performance.delay(crypto_symbol=crypto_symbol)
     return task.id
 
 
 def start_prediction_cleanup(days_to_keep: int = 90) -> str:
-    """Start prediction cleanup task manually"""
+    """
+    Start prediction cleanup task manually
+    
+    Args:
+        days_to_keep: Number of days of data to retain
+        
+    Returns:
+        str: Task ID for monitoring
+    """
     task = cleanup_old_predictions.delay(days_to_keep=days_to_keep)
     return task.id

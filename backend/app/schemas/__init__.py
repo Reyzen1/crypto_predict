@@ -70,7 +70,7 @@ from app.schemas.price_data import (
 )
 
 # Prediction schemas
-from app.schemas.prediction import (
+from app.schemas.ml_prediction import (
     PredictionBase,
     PredictionCreate,
     PredictionUpdate,

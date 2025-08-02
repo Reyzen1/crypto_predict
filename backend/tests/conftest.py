@@ -214,7 +214,7 @@ def extensive_price_data(db_session, test_crypto) -> List[PriceData]:
 @pytest.fixture
 def sample_predictions(db_session, test_crypto) -> List[Prediction]:
     """Create sample predictions for testing"""
-    from app.schemas.prediction import PredictionCreate
+    from app.schemas.ml_prediction import PredictionCreate
     
     predictions = []
     base_time = datetime.now(timezone.utc) - timedelta(days=30)

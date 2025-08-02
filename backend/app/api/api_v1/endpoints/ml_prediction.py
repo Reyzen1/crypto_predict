@@ -1,5 +1,6 @@
 # File: backend/app/api/api_v1/endpoints/ml_prediction.py
 # ML Prediction API endpoints - Based on ml_training.py pattern
+# Fixed to use existing prediction schemas and follow training endpoint structure
 
 import asyncio
 import uuid
@@ -16,12 +17,10 @@ from app.ml.config.ml_config import model_registry, ml_config
 from app.repositories import cryptocurrency_repository, prediction_repository
 from app.models import User
 
-# Import the schemas we just created
+# Import prediction schemas (using existing prediction.py schemas)
 from app.schemas.ml_prediction import (
-    PredictionRequest, PredictionResponse, BatchPredictionRequest, BatchPredictionResponse,
-    PredictionHistoryRequest, PredictionHistoryResponse, PredictionHistoryItem,
-    ModelPerformanceResponse, ModelPerformanceMetrics, PredictionStatsResponse,
-    PredictionStatus, PredictionTimeframe
+    PredictionRequest, PredictionResult, BatchPredictionRequest, BatchPredictionResponse,
+    PredictionResponse, PredictionCreate, ModelPerformance, PredictionAnalytics
 )
 from app.schemas.common import SuccessResponse
 
@@ -36,226 +35,260 @@ prediction_jobs: Dict[str, Dict[str, Any]] = {}
 prediction_cache: Dict[str, Dict[str, Any]] = {}
 
 
+# =====================================
+# HELPER FUNCTIONS (Following ml_training.py pattern)
+# =====================================
+
 def generate_prediction_id(crypto_symbol: str, timeframe: str) -> str:
-    """Generate unique prediction ID"""
+    """
+    Generate unique prediction ID
+    
+    Args:
+        crypto_symbol: Cryptocurrency symbol
+        timeframe: Prediction timeframe
+        
+    Returns:
+        str: Unique prediction identifier
+    """
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     return f"pred_{crypto_symbol.lower()}_{timeframe}_{timestamp}"
 
 
 def generate_batch_id() -> str:
-    """Generate unique batch prediction ID"""
+    """
+    Generate unique batch prediction ID
+    
+    Returns:
+        str: Unique batch identifier
+    """
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     return f"batch_{timestamp}_{uuid.uuid4().hex[:8]}"
 
 
 def get_cache_key(crypto_symbol: str, timeframe: str, model_version: Optional[str] = None) -> str:
-    """Generate cache key for predictions"""
-    model_part = f"_{model_version}" if model_version else ""
-    return f"pred_{crypto_symbol.lower()}_{timeframe}{model_part}"
+    """
+    Generate cache key for predictions
+    
+    Args:
+        crypto_symbol: Cryptocurrency symbol
+        timeframe: Prediction timeframe
+        model_version: Model version (optional)
+        
+    Returns:
+        str: Cache key
+    """
+    base_key = f"{crypto_symbol}_{timeframe}"
+    if model_version:
+        base_key += f"_{model_version}"
+    return base_key
 
 
-def is_prediction_fresh(cached_prediction: Dict[str, Any], timeframe: str) -> bool:
-    """Check if cached prediction is still fresh"""
-    if not cached_prediction or "prediction_timestamp" not in cached_prediction:
-        return False
+def create_safe_prediction_response(prediction_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Create a safe prediction response without problematic data
     
-    prediction_time = cached_prediction["prediction_timestamp"]
-    if isinstance(prediction_time, str):
-        prediction_time = datetime.fromisoformat(prediction_time.replace('Z', '+00:00'))
+    Args:
+        prediction_id: Prediction identifier
+        job: Job data dictionary
+        
+    Returns:
+        dict: Safe response data
+    """
+    # Calculate duration
+    duration_seconds = None
+    if job.get("completed_at"):
+        duration_seconds = int((job["completed_at"] - job["started_at"]).total_seconds())
+    elif job.get("status") == "running":
+        duration_seconds = int((datetime.now(timezone.utc) - job["started_at"]).total_seconds())
     
-    now = datetime.now(timezone.utc)
-    
-    # Define freshness based on timeframe
-    freshness_rules = {
-        "15m": timedelta(minutes=5),
-        "30m": timedelta(minutes=10), 
-        "1h": timedelta(minutes=20),
-        "4h": timedelta(hours=1),
-        "24h": timedelta(hours=4),
-        "7d": timedelta(hours=12),
-        "30d": timedelta(days=1)
+    return {
+        "prediction_id": prediction_id,
+        "crypto_symbol": job["crypto_symbol"],
+        "status": job["status"],
+        "message": job.get("message", "Prediction in progress"),
+        "started_at": job["started_at"],
+        "completed_at": job.get("completed_at"),
+        "duration_seconds": duration_seconds,
+        "error_details": job.get("error_details"),
+        "prediction_result": job.get("prediction_result")
     }
-    
-    max_age = freshness_rules.get(timeframe, timedelta(hours=1))
-    return (now - prediction_time) < max_age
 
 
 async def run_prediction_task(
     prediction_id: str,
     crypto_symbol: str,
-    prediction_config: Optional[dict] = None,
-    model_version: Optional[str] = None,
-    include_historical_context: bool = True
+    prediction_horizon: int,
+    model_type: str,
+    include_confidence: bool
 ):
-    """Background task for running predictions - similar to training task pattern"""
+    """
+    Background task to run prediction (following training pattern)
+    
+    Args:
+        prediction_id: Prediction identifier
+        crypto_symbol: Cryptocurrency symbol
+        prediction_horizon: Hours ahead to predict
+        model_type: Type of model to use
+        include_confidence: Whether to include confidence score
+    """
     try:
-        logger.info(f"Starting prediction task {prediction_id} for {crypto_symbol}")
+        # Update job status to running
+        prediction_jobs[prediction_id]["status"] = "running"
+        prediction_jobs[prediction_id]["message"] = "Prediction started"
         
-        if prediction_id not in prediction_jobs:
-            logger.error(f"Prediction job {prediction_id} not found in jobs registry")
-            return
+        logger.info(f"Starting prediction job {prediction_id} for {crypto_symbol}")
         
-        # Update status to running
-        prediction_jobs[prediction_id].update({
-            "status": PredictionStatus.RUNNING,
-            "message": "Generating prediction...",
-            "started_processing_at": datetime.now(timezone.utc)
-        })
+        # Start actual prediction
+        result = await prediction_service.predict_price(
+            crypto_symbol=crypto_symbol,
+            prediction_horizon=prediction_horizon
+        )
         
-        # Get database session
-        db = SessionLocal()
-        try:
-            # Validate cryptocurrency exists
-            crypto = cryptocurrency_repository.get_by_symbol(db, crypto_symbol)
-            if not crypto:
-                raise Exception(f"Cryptocurrency {crypto_symbol} not found")
+        # Update job with results
+        if result.get("success", False):
+            prediction_jobs[prediction_id]["status"] = "completed"
+            prediction_jobs[prediction_id]["message"] = "Prediction completed successfully"
+            prediction_jobs[prediction_id]["completed_at"] = datetime.now(timezone.utc)
+            prediction_jobs[prediction_id]["prediction_result"] = result
+        else:
+            prediction_jobs[prediction_id]["status"] = "failed"
+            prediction_jobs[prediction_id]["message"] = "Prediction failed"
+            prediction_jobs[prediction_id]["error_details"] = result.get("error", "Unknown error")
+            prediction_jobs[prediction_id]["completed_at"] = datetime.now(timezone.utc)
             
-            # Prepare prediction configuration
-            config = prediction_config or {}
-            timeframe = config.get("timeframe", "24h")
-            confidence_threshold = config.get("confidence_threshold", 0.7)
-            use_ensemble = config.get("use_ensemble_models", True)
-            
-            # Run prediction using prediction service
-            prediction_result = await prediction_service.predict_price(
-                crypto_symbol=crypto_symbol,
-                timeframe=timeframe,
-                model_version=model_version,
-                use_ensemble_models=use_ensemble,
-                include_technical_indicators=config.get("include_technical_indicators", True),
-                include_market_sentiment=config.get("include_market_sentiment", False)
-            )
-            
-            if prediction_result and prediction_result.get("success", False):
-                # Calculate prediction validity
-                valid_until = datetime.now(timezone.utc)
-                if timeframe == "15m":
-                    valid_until += timedelta(minutes=15)
-                elif timeframe == "30m":
-                    valid_until += timedelta(minutes=30)
-                elif timeframe == "1h":
-                    valid_until += timedelta(hours=1)
-                elif timeframe == "4h":
-                    valid_until += timedelta(hours=4)
-                elif timeframe == "24h":
-                    valid_until += timedelta(hours=24)
-                elif timeframe == "7d":
-                    valid_until += timedelta(days=7)
-                elif timeframe == "30d":
-                    valid_until += timedelta(days=30)
-                
-                # Update job with successful result
-                prediction_jobs[prediction_id].update({
-                    "status": PredictionStatus.COMPLETED,
-                    "message": "Prediction completed successfully",
-                    "completed_at": datetime.now(timezone.utc),
-                    "prediction_result": prediction_result,
-                    "valid_until": valid_until,
-                    "confidence_score": prediction_result.get("confidence_score", 0.0)
-                })
-                
-                # Cache the result
-                cache_key = get_cache_key(crypto_symbol, timeframe, model_version)
-                prediction_cache[cache_key] = {
-                    "prediction_result": prediction_result,
-                    "prediction_timestamp": datetime.now(timezone.utc),
-                    "valid_until": valid_until,
-                    "timeframe": timeframe
-                }
-                
-                logger.info(f"Prediction job {prediction_id} completed successfully")
-            else:
-                raise Exception(f"Prediction failed: {prediction_result.get('error', 'Unknown error')}")
-                
-        finally:
-            db.close()
-            
+        logger.info(f"Prediction job {prediction_id} completed with status: {prediction_jobs[prediction_id]['status']}")
+        
     except Exception as e:
         logger.error(f"Prediction job {prediction_id} failed with exception: {str(e)}")
-        if prediction_id in prediction_jobs:
-            prediction_jobs[prediction_id].update({
-                "status": PredictionStatus.FAILED,
-                "message": f"Prediction failed: {str(e)}",
-                "completed_at": datetime.now(timezone.utc),
-                "error_details": str(e)
-            })
+        prediction_jobs[prediction_id]["status"] = "failed"
+        prediction_jobs[prediction_id]["message"] = "Prediction failed with exception"
+        prediction_jobs[prediction_id]["error_details"] = str(e)
+        prediction_jobs[prediction_id]["completed_at"] = datetime.now(timezone.utc)
 
 
-@router.post("/predictions/predict", response_model=PredictionResponse)
+# =====================================
+# PREDICTION ENDPOINTS (Following ml_training.py pattern)
+# =====================================
+
+@router.post("/predict", operation_id="make_price_prediction")
 async def make_prediction(
     request: PredictionRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> PredictionResult:
     """
-    Make a price prediction for cryptocurrency
+    Make a cryptocurrency price prediction
     
-    Requires authentication. Generates AI-powered price predictions.
+    Initiates prediction for specified cryptocurrency. Prediction runs
+    asynchronously in the background and can be monitored via status endpoint.
     """
     try:
+        logger.info(f"User {current_user.id} requesting prediction for crypto_id {request.crypto_id}")
+        
         # Validate cryptocurrency exists
-        crypto = cryptocurrency_repository.get_by_symbol(db, request.crypto_symbol)
+        crypto = cryptocurrency_repository.get_by_id(db, request.crypto_id)
         if not crypto:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Cryptocurrency {request.crypto_symbol} not found"
+                detail=f"Cryptocurrency with ID {request.crypto_id} not found"
             )
         
-        config = request.prediction_config.dict() if request.prediction_config else {}
-        timeframe = config.get("timeframe", "24h")
+        # Generate prediction job ID
+        prediction_id = generate_prediction_id(crypto.symbol, f"{request.prediction_horizon}h")
         
-        # Check cache first (unless force_refresh is True)
-        if not request.force_refresh:
-            cache_key = get_cache_key(request.crypto_symbol, timeframe, request.model_version)
-            cached_prediction = prediction_cache.get(cache_key)
-            
-            if cached_prediction and is_prediction_fresh(cached_prediction, timeframe):
-                logger.info(f"Returning cached prediction for {request.crypto_symbol}")
-                result = cached_prediction["prediction_result"]
+        # Check cache for recent predictions
+        cache_key = get_cache_key(crypto.symbol, f"{request.prediction_horizon}h")
+        cache_ttl_minutes = 30  # Cache for 30 minutes
+        
+        if cache_key in prediction_cache:
+            cached_prediction = prediction_cache[cache_key]
+            cached_time = cached_prediction.get("cached_at")
+            if cached_time and (datetime.now(timezone.utc) - cached_time).total_seconds() < cache_ttl_minutes * 60:
+                logger.info(f"Returning cached prediction for {crypto.symbol}")
                 
-                return PredictionResponse(
-                    prediction_id=f"cached_{cache_key}",
-                    crypto_symbol=request.crypto_symbol,
-                    current_price=result["current_price"],
-                    predicted_price=result["predicted_price"],
-                    price_change=result["price_change"],
-                    price_change_percentage=result["price_change_percentage"],
-                    confidence_score=result["confidence_score"],
-                    timeframe=timeframe,
-                    model_used=result["model_used"],
-                    model_version=result["model_version"],
-                    prediction_timestamp=cached_prediction["prediction_timestamp"],
-                    valid_until=cached_prediction["valid_until"],
-                    technical_indicators=result.get("technical_indicators"),
-                    market_sentiment=result.get("market_sentiment"),
-                    historical_accuracy=result.get("historical_accuracy"),
-                    risk_assessment=result.get("risk_assessment")
+                cached_result = cached_prediction["data"]
+                return PredictionResult(
+                    crypto_id=request.crypto_id,
+                    crypto_symbol=crypto.symbol,
+                    model_name=cached_result["model_name"],
+                    predicted_price=cached_result["predicted_price"],
+                    confidence_score=cached_result["confidence_score"],
+                    target_datetime=cached_result["target_datetime"],
+                    features_used=cached_result.get("features_used", []),
+                    model_accuracy=cached_result.get("model_accuracy"),
+                    prediction_id=None
                 )
         
-        # Generate prediction ID and create job
-        prediction_id = generate_prediction_id(request.crypto_symbol, timeframe)
-        
+        # Create prediction job record
         prediction_jobs[prediction_id] = {
             "prediction_id": prediction_id,
-            "crypto_symbol": request.crypto_symbol,
-            "timeframe": timeframe,
-            "model_version": request.model_version,
-            "status": PredictionStatus.PENDING,
-            "message": "Prediction request queued",
-            "created_at": datetime.now(timezone.utc),
+            "crypto_symbol": crypto.symbol,
+            "crypto_id": request.crypto_id,
+            "status": "pending",
+            "message": "Prediction job queued",
+            "started_at": datetime.now(timezone.utc),
             "user_id": current_user.id,
-            "config": config
+            "prediction_horizon": request.prediction_horizon,
+            "model_type": request.model_type,
+            "include_confidence": request.include_confidence
         }
         
-        # Start background task
+        # Try immediate prediction first (for quick results)
+        try:
+            result = await prediction_service.predict_price(
+                crypto_symbol=crypto.symbol,
+                prediction_horizon=request.prediction_horizon
+            )
+            
+            if result.get("success", False):
+                # Cache the result
+                target_datetime = datetime.now(timezone.utc) + timedelta(hours=request.prediction_horizon)
+                
+                cached_data = {
+                    "model_name": result.get("model_name", "unknown"),
+                    "predicted_price": result["predicted_price"],
+                    "confidence_score": result.get("confidence_score", 0.0),
+                    "target_datetime": target_datetime,
+                    "features_used": result.get("features_used", []),
+                    "model_accuracy": result.get("model_accuracy")
+                }
+                
+                prediction_cache[cache_key] = {
+                    "data": cached_data,
+                    "cached_at": datetime.now(timezone.utc)
+                }
+                
+                # Update job status to completed
+                prediction_jobs[prediction_id]["status"] = "completed"
+                prediction_jobs[prediction_id]["prediction_result"] = result
+                prediction_jobs[prediction_id]["completed_at"] = datetime.now(timezone.utc)
+                
+                logger.info(f"Immediate prediction completed for {crypto.symbol}")
+                
+                return PredictionResult(
+                    crypto_id=request.crypto_id,
+                    crypto_symbol=crypto.symbol,
+                    model_name=cached_data["model_name"],
+                    predicted_price=cached_data["predicted_price"],
+                    confidence_score=cached_data["confidence_score"],
+                    target_datetime=cached_data["target_datetime"],
+                    features_used=cached_data["features_used"],
+                    model_accuracy=cached_data["model_accuracy"],
+                    prediction_id=None
+                )
+                
+        except Exception as e:
+            logger.warning(f"Immediate prediction failed for {crypto.symbol}: {str(e)}")
+        
+        # Start background prediction task
         background_tasks.add_task(
             run_prediction_task,
             prediction_id,
-            request.crypto_symbol,
-            config,
-            request.model_version,
-            request.include_historical_context
+            crypto.symbol,
+            request.prediction_horizon,
+            request.model_type,
+            request.include_confidence
         )
         
         # Wait briefly for quick predictions
@@ -264,482 +297,409 @@ async def make_prediction(
         # Check if completed quickly
         if prediction_id in prediction_jobs:
             job = prediction_jobs[prediction_id]
-            if job["status"] == PredictionStatus.COMPLETED:
+            if job["status"] == "completed" and job.get("prediction_result"):
                 result = job["prediction_result"]
-                return PredictionResponse(
-                    prediction_id=prediction_id,
-                    crypto_symbol=request.crypto_symbol,
-                    current_price=result["current_price"],
+                target_datetime = datetime.now(timezone.utc) + timedelta(hours=request.prediction_horizon)
+                
+                return PredictionResult(
+                    crypto_id=request.crypto_id,
+                    crypto_symbol=crypto.symbol,
+                    model_name=result.get("model_name", "unknown"),
                     predicted_price=result["predicted_price"],
-                    price_change=result["price_change"],
-                    price_change_percentage=result["price_change_percentage"],
-                    confidence_score=result["confidence_score"],
-                    timeframe=timeframe,
-                    model_used=result["model_used"],
-                    model_version=result["model_version"],
-                    prediction_timestamp=job["completed_at"],
-                    valid_until=job["valid_until"],
-                    technical_indicators=result.get("technical_indicators"),
-                    market_sentiment=result.get("market_sentiment"),
-                    historical_accuracy=result.get("historical_accuracy"),
-                    risk_assessment=result.get("risk_assessment")
+                    confidence_score=result.get("confidence_score", 0.0),
+                    target_datetime=target_datetime,
+                    features_used=result.get("features_used", []),
+                    model_accuracy=result.get("model_accuracy"),
+                    prediction_id=None
                 )
         
-        # Return async response for longer predictions
+        # Return pending response with job info
         raise HTTPException(
             status_code=status.HTTP_202_ACCEPTED,
             detail={
                 "message": "Prediction is being processed",
                 "prediction_id": prediction_id,
-                "status_endpoint": f"/api/v1/ml/predictions/status/{prediction_id}"
+                "status_endpoint": f"/api/v1/ml/prediction/status/{prediction_id}",
+                "estimated_completion": "2-5 minutes"
             }
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Prediction request failed: {str(e)}")
+        logger.error(f"Failed to make prediction: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Prediction request failed: {str(e)}"
+            detail=f"Failed to make prediction: {str(e)}"
         )
 
 
-@router.get("/predictions/status/{prediction_id}")
+@router.get("/status/{prediction_id}", operation_id="get_prediction_status")
 async def get_prediction_status(
     prediction_id: str,
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
     """
-    Get status of a prediction job
+    Get prediction job status and progress
     
-    Similar to training status endpoint pattern.
-    """
-    if prediction_id not in prediction_jobs:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Prediction job {prediction_id} not found"
-        )
-    
-    job = prediction_jobs[prediction_id]
-    
-    # Verify user owns this prediction job
-    if job.get("user_id") != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this prediction job"
-        )
-    
-    # If completed, return full result
-    if job["status"] == PredictionStatus.COMPLETED:
-        result = job["prediction_result"]
-        return {
-            "prediction_id": prediction_id,
-            "status": job["status"],
-            "message": job["message"],
-            "prediction": PredictionResponse(
-                prediction_id=prediction_id,
-                crypto_symbol=job["crypto_symbol"],
-                current_price=result["current_price"],
-                predicted_price=result["predicted_price"],
-                price_change=result["price_change"],
-                price_change_percentage=result["price_change_percentage"],
-                confidence_score=result["confidence_score"],
-                timeframe=job["timeframe"],
-                model_used=result["model_used"],
-                model_version=result["model_version"],
-                prediction_timestamp=job["completed_at"],
-                valid_until=job["valid_until"],
-                technical_indicators=result.get("technical_indicators"),
-                market_sentiment=result.get("market_sentiment"),
-                historical_accuracy=result.get("historical_accuracy"),
-                risk_assessment=result.get("risk_assessment")
-            )
-        }
-    
-    # Return status for pending/running jobs
-    return {
-        "prediction_id": prediction_id,
-        "status": job["status"],
-        "message": job["message"],
-        "crypto_symbol": job["crypto_symbol"],
-        "timeframe": job["timeframe"],
-        "created_at": job["created_at"],
-        "started_processing_at": job.get("started_processing_at"),
-        "error_details": job.get("error_details")
-    }
-
-
-@router.post("/predictions/batch", response_model=BatchPredictionResponse)
-async def batch_predictions(
-    request: BatchPredictionRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-) -> Any:
-    """
-    Make batch predictions for multiple cryptocurrencies
-    
-    Requires authentication. Processes multiple predictions efficiently.
+    Returns detailed information about a prediction job including progress,
+    current status, and results if completed.
     """
     try:
-        batch_id = generate_batch_id()
-        start_time = datetime.now(timezone.utc)
-        
-        predictions = []
-        successful_count = 0
-        failed_count = 0
-        
-        for crypto_symbol in request.crypto_symbols:
-            try:
-                # Validate cryptocurrency exists
-                crypto = cryptocurrency_repository.get_by_symbol(db, crypto_symbol)
-                if not crypto:
-                    logger.warning(f"Cryptocurrency {crypto_symbol} not found, skipping")
-                    failed_count += 1
-                    continue
-                
-                # Create individual prediction request
-                config = request.prediction_config.dict() if request.prediction_config else {}
-                timeframe = config.get("timeframe", "24h")
-                
-                # Check cache first
-                cache_key = get_cache_key(crypto_symbol, timeframe, request.model_version)
-                cached_prediction = prediction_cache.get(cache_key)
-                
-                if cached_prediction and is_prediction_fresh(cached_prediction, timeframe):
-                    result = cached_prediction["prediction_result"]
-                    predictions.append(PredictionResponse(
-                        prediction_id=f"batch_{batch_id}_{crypto_symbol.lower()}",
-                        crypto_symbol=crypto_symbol,
-                        current_price=result["current_price"],
-                        predicted_price=result["predicted_price"],
-                        price_change=result["price_change"],
-                        price_change_percentage=result["price_change_percentage"],
-                        confidence_score=result["confidence_score"],
-                        timeframe=timeframe,
-                        model_used=result["model_used"],
-                        model_version=result["model_version"],
-                        prediction_timestamp=cached_prediction["prediction_timestamp"],
-                        valid_until=cached_prediction["valid_until"],
-                        technical_indicators=result.get("technical_indicators"),
-                        market_sentiment=result.get("market_sentiment"),
-                        historical_accuracy=result.get("historical_accuracy"),
-                        risk_assessment=result.get("risk_assessment")
-                    ))
-                    successful_count += 1
-                else:
-                    # Generate new prediction
-                    prediction_result = await prediction_service.predict_price(
-                        crypto_symbol=crypto_symbol,
-                        timeframe=timeframe,
-                        model_version=request.model_version,
-                        use_ensemble_models=config.get("use_ensemble_models", True)
-                    )
-                    
-                    if prediction_result and prediction_result.get("success", False):
-                        valid_until = datetime.now(timezone.utc) + timedelta(hours=24)  # Default validity
-                        
-                        predictions.append(PredictionResponse(
-                            prediction_id=f"batch_{batch_id}_{crypto_symbol.lower()}",
-                            crypto_symbol=crypto_symbol,
-                            current_price=prediction_result["current_price"],
-                            predicted_price=prediction_result["predicted_price"],
-                            price_change=prediction_result["price_change"],
-                            price_change_percentage=prediction_result["price_change_percentage"],
-                            confidence_score=prediction_result["confidence_score"],
-                            timeframe=timeframe,
-                            model_used=prediction_result["model_used"],
-                            model_version=prediction_result["model_version"],
-                            prediction_timestamp=datetime.now(timezone.utc),
-                            valid_until=valid_until,
-                            technical_indicators=prediction_result.get("technical_indicators"),
-                            market_sentiment=prediction_result.get("market_sentiment"),
-                            historical_accuracy=prediction_result.get("historical_accuracy"),
-                            risk_assessment=prediction_result.get("risk_assessment")
-                        ))
-                        successful_count += 1
-                        
-                        # Cache the result
-                        prediction_cache[cache_key] = {
-                            "prediction_result": prediction_result,
-                            "prediction_timestamp": datetime.now(timezone.utc),
-                            "valid_until": valid_until,
-                            "timeframe": timeframe
-                        }
-                    else:
-                        failed_count += 1
-                        
-            except Exception as e:
-                logger.error(f"Failed to predict {crypto_symbol}: {str(e)}")
-                failed_count += 1
-        
-        end_time = datetime.now(timezone.utc)
-        processing_time = (end_time - start_time).total_seconds()
-        
-        return BatchPredictionResponse(
-            batch_id=batch_id,
-            total_requested=len(request.crypto_symbols),
-            successful_predictions=successful_count,
-            failed_predictions=failed_count,
-            predictions=predictions,
-            processing_time_seconds=processing_time
-        )
-        
-    except Exception as e:
-        logger.error(f"Batch prediction failed: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Batch prediction failed: {str(e)}"
-        )
-
-
-@router.get("/predictions/history/{crypto_symbol}", response_model=PredictionHistoryResponse)
-async def get_prediction_history(
-    crypto_symbol: str,
-    days_back: Optional[int] = 7,
-    model_version: Optional[str] = None,
-    min_confidence: Optional[float] = None,
-    limit: Optional[int] = 50,
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user)
-) -> Any:
-    """
-    Get prediction history for a cryptocurrency
-    
-    Optional authentication. Returns historical predictions and their accuracy.
-    """
-    try:
-        # Validate parameters
-        if days_back < 1 or days_back > 90:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="days_back must be between 1 and 90"
-            )
-        
-        if limit < 1 or limit > 500:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="limit must be between 1 and 500"
-            )
-        
-        # Validate cryptocurrency exists
-        crypto = cryptocurrency_repository.get_by_symbol(db, crypto_symbol)
-        if not crypto:
+        # Check if job exists
+        if prediction_id not in prediction_jobs:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Cryptocurrency {crypto_symbol} not found"
+                detail=f"Prediction job {prediction_id} not found"
             )
         
-        # Get prediction history from repository
-        predictions = prediction_repository.get_by_crypto_and_timerange(
-            db=db,
-            crypto_id=crypto.id,
-            days_back=days_back,
-            model_name=model_version,
-            limit=limit
-        )
+        job = prediction_jobs[prediction_id]
         
-        # Filter by confidence if specified
-        if min_confidence:
-            predictions = [p for p in predictions if p.confidence_score >= min_confidence]
+        # Create safe response
+        response = create_safe_prediction_response(prediction_id, job)
         
-        # Convert to response format
-        prediction_items = []
-        realized_count = 0
-        total_accuracy = 0.0
+        logger.info(f"User {current_user.id} checked status of prediction job {prediction_id}")
         
-        for pred in predictions:
-            is_realized = pred.is_realized or False
-            accuracy = None
-            
-            if is_realized and pred.actual_price:
-                accuracy = 1.0 - abs(float(pred.predicted_price - pred.actual_price)) / float(pred.actual_price)
-                accuracy = max(0.0, accuracy)  # Ensure non-negative
-                total_accuracy += accuracy
-                realized_count += 1
-            
-            prediction_items.append(PredictionHistoryItem(
-                prediction_id=f"hist_{pred.id}",
-                predicted_price=pred.predicted_price,
-                actual_price=pred.actual_price,
-                accuracy=accuracy,
-                confidence_score=float(pred.confidence_score or 0.0),
-                model_used=pred.model_name or "unknown",
-                prediction_timestamp=pred.created_at,
-                is_realized=is_realized
-            ))
-        
-        average_accuracy = (total_accuracy / realized_count) if realized_count > 0 else None
-        
-        return PredictionHistoryResponse(
-            crypto_symbol=crypto_symbol,
-            total_predictions=len(prediction_items),
-            realized_predictions=realized_count,
-            average_accuracy=average_accuracy,
-            predictions=prediction_items
-        )
+        return {
+            "success": True,
+            "prediction_status": response,
+            "requested_by": current_user.email,
+            "requested_at": datetime.now(timezone.utc).isoformat()
+        }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Get prediction history failed: {str(e)}")
+        logger.error(f"Failed to get prediction status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get prediction status: {str(e)}"
+        )
+
+
+@router.post("/batch", operation_id="make_batch_predictions")
+async def make_batch_predictions(
+    request: BatchPredictionRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> BatchPredictionResponse:
+    """
+    Make predictions for multiple cryptocurrencies
+    
+    Generates predictions for multiple cryptocurrencies simultaneously.
+    Useful for portfolio analysis and comparison across different assets.
+    """
+    try:
+        logger.info(f"User {current_user.id} requesting batch predictions for {len(request.crypto_ids)} cryptos")
+        
+        # Generate batch ID
+        batch_id = generate_batch_id()
+        
+        # Validate all crypto IDs exist
+        valid_cryptos = []
+        errors = []
+        
+        for crypto_id in request.crypto_ids:
+            crypto = cryptocurrency_repository.get_by_id(db, crypto_id)
+            if crypto:
+                valid_cryptos.append(crypto)
+            else:
+                errors.append({
+                    "crypto_id": crypto_id,
+                    "error": "Cryptocurrency not found",
+                    "error_code": "CRYPTO_NOT_FOUND"
+                })
+        
+        # Generate predictions for valid cryptos
+        predictions = []
+        
+        async def predict_single(crypto) -> Optional[PredictionResult]:
+            try:
+                result = await prediction_service.predict_price(
+                    crypto_symbol=crypto.symbol,
+                    prediction_horizon=request.prediction_horizon
+                )
+                
+                if result.get("success", False):
+                    target_datetime = datetime.now(timezone.utc) + timedelta(hours=request.prediction_horizon)
+                    
+                    return PredictionResult(
+                        crypto_id=crypto.id,
+                        crypto_symbol=crypto.symbol,
+                        model_name=result.get("model_name", "unknown"),
+                        predicted_price=result["predicted_price"],
+                        confidence_score=result.get("confidence_score", 0.0),
+                        target_datetime=target_datetime,
+                        features_used=result.get("features_used", []),
+                        model_accuracy=result.get("model_accuracy"),
+                        prediction_id=None
+                    )
+                else:
+                    errors.append({
+                        "crypto_id": crypto.id,
+                        "crypto_symbol": crypto.symbol,
+                        "error": result.get("error", "Prediction failed"),
+                        "error_code": "PREDICTION_FAILED"
+                    })
+                    return None
+                    
+            except Exception as e:
+                errors.append({
+                    "crypto_id": crypto.id,
+                    "crypto_symbol": crypto.symbol,
+                    "error": str(e),
+                    "error_code": "PREDICTION_ERROR"
+                })
+                return None
+        
+        # Execute predictions concurrently
+        prediction_tasks = [predict_single(crypto) for crypto in valid_cryptos]
+        prediction_results = await asyncio.gather(*prediction_tasks, return_exceptions=True)
+        
+        # Filter successful predictions
+        for result in prediction_results:
+            if isinstance(result, PredictionResult):
+                predictions.append(result)
+        
+        return BatchPredictionResponse(
+            predictions=predictions,
+            total_requested=len(request.crypto_ids),
+            successful_predictions=len(predictions),
+            failed_predictions=len(request.crypto_ids) - len(predictions),
+            errors=errors
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to make batch predictions: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to make batch predictions: {str(e)}"
+        )
+
+
+@router.get("/history/{crypto_id}", operation_id="get_prediction_history")
+async def get_prediction_history(
+    crypto_id: int,
+    days_back: int = 30,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> List[PredictionResponse]:
+    """
+    Get prediction history for a cryptocurrency
+    
+    Returns historical predictions for the specified cryptocurrency
+    for analysis and accuracy tracking.
+    """
+    try:
+        logger.info(f"User {current_user.id} requesting history for crypto_id {crypto_id}")
+        
+        # Validate cryptocurrency exists
+        crypto = cryptocurrency_repository.get_by_id(db, crypto_id)
+        if not crypto:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Cryptocurrency with ID {crypto_id} not found"
+            )
+        
+        # Get historical predictions from database
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+        
+        predictions = prediction_repository.get_predictions_by_crypto_and_date(
+            db, 
+            crypto_id, 
+            cutoff_date
+        )
+        
+        # Convert to response format
+        prediction_responses = []
+        for pred in predictions:
+            pred_response = PredictionResponse(
+                id=pred.id,
+                crypto_id=pred.crypto_id,
+                model_name=pred.model_name,
+                predicted_price=pred.predicted_price,
+                confidence_score=pred.confidence_score,
+                target_datetime=pred.target_datetime,
+                features_used=pred.features_used,
+                user_id=pred.user_id,
+                created_at=pred.created_at
+            )
+            prediction_responses.append(pred_response)
+        
+        logger.info(f"Retrieved {len(prediction_responses)} historical predictions for {crypto.symbol}")
+        
+        return prediction_responses
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get prediction history: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get prediction history: {str(e)}"
         )
 
 
-@router.get("/predictions/performance/{crypto_symbol}", response_model=ModelPerformanceResponse)
-async def get_model_performance(
-    crypto_symbol: str,
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_current_user)
-) -> Any:
+@router.get("/performance/{crypto_id}", operation_id="get_prediction_performance")
+async def get_prediction_performance(
+    crypto_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> ModelPerformance:
     """
-    Get model performance metrics for a cryptocurrency
+    Get prediction performance metrics for a cryptocurrency
     
-    Optional authentication. Returns detailed performance statistics.
+    Returns detailed performance information about prediction models
+    including accuracy and error metrics.
     """
     try:
+        logger.info(f"User {current_user.id} requesting performance for crypto_id {crypto_id}")
+        
         # Validate cryptocurrency exists
-        crypto = cryptocurrency_repository.get_by_symbol(db, crypto_symbol)
+        crypto = cryptocurrency_repository.get_by_id(db, crypto_id)
         if not crypto:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Cryptocurrency {crypto_symbol} not found"
+                detail=f"Cryptocurrency with ID {crypto_id} not found"
             )
         
-        # Get active model info
-        active_model = model_registry.get_active_model(crypto_symbol)
-        if not active_model:
+        # Get performance data from prediction service
+        performance_data = await prediction_service.get_model_performance(crypto.symbol)
+        
+        if not performance_data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No active model found for {crypto_symbol}"
+                detail=f"No performance data found for {crypto.symbol}"
             )
         
-        # Get performance metrics from prediction service
-        performance_metrics = await prediction_service.get_model_performance(crypto_symbol)
-        
-        active_model_metrics = ModelPerformanceMetrics(
-            model_name=active_model["name"],
-            model_version=active_model["version"],
-            total_predictions=performance_metrics.get("total_predictions", 0),
-            realized_predictions=performance_metrics.get("realized_predictions", 0),
-            accuracy_percentage=performance_metrics.get("accuracy_percentage"),
-            average_confidence=performance_metrics.get("average_confidence", 0.0),
-            rmse=performance_metrics.get("rmse"),
-            mae=performance_metrics.get("mae"),
-            last_updated=datetime.now(timezone.utc)
-        )
-        
-        # Get alternative models (if any)
-        alternative_models = []
-        all_models = model_registry.list_models(crypto_symbol)
-        
-        for model_info in all_models:
-            if model_info["name"] != active_model["name"]:
-                # Get performance for alternative model
-                alt_performance = await prediction_service.get_model_performance(
-                    crypto_symbol, model_name=model_info["name"]
-                )
-                
-                alternative_models.append(ModelPerformanceMetrics(
-                    model_name=model_info["name"],
-                    model_version=model_info["version"],
-                    total_predictions=alt_performance.get("total_predictions", 0),
-                    realized_predictions=alt_performance.get("realized_predictions", 0),
-                    accuracy_percentage=alt_performance.get("accuracy_percentage"),
-                    average_confidence=alt_performance.get("average_confidence", 0.0),
-                    rmse=alt_performance.get("rmse"),
-                    mae=alt_performance.get("mae"),
-                    last_updated=datetime.now(timezone.utc)
-                ))
-        
-        # Get performance trend
-        performance_trend = performance_metrics.get("performance_trend", {})
-        
-        return ModelPerformanceResponse(
-            crypto_symbol=crypto_symbol,
-            active_model=active_model_metrics,
-            alternative_models=alternative_models if alternative_models else None,
-            performance_trend=performance_trend if performance_trend else None
+        return ModelPerformance(
+            model_name=performance_data.get("model_name", "unknown"),
+            crypto_id=crypto_id,
+            total_predictions=performance_data.get("total_predictions", 0),
+            accurate_predictions=performance_data.get("accurate_predictions", 0),
+            accuracy_percentage=performance_data.get("accuracy_percentage", 0.0),
+            average_error=performance_data.get("average_error", 0.0),
+            rmse=performance_data.get("rmse", 0.0),
+            mae=performance_data.get("mae", 0.0),
+            last_trained=performance_data.get("last_trained", datetime.now(timezone.utc)),
+            training_data_points=performance_data.get("training_data_points", 0)
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Get model performance failed: {str(e)}")
+        logger.error(f"Failed to get prediction performance: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get model performance: {str(e)}"
+            detail=f"Failed to get prediction performance: {str(e)}"
         )
 
 
-@router.get("/predictions/stats", response_model=PredictionStatsResponse)
-async def get_prediction_stats(
-    current_user: Optional[User] = Depends(get_optional_current_user)
-) -> Any:
+@router.get("/analytics/{crypto_id}", operation_id="get_prediction_analytics")
+async def get_prediction_analytics(
+    crypto_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> PredictionAnalytics:
     """
-    Get overall prediction statistics
+    Get prediction analytics for a cryptocurrency
     
-    Optional authentication. Returns system-wide prediction metrics.
+    Returns comprehensive analytics about predictions including
+    accuracy trends and model performance comparisons.
     """
     try:
-        # Get stats from prediction service
-        stats = await prediction_service.get_system_stats()
+        logger.info(f"User {current_user.id} requesting analytics for crypto_id {crypto_id}")
         
-        return PredictionStatsResponse(
-            total_predictions_today=stats.get("predictions_today", 0),
-            total_predictions_week=stats.get("predictions_week", 0),
-            total_predictions_all_time=stats.get("predictions_all_time", 0),
-            active_cryptocurrencies=stats.get("active_cryptocurrencies", 0),
-            active_models=stats.get("active_models", 0),
-            average_confidence=stats.get("average_confidence", 0.0),
-            cache_hit_rate=stats.get("cache_hit_rate", 0.0),
-            average_response_time_ms=stats.get("average_response_time_ms", 0.0)
+        # Validate cryptocurrency exists
+        crypto = cryptocurrency_repository.get_by_id(db, crypto_id)
+        if not crypto:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Cryptocurrency with ID {crypto_id} not found"
+            )
+        
+        # Get analytics data
+        analytics_data = await prediction_service.get_prediction_analytics(crypto.symbol)
+        
+        if not analytics_data:
+            # Return default analytics if no data available
+            return PredictionAnalytics(
+                crypto_id=crypto_id,
+                crypto_symbol=crypto.symbol,
+                total_predictions=0,
+                average_confidence=0.0,
+                accuracy_by_horizon={},
+                best_performing_model="unknown",
+                worst_performing_model="unknown",
+                prediction_trends={}
+            )
+        
+        return PredictionAnalytics(
+            crypto_id=crypto_id,
+            crypto_symbol=crypto.symbol,
+            total_predictions=analytics_data.get("total_predictions", 0),
+            average_confidence=analytics_data.get("average_confidence", 0.0),
+            accuracy_by_horizon=analytics_data.get("accuracy_by_horizon", {}),
+            best_performing_model=analytics_data.get("best_performing_model", "unknown"),
+            worst_performing_model=analytics_data.get("worst_performing_model", "unknown"),
+            prediction_trends=analytics_data.get("prediction_trends", {})
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Get prediction stats failed: {str(e)}")
+        logger.error(f"Failed to get prediction analytics: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get prediction statistics: {str(e)}"
+            detail=f"Failed to get prediction analytics: {str(e)}"
         )
 
 
-@router.delete("/predictions/cache/clear")
-async def clear_prediction_cache(
-    crypto_symbol: Optional[str] = None,
+@router.delete("/jobs/{prediction_id}", operation_id="cancel_prediction_job")
+async def cancel_prediction_job(
+    prediction_id: str,
     current_user: User = Depends(get_current_active_user)
 ) -> SuccessResponse:
     """
-    Clear prediction cache
+    Cancel a running prediction job
     
-    Requires authentication. Clears cached predictions.
+    Attempts to cancel a prediction job that is currently pending or running.
+    Completed or failed jobs cannot be cancelled.
     """
     try:
-        if crypto_symbol:
-            # Clear cache for specific cryptocurrency
-            keys_to_remove = [key for key in prediction_cache.keys() if crypto_symbol.lower() in key]
-            for key in keys_to_remove:
-                del prediction_cache[key]
-            message = f"Cleared prediction cache for {crypto_symbol}"
-        else:
-            # Clear all cache
-            prediction_cache.clear()
-            message = "Cleared all prediction cache"
+        # Check if job exists
+        if prediction_id not in prediction_jobs:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Prediction job {prediction_id} not found"
+            )
         
-        logger.info(f"Cache cleared by user {current_user.id}: {message}")
+        job = prediction_jobs[prediction_id]
+        
+        # Check if job can be cancelled
+        if job["status"] in ["completed", "failed", "cancelled"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot cancel job with status: {job['status']}"
+            )
+        
+        # Update job status
+        prediction_jobs[prediction_id]["status"] = "cancelled"
+        prediction_jobs[prediction_id]["message"] = f"Job cancelled by user {current_user.email}"
+        prediction_jobs[prediction_id]["completed_at"] = datetime.now(timezone.utc)
+        
+        logger.info(f"User {current_user.id} cancelled prediction job {prediction_id}")
         
         return SuccessResponse(
             success=True,
-            message=message
+            message=f"Prediction job {prediction_id} cancelled successfully"
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Clear prediction cache failed: {str(e)}")
+        logger.error(f"Failed to cancel prediction job: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to clear prediction cache: {str(e)}"
+            detail=f"Failed to cancel prediction job: {str(e)}"
         )

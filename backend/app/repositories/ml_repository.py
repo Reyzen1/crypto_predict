@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from app.models import Cryptocurrency, PriceData, Prediction, User
 from app.repositories.base import BaseRepository
 from app.repositories import prediction_repository  # Add this import
-from app.schemas.prediction import PredictionCreate, PredictionUpdate
+from app.schemas.ml_prediction import PredictionCreate, PredictionUpdate
 
 import logging
 

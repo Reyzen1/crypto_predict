@@ -35,7 +35,7 @@ from app.repositories import (
 )
 from app.repositories.ml_repository import ml_repository
 from app.models import Cryptocurrency, PriceData, Prediction
-from app.schemas.prediction import PredictionCreate
+from app.schemas.ml_prediction import PredictionCreate
 
 logger = logging.getLogger(__name__)
 
