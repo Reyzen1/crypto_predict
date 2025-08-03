@@ -14,7 +14,7 @@ from app.api.api_v1.endpoints import (
     tasks,
     health,
     ml_training,      
-    ml_prediction     
+    prediction     
 )
 
 # Create main API router
@@ -41,12 +41,11 @@ api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks
 # Include system health router
 api_router.include_router(health.router, prefix="/system", tags=["System Health"])
 
-# Include ML training router (UPDATED)
-api_router.include_router(ml_training.router, prefix="/ml/training", tags=["Machine Learning - Training"])
+# Include ML training router
+api_router.include_router(ml_training.router, prefix="/ml", tags=["Machine Learning"])
 
-# Include ML prediction router (UPDATED) 
-api_router.include_router(ml_prediction.router, prefix="/ml/predictions", tags=["Machine Learning - Predictions"])
-
+# Include other routers (
+api_router.include_router(prediction.router, prefix="/predictions", tags=["Predictions"])
 
 # =====================================
 # API INFORMATION ENDPOINT

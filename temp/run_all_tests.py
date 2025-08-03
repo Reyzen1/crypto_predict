@@ -283,9 +283,9 @@ class TestRunner:
             # Check if key files exist
             key_files = [
                 "backend/app/api/api_v1/endpoints/ml_training.py",
-                "backend/app/api/api_v1/endpoints/ml_prediction.py",
+                "backend/app/api/api_v1/endpoints/prediction.py",
                 "backend/app/schemas/ml_training.py",
-                "backend/app/schemas/ml_prediction.py",
+                "backend/app/schemas/prediction.py",
                 "backend/app/tasks/ml_tasks.py"
             ]
             

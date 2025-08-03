@@ -257,8 +257,8 @@ async def start_ml_auto_training(
         )
 
 
-@router.post("/ml/predictions/generate", operation_id="start_ml_prediction_generation")
-async def start_ml_prediction_generation(
+@router.post("/ml/predictions/generate", operation_id="start_prediction_generation")
+async def start_prediction_generation(
     crypto_symbols: Optional[List[str]] = None,
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:
@@ -335,8 +335,8 @@ async def start_ml_performance_evaluation(
         )
 
 
-@router.post("/ml/cleanup", operation_id="start_ml_prediction_cleanup")
-async def start_ml_prediction_cleanup(
+@router.post("/ml/cleanup", operation_id="start_prediction_cleanup")
+async def start_prediction_cleanup(
     days_to_keep: int = 90,
     current_user: User = Depends(get_current_active_user)
 ) -> Dict[str, Any]:

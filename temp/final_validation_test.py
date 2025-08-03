@@ -1,6 +1,6 @@
 # File: temp/validation_test_actual.py
 # Validation test for user's actual file structure
-# Tests: ml_training.py, ml_prediction.py (kept), prediction.py (removed)
+# Tests: ml_training.py, prediction.py (kept), prediction.py (removed)
 
 import sys
 import os
@@ -23,9 +23,9 @@ def test_actual_file_structure():
     # Files that SHOULD exist (user's choice)
     should_exist = [
         "backend/app/schemas/ml_training.py",
-        "backend/app/schemas/ml_prediction.py",  # User kept this
+        "backend/app/schemas/prediction.py",  # User kept this
         "backend/app/api/api_v1/endpoints/ml_training.py",
-        "backend/app/api/api_v1/endpoints/ml_prediction.py",
+        "backend/app/api/api_v1/endpoints/prediction.py",
         "backend/app/tasks/ml_tasks.py"
     ]
     
@@ -69,7 +69,7 @@ def test_pydantic_config_conflicts():
     
     files_to_check = [
         "backend/app/schemas/ml_training.py",
-        "backend/app/schemas/ml_prediction.py",  # User's kept file
+        "backend/app/schemas/prediction.py",  # User's kept file
         "backend/app/schemas/common.py"
     ]
     
@@ -105,7 +105,7 @@ def test_schema_imports_user_structure():
     
     tests = [
         ("ML Training Schemas", "from app.schemas.ml_training import TrainingRequest"),
-        ("ML Prediction Schemas", "from app.schemas.ml_prediction import PredictionRequest"),  # User's file
+        ("ML Prediction Schemas", "from app.schemas.prediction import PredictionRequest"),  # User's file
         ("Common Schemas", "from app.schemas.common import SuccessResponse")
     ]
     
@@ -130,7 +130,7 @@ def test_endpoint_imports_user_structure():
     
     tests = [
         ("ML Training Endpoints", "from app.api.api_v1.endpoints.ml_training import router"),
-        ("ML Prediction Endpoints", "from app.api.api_v1.endpoints.ml_prediction import router")
+        ("ML Prediction Endpoints", "from app.api.api_v1.endpoints.prediction import router")
     ]
     
     passed = 0
@@ -148,11 +148,11 @@ def test_endpoint_imports_user_structure():
     return passed == total
 
 
-def test_ml_prediction_endpoint_imports():
-    """Test that ml_prediction.py endpoint imports correctly from schemas"""
+def test_prediction_endpoint_imports():
+    """Test that prediction.py endpoint imports correctly from schemas"""
     print("\n🔮 Testing ML Prediction Endpoint Schema Usage...")
     
-    endpoint_file = "backend/app/api/api_v1/endpoints/ml_prediction.py"
+    endpoint_file = "backend/app/api/api_v1/endpoints/prediction.py"
     
     if not os.path.exists(endpoint_file):
         print(f"   ❌ Endpoint file not found: {endpoint_file}")
@@ -163,7 +163,7 @@ def test_ml_prediction_endpoint_imports():
     
     # Check imports
     correct_imports = [
-        "from app.schemas.ml_prediction import",  # Should import from ml_prediction
+        "from app.schemas.prediction import",  # Should import from prediction
         "PredictionRequest",
         "router = APIRouter()"
     ]
@@ -183,12 +183,12 @@ def test_ml_prediction_endpoint_imports():
             issues.append(f"Wrong import found: {wrong_import}")
     
     if issues:
-        print("   ❌ Issues found in ml_prediction.py:")
+        print("   ❌ Issues found in prediction.py:")
         for issue in issues:
             print(f"      • {issue}")
         return False
     else:
-        print("   ✅ ml_prediction.py imports look correct")
+        print("   ✅ prediction.py imports look correct")
         return True
 
 
@@ -198,17 +198,17 @@ def show_user_specific_fixes():
     print("=" * 32)
     
     print("\n1. If Config conflicts exist, fix them by:")
-    print("   In ml_prediction.py and ml_training.py:")
+    print("   In prediction.py and ml_training.py:")
     print("   • Remove ALL 'class Config:' blocks")
     print("   • Keep only 'model_config = ConfigDict(...)' lines")
     print("   • Add 'protected_namespaces=()' to ConfigDict")
     
-    print("\n2. Ensure ml_prediction.py endpoint imports correctly:")
-    print("   ✅ Use: from app.schemas.ml_prediction import ...")
+    print("\n2. Ensure prediction.py endpoint imports correctly:")
+    print("   ✅ Use: from app.schemas.prediction import ...")
     print("   ❌ NOT: from app.schemas.prediction import ...")
     
     print("\n3. Update api.py router if needed:")
-    print("   Make sure it imports from ml_prediction correctly")
+    print("   Make sure it imports from prediction correctly")
 
 
 def run_user_structure_tests():
@@ -221,7 +221,7 @@ def run_user_structure_tests():
         ("Pydantic Configs", test_pydantic_config_conflicts),
         ("Schema Imports", test_schema_imports_user_structure),
         ("Endpoint Imports", test_endpoint_imports_user_structure),
-        ("ML Prediction Import Usage", test_ml_prediction_endpoint_imports)
+        ("ML Prediction Import Usage", test_prediction_endpoint_imports)
     ]
     
     passed = 0
@@ -243,7 +243,7 @@ def run_user_structure_tests():
         print("🎉 ALL TESTS PASSED! Your structure is working perfectly!")
         print("\n✅ Your setup:")
         print("   • ml_training.py ✅")
-        print("   • ml_prediction.py ✅") 
+        print("   • prediction.py ✅") 
         print("   • prediction.py removed ✅")
         print("   • No Config conflicts ✅")
     elif passed >= total * 0.8:

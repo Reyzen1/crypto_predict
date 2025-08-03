@@ -26,7 +26,7 @@ from app.ml.training.training_service import training_service
 from app.ml.prediction.prediction_service import prediction_service
 from app.ml.config.ml_config import model_registry
 from app.schemas.ml_training import TrainingRequest
-from app.schemas.ml_prediction import PredictionRequest
+from app.schemas.prediction import PredictionRequest
 from app.tasks.ml_tasks import (
     auto_train_models,
     generate_scheduled_predictions,
@@ -624,7 +624,7 @@ class TestDataIntegration:
         """Test prediction storage and retrieval"""
         
         # Create a test prediction record
-        from app.schemas.ml_prediction import PredictionCreate
+        from app.schemas.prediction import PredictionCreate
         
         prediction_data = PredictionCreate(
             crypto_id=test_crypto.id,

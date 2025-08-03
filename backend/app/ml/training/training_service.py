@@ -42,7 +42,7 @@ from app.repositories import (
     prediction_repository
 )
 from app.models import Cryptocurrency, PriceData, Prediction
-from app.schemas.ml_prediction import PredictionCreate
+from app.schemas.prediction import PredictionCreate
 
 from app.core.config import settings
 

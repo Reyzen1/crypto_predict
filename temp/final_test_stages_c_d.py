@@ -120,9 +120,9 @@ class FinalTestSuite:
         
         key_files = [
             "backend/app/api/api_v1/endpoints/ml_training.py",
-            "backend/app/api/api_v1/endpoints/ml_prediction.py",
+            "backend/app/api/api_v1/endpoints/prediction.py",
             "backend/app/schemas/ml_training.py", 
-            "backend/app/schemas/ml_prediction.py",
+            "backend/app/schemas/prediction.py",
             "backend/app/tasks/ml_tasks.py",
             "temp/quick_api_test.py",
             "temp/comprehensive_test_all_apis.py",
@@ -207,7 +207,7 @@ class FinalTestSuite:
         print("      📝 Validating API schemas...")
         try:
             from app.schemas.ml_training import TrainingRequest, TrainingResponse
-            from app.schemas.ml_prediction import PredictionRequest, PredictionResponse
+            from app.schemas.prediction import PredictionRequest, PredictionResponse
             
             # Test schema creation
             training_req = TrainingRequest(crypto_symbol="BTC", model_type="lstm")
@@ -223,12 +223,12 @@ class FinalTestSuite:
         # Test 3: API endpoint availability
         print("      🔗 Checking API endpoint availability...")
         try:
-            from app.api.api_v1.endpoints import ml_training, ml_prediction
+            from app.api.api_v1.endpoints import ml_training, prediction
             from app.api.api_v1.api import api_router
             
             # Count available routes
             training_routes = len([r for r in ml_training.router.routes if hasattr(r, 'methods')])
-            prediction_routes = len([r for r in ml_prediction.router.routes if hasattr(r, 'methods')])
+            prediction_routes = len([r for r in prediction.router.routes if hasattr(r, 'methods')])
             
             stage_c_results["endpoint_availability"] = {
                 "success": True,
@@ -448,8 +448,8 @@ class FinalTestSuite:
         # Test 3: API-Service integration
         print("      🌐 Testing API-Service integration...")
         try:
-            from app.api.api_v1.endpoints.ml_prediction import make_prediction
-            from app.schemas.ml_prediction import PredictionRequest
+            from app.api.api_v1.endpoints.prediction import make_prediction
+            from app.schemas.prediction import PredictionRequest
             
             # Check if API endpoints can import services
             integration_tests.append("✅ API-Service integration available")

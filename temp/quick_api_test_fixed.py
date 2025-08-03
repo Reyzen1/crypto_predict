@@ -32,12 +32,12 @@ def test_api_health():
             # Check updated endpoints
             endpoints = data.get('endpoints', {})
             ml_training = endpoints.get('ml_training')
-            ml_predictions = endpoints.get('ml_predictions')
+            predictions = endpoints.get('predictions')
             
             print(f"   📍 ML Training: {ml_training}")
-            print(f"   📍 ML Predictions: {ml_predictions}")
+            print(f"   📍 ML Predictions: {predictions}")
             
-            if '/ml/training' in str(ml_training) and '/ml/predictions' in str(ml_predictions):
+            if '/ml/training' in str(ml_training) and '/ml/predictions' in str(predictions):
                 print("   ✅ Updated endpoints configured correctly")
                 return True
             else:

@@ -35,7 +35,7 @@ from app.repositories import (
 )
 from app.repositories.ml_repository import ml_repository
 from app.models import Cryptocurrency, PriceData, Prediction
-from app.schemas.ml_prediction import PredictionCreate
+from app.schemas.prediction import PredictionCreate
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class PredictionService:
     def __init__(self):
         """Initialize prediction service"""
         self.data_processor = CryptoPriceDataProcessor(
-            scaling_method=ml_config.scaling_method.value,
+            scaling_method=ml_config.scaling_method,
             handle_missing=ml_config.handle_missing,
             add_technical_indicators=ml_config.add_technical_indicators,
             add_time_features=ml_config.add_time_features,

@@ -48,7 +48,7 @@ class APITestSuite:
                 ("Cryptocurrency Management", self.test_cryptocurrency_apis),
                 ("Price Data APIs", self.test_price_data_apis),
                 ("ML Training APIs", self.test_ml_training_apis),
-                ("ML Prediction APIs", self.test_ml_prediction_apis),
+                ("ML Prediction APIs", self.test_prediction_apis),
                 ("Background Task APIs", self.test_background_task_apis),
                 ("System Health APIs", self.test_system_health_apis),
                 ("Integration Tests", self.test_integration_scenarios)
@@ -110,12 +110,12 @@ class APITestSuite:
             
             # API imports
             from app.api.api_v1.endpoints import (
-                ml_training, ml_prediction, tasks, auth, crypto, prices
+                ml_training, prediction, tasks, auth, crypto, prices
             )
             
             # Schema imports
             from app.schemas.ml_training import TrainingRequest
-            from app.schemas.ml_prediction import PredictionRequest
+            from app.schemas.prediction import PredictionRequest
             
             print("   ✅ All imports successful")
             
@@ -381,7 +381,7 @@ class APITestSuite:
             self.test_results["ML Training APIs"] = {"status": "failed", "error": str(e)}
             return False
     
-    async def test_ml_prediction_apis(self) -> bool:
+    async def test_prediction_apis(self) -> bool:
         """Test ML prediction APIs"""
         print("\n🔮 Testing ML Prediction APIs...")
         
@@ -614,7 +614,7 @@ class APITestSuite:
             # Test that all API modules are importable together
             try:
                 from app.api.api_v1.endpoints import (
-                    ml_training, ml_prediction, tasks, auth, crypto, prices, health
+                    ml_training, prediction, tasks, auth, crypto, prices, health
                 )
                 print("      ✅ All API endpoints importable")
             except Exception as e:
@@ -626,7 +626,7 @@ class APITestSuite:
             
             try:
                 from app.schemas.ml_training import TrainingRequest
-                from app.schemas.ml_prediction import PredictionRequest
+                from app.schemas.prediction import PredictionRequest
                 
                 # Test schema creation
                 training_request = TrainingRequest(

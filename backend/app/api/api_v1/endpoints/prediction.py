@@ -1,4 +1,4 @@
-# File: backend/app/api/api_v1/endpoints/ml_prediction.py
+# File: backend/app/api/api_v1/endpoints/prediction.py
 # ML Prediction API endpoints - Based on ml_training.py pattern
 # Fixed to use existing prediction schemas and follow training endpoint structure
 
@@ -18,7 +18,7 @@ from app.repositories import cryptocurrency_repository, prediction_repository
 from app.models import User
 
 # Import prediction schemas (using existing prediction.py schemas)
-from app.schemas.ml_prediction import (
+from app.schemas.prediction import (
     PredictionRequest, PredictionResult, BatchPredictionRequest, BatchPredictionResponse,
     PredictionResponse, PredictionCreate, ModelPerformance, PredictionAnalytics
 )

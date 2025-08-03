@@ -1,5 +1,5 @@
 # File: temp/api_test_your_structure.py
-# API test for user's actual structure (ml_training.py, ml_prediction.py)
+# API test for user's actual structure (ml_training.py, prediction.py)
 
 import sys
 import os
@@ -9,7 +9,7 @@ from datetime import datetime
 print("🌐 CryptoPredict API Test - Your Structure")
 print("=" * 45)
 print(f"⏰ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-print("Structure: ml_training.py ✅, ml_prediction.py ✅, prediction.py ❌")
+print("Structure: ml_training.py ✅, prediction.py ✅, prediction.py ❌")
 print()
 
 # Configuration
@@ -129,8 +129,8 @@ def test_ml_training_endpoints():
     return working >= len(endpoints) * 0.8
 
 
-def test_ml_prediction_endpoints():
-    """Test ML prediction endpoints (your ml_prediction.py)"""
+def test_prediction_endpoints():
+    """Test ML prediction endpoints (your prediction.py)"""
     print("\n🔮 Testing ML Prediction Endpoints...")
     
     endpoints = [
@@ -239,7 +239,7 @@ def run_all_tests():
         ("API Info", test_api_info),
         ("Documentation", test_docs_access),
         ("ML Training", test_ml_training_endpoints),
-        ("ML Prediction", test_ml_prediction_endpoints),
+        ("ML Prediction", test_prediction_endpoints),
         ("Swagger ML", test_swagger_ml_endpoints)
     ]
     
@@ -260,7 +260,7 @@ def run_all_tests():
         print("🎉 API TESTS MOSTLY PASSED!")
         print("\n✅ Your structure is working:")
         print("   • ml_training.py endpoints ✅")
-        print("   • ml_prediction.py endpoints ✅")
+        print("   • prediction.py endpoints ✅")
         print("   • Server running ✅")
         show_next_steps()
     else:

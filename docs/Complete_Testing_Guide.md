@@ -46,10 +46,10 @@ Before running tests, apply the following changes to your existing files:
 #### A) Update `backend/app/api/api_v1/api.py`:
 ```python
 # Add this import
-from app.api.api_v1.endpoints import ml_prediction
+from app.api.api_v1.endpoints import prediction
 
 # Add this router
-api_router.include_router(ml_prediction.router, prefix="/ml", tags=["Machine Learning - Predictions"])
+api_router.include_router(prediction.router, prefix="/ml", tags=["Machine Learning - Predictions"])
 
 # Update api_info() endpoints section
 "predictions": "/api/v1/ml/predictions",  # NEW

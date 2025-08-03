@@ -54,7 +54,7 @@ class PerformanceBenchmark:
         benchmark_categories = [
             ("Database Performance", self.benchmark_database_performance),
             ("ML Training Performance", self.benchmark_ml_training),
-            ("ML Prediction Performance", self.benchmark_ml_prediction),
+            ("ML Prediction Performance", self.benchmark_prediction),
             ("API Response Time", self.benchmark_api_performance),
             ("Concurrent Operations", self.benchmark_concurrent_operations),
             ("Memory Usage", self.benchmark_memory_usage),
@@ -292,7 +292,7 @@ class PerformanceBenchmark:
         
         return results
     
-    async def benchmark_ml_prediction(self) -> Dict[str, Any]:
+    async def benchmark_prediction(self) -> Dict[str, Any]:
         """Benchmark ML prediction performance"""
         print("   🔮 Testing ML prediction performance...")
         

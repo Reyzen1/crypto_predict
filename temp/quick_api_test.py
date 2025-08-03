@@ -19,9 +19,9 @@ def test_imports():
     
     tests = [
         ("Training Schemas", "from app.schemas.ml_training import TrainingRequest"),
-        ("Prediction Schemas", "from app.schemas.ml_prediction import PredictionRequest"),
+        ("Prediction Schemas", "from app.schemas.prediction import PredictionRequest"),
         ("Training Endpoints", "from app.api.api_v1.endpoints.ml_training import router"),
-        ("Prediction Endpoints", "from app.api.api_v1.endpoints.ml_prediction import router"),
+        ("Prediction Endpoints", "from app.api.api_v1.endpoints.prediction import router"),
         ("ML Tasks", "from app.tasks.ml_tasks import auto_train_models"),
         ("API Router", "from app.api.api_v1.api import api_router"),
         ("Training Service", "from app.ml.training.training_service import training_service"),
@@ -48,11 +48,11 @@ def test_api_structure():
     
     try:
         from app.api.api_v1 import api
-        from app.api.api_v1.endpoints import ml_training, ml_prediction
+        from app.api.api_v1.endpoints import ml_training, prediction
         
         # Test router attributes
         training_routes = len([route for route in ml_training.router.routes if hasattr(route, 'methods')])
-        prediction_routes = len([route for route in ml_prediction.router.routes if hasattr(route, 'methods')])
+        prediction_routes = len([route for route in prediction.router.routes if hasattr(route, 'methods')])
         
         print(f"   ✅ Training API: {training_routes} endpoints")
         print(f"   ✅ Prediction API: {prediction_routes} endpoints")
@@ -90,7 +90,7 @@ def test_schemas():
     
     try:
         from app.schemas.ml_training import TrainingRequest, TrainingResponse
-        from app.schemas.ml_prediction import PredictionRequest, PredictionResponse
+        from app.schemas.prediction import PredictionRequest, PredictionResponse
         
         # Test schema creation
         training_req = TrainingRequest(
