@@ -221,11 +221,49 @@
       },
       "registered_at": "2025-08-03T13:22:17.037065",
       "is_active": true
+    },
+    "BTC_lstm_20250803_095216_config": {
+      "model_id": "BTC_lstm_20250803_095216_config",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250803_095216_config.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-08-04T11:10:28.160378",
+        "file_modified": "2025-08-03T13:22:17.037065",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-08-04T11:10:28.160378",
+      "is_active": false
+    },
+    "BTC_lstm_20250803_095216_scalers": {
+      "model_id": "BTC_lstm_20250803_095216_scalers",
+      "crypto_symbol": "BTC",
+      "model_type": "lstm",
+      "model_path": "models\\BTC_lstm_20250803_095216_scalers.pkl",
+      "performance_metrics": {
+        "auto_discovered": true,
+        "file_size_mb": 0.0,
+        "discovery_method": "file_scan"
+      },
+      "metadata": {
+        "discovered_at": "2025-08-04T11:10:28.160378",
+        "file_modified": "2025-08-03T13:22:17.037065",
+        "auto_registered": true,
+        "registration_source": "startup_scan"
+      },
+      "registered_at": "2025-08-04T11:10:28.160378",
+      "is_active": false
     }
   },
   "active_models": {
     "BTC": "BTC_lstm_20250803_095216"
   },
-  "last_updated": "2025-08-03T09:52:17.037065",
+  "last_updated": "2025-08-04T10:54:18.111001",
   "version": "1.0"
 }

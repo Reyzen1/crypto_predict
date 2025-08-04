@@ -54,7 +54,7 @@ class LSTMPredictor:
     
     def __init__(
         self,
-        sequence_length: int = 10,          # Number of past time steps to use
+        sequence_length: int = 60,          # Number of past time steps to use
         n_features: int = 5,                # Number of input features
         lstm_units: List[int] = [50, 50, 50], # LSTM layer units
         dropout_rate: float = 0.2,          # Dropout rate for regularization

@@ -473,16 +473,16 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
         db: Session,
         crypto_id: int,
         lookback_hours: int = 48,  # Reduced from 168 to 48 hours (2 days)
-        sequence_length: int = 10   # Reduced from 60 to 10 for limited data
+        sequence_length: int = 5   # Reduced from 60 to 5 for limited data
     ) -> Optional[Any]:
         """
-        Get recent data formatted for ML prediction (FIXED VERSION)
+        Get recent data formatted for ML prediction (optimized for limited data)
         
         Args:
             db: Database session
             crypto_id: Cryptocurrency ID
             lookback_hours: Hours of historical data to fetch (default: 48 hours)
-            sequence_length: Number of time steps needed (default: 10 for limited data)
+            sequence_length: Number of time steps needed (default: 5 for limited data)
             
         Returns:
             Formatted numpy array for prediction or None if insufficient data
@@ -490,30 +490,32 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
         try:
             import numpy as np
             
-            # FIXED: Get all recent records first, then filter by time if needed
-            # This approach is more reliable with our test data
+            # Calculate date range
+            end_date = datetime.now(timezone.utc)
+            start_date = end_date - timedelta(hours=lookback_hours)
             
-            # First, get all records for this crypto (most recent first)
-            all_records = (
+            # Get recent price data
+            price_records = (
                 db.query(PriceData)
-                .filter(PriceData.crypto_id == crypto_id)
-                .order_by(desc(PriceData.timestamp))
-                .limit(100)  # Get more records to ensure we have enough
-                .all()
+                .filter(
+                    and_(
+                        PriceData.crypto_id == crypto_id,
+                        PriceData.timestamp >= start_date,
+                        PriceData.timestamp <= end_date
+                    )
+                )
+                .order_by(asc(PriceData.timestamp))
+                .all()  # Get all available records
             )
             
-            logger.info(f"Found {len(all_records)} total records for crypto_id {crypto_id}")
-            
-            if len(all_records) < sequence_length:
-                logger.warning(f"Insufficient data for prediction: {len(all_records)} records, need {sequence_length}")
+            # Check minimum data requirement
+            if len(price_records) < sequence_length:
+                logger.warning(f"Insufficient data for prediction: {len(price_records)} records, need {sequence_length}")
                 return None
-            
-            # Take the most recent sequence_length records and reverse order (oldest first)
-            recent_records = list(reversed(all_records[:sequence_length]))
             
             # Convert to simple format for ML model
             data = []
-            for record in recent_records:
+            for record in price_records:
                 # Use close_price as main feature, add basic derived features
                 close_price = float(record.close_price)
                 volume = float(record.volume) if record.volume else 1.0
@@ -530,8 +532,11 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
                 logger.warning(f"Processed data insufficient: {len(data)} records")
                 return None
                 
+            # Get last sequence_length records
+            recent_data = data[-sequence_length:]
+            
             # Convert to numpy array
-            data_array = np.array(data, dtype=np.float32)
+            data_array = np.array(recent_data, dtype=np.float32)
             
             # Validate data array
             if data_array is None or len(data_array) == 0:

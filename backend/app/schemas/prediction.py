@@ -166,7 +166,21 @@ class PredictionRequest(BaseModel):
         default=True, 
         description="Whether to include confidence score"
     )
-    
+    days: Optional[int] = Field(
+    default=None,
+    ge=1,
+    le=365,
+    description="Prediction horizon in days (alternative to prediction_horizon)"
+    )
+
+    @field_validator('days')
+    @classmethod
+    def convert_days_to_hours(cls, v, values):
+        """Convert days to prediction_horizon if provided"""
+        if v is not None and not values.get('prediction_horizon'):
+            values['prediction_horizon'] = v * 24
+        return v
+
     @field_validator('model_type')
     @classmethod
     def validate_model_type(cls, v):
@@ -199,6 +213,24 @@ class PredictionResult(BaseModel):
     prediction_id: Optional[int] = Field(
         default=None, 
         description="Saved prediction ID"
+    )
+    current_price: Optional[Decimal] = Field(
+        default=None,
+        description="Current market price for comparison"
+    )
+    confidence: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Confidence as percentage (0-100)"
+    )
+    symbol: Optional[str] = Field(
+        default=None,
+        description="Cryptocurrency symbol (alternative to crypto_symbol)"
+    )
+    timestamp: Optional[datetime] = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Response timestamp"
     )
 
 

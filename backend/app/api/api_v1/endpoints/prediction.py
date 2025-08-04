@@ -170,8 +170,9 @@ async def run_prediction_task(
 # PREDICTION ENDPOINTS (Following ml_training.py pattern)
 # =====================================
 
-@router.post("/predict", operation_id="make_price_prediction")
+@router.post("/{symbol}/predict", operation_id="make_price_prediction")
 async def make_prediction(
+    symbol: str,
     request: PredictionRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
@@ -185,7 +186,12 @@ async def make_prediction(
     """
     try:
         logger.info(f"User {current_user.id} requesting prediction for crypto_id {request.crypto_id}")
-        
+        # Convert symbol to crypto_id if needed
+        if symbol:
+            crypto_by_symbol = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
+            if crypto_by_symbol:
+                request.crypto_id = crypto_by_symbol.id
+
         # Validate cryptocurrency exists
         crypto = cryptocurrency_repository.get_by_id(db, request.crypto_id)
         if not crypto:
