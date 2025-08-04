@@ -73,6 +73,64 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Custom HTTPException handler to show e.detail
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """
+    Custom HTTPException handler that includes detailed error information
+    """
+    error_response = {
+        "status_code": exc.status_code,
+        "message": exc.detail,
+        "timestamp": datetime.now().isoformat(),
+        "path": str(request.url.path)
+    }
+    
+    # Log the error with details
+    logger.error(f"HTTPException {exc.status_code}: {exc.detail} - Path: {request.url.path}")
+    
+    # If there's additional detail in the exception, include it
+    if hasattr(exc, 'detail') and isinstance(exc.detail, dict):
+        error_response.update(exc.detail)
+    elif hasattr(exc, 'detail') and exc.detail:
+        error_response["detail"] = exc.detail
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_response
+    )
+
+# Custom general exception handler for unexpected errors
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """
+    General exception handler for unexpected errors
+    """
+    error_message = str(exc)
+    error_type = type(exc).__name__
+    
+    # Log the full error
+    logger.error(f"Unhandled exception {error_type}: {error_message} - Path: {request.url.path}", exc_info=True)
+    
+    error_response = {
+        "status_code": 500,
+        "message": "Internal server error",
+        "error_type": error_type,
+        "detail": error_message,
+        "timestamp": datetime.now().isoformat(),
+        "path": str(request.url.path)
+    }
+    
+    # In development mode, include more details
+    if settings.DEBUG:
+        import traceback
+        error_response["traceback"] = traceback.format_exc()
+    
+    return JSONResponse(
+        status_code=500,
+        content=error_response
+    )
+
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
