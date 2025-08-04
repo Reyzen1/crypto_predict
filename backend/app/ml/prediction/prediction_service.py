@@ -346,7 +346,8 @@ class PredictionService:
             sequence_length=sequence_length
         )
         
-        if recent_data.empty:
+        # FIX: Check numpy array instead of pandas DataFrame
+        if recent_data is None:
             raise ValueError("Insufficient recent data for prediction")
         
         # Process data using the same processor as training
@@ -362,8 +363,8 @@ class PredictionService:
         input_sequence = features[-sequence_length:]
         
         # Reshape for LSTM input (1, sequence_length, n_features)
-        return input_sequence.reshape(1, sequence_length, -1)
-    
+        return input_sequence.reshape(1, sequence_length, -1)    
+
     async def _generate_prediction(
         self,
         model: LSTMPredictor,

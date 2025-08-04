@@ -20,7 +20,7 @@ from app.models import User
 # Import prediction schemas (using existing prediction.py schemas)
 from app.schemas.prediction import (
     PredictionRequest, PredictionResult, BatchPredictionRequest, BatchPredictionResponse,
-    PredictionResponse, PredictionCreate, ModelPerformance, PredictionAnalytics
+    PredictionResponse, PredictionCreate, ModelPerformance, PredictionAnalytics, SymbolPredictionRequest  
 )
 from app.schemas.common import SuccessResponse
 
@@ -173,7 +173,7 @@ async def run_prediction_task(
 @router.post("/{symbol}/predict", operation_id="make_price_prediction")
 async def make_prediction(
     symbol: str,
-    request: PredictionRequest,
+    request: SymbolPredictionRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -185,26 +185,28 @@ async def make_prediction(
     asynchronously in the background and can be monitored via status endpoint.
     """
     try:
-        logger.info(f"User {current_user.id} requesting prediction for crypto_id {request.crypto_id}")
-        # Convert symbol to crypto_id if needed
+        logger.info(f"User {current_user.id} requesting prediction for symbol {symbol}")
+        # Get cryptocurrency by symbol
+                # Convert symbol to crypto_id if needed
         if symbol:
-            crypto_by_symbol = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
-            if crypto_by_symbol:
-                request.crypto_id = crypto_by_symbol.id
+            crypto = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
+            if not crypto:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Cryptocurrency '{symbol}' not found"
+                )
 
-        # Validate cryptocurrency exists
-        crypto = cryptocurrency_repository.get_by_id(db, request.crypto_id)
-        if not crypto:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Cryptocurrency with ID {request.crypto_id} not found"
-            )
+            crypto_id = crypto.id
+
+      
+        # Convert days to hours
+        prediction_horizon = request.days * 24
         
         # Generate prediction job ID
-        prediction_id = generate_prediction_id(crypto.symbol, f"{request.prediction_horizon}h")
-        
+        prediction_id = generate_prediction_id(crypto.symbol, f"{request.days}d")
+                
         # Check cache for recent predictions
-        cache_key = get_cache_key(crypto.symbol, f"{request.prediction_horizon}h")
+        cache_key = get_cache_key(crypto.symbol, f"{prediction_horizon}h")
         cache_ttl_minutes = 30  # Cache for 30 minutes
         
         if cache_key in prediction_cache:
@@ -215,7 +217,7 @@ async def make_prediction(
                 
                 cached_result = cached_prediction["data"]
                 return PredictionResult(
-                    crypto_id=request.crypto_id,
+                    crypto_id=crypto_id,
                     crypto_symbol=crypto.symbol,
                     model_name=cached_result["model_name"],
                     predicted_price=cached_result["predicted_price"],
@@ -230,12 +232,12 @@ async def make_prediction(
         prediction_jobs[prediction_id] = {
             "prediction_id": prediction_id,
             "crypto_symbol": crypto.symbol,
-            "crypto_id": request.crypto_id,
+            "crypto_id": crypto_id,
             "status": "pending",
             "message": "Prediction job queued",
             "started_at": datetime.now(timezone.utc),
             "user_id": current_user.id,
-            "prediction_horizon": request.prediction_horizon,
+            "prediction_horizon": prediction_horizon,
             "model_type": request.model_type,
             "include_confidence": request.include_confidence
         }
@@ -244,12 +246,12 @@ async def make_prediction(
         try:
             result = await prediction_service.predict_price(
                 crypto_symbol=crypto.symbol,
-                prediction_horizon=request.prediction_horizon
+                prediction_horizon=prediction_horizon
             )
             
             if result.get("success", False):
                 # Cache the result
-                target_datetime = datetime.now(timezone.utc) + timedelta(hours=request.prediction_horizon)
+                target_datetime = datetime.now(timezone.utc) + timedelta(hours=prediction_horizon)
                 
                 cached_data = {
                     "model_name": result.get("model_name", "unknown"),
@@ -273,7 +275,7 @@ async def make_prediction(
                 logger.info(f"Immediate prediction completed for {crypto.symbol}")
                 
                 return PredictionResult(
-                    crypto_id=request.crypto_id,
+                    crypto_id=crypto_id,
                     crypto_symbol=crypto.symbol,
                     model_name=cached_data["model_name"],
                     predicted_price=cached_data["predicted_price"],
@@ -292,7 +294,7 @@ async def make_prediction(
             run_prediction_task,
             prediction_id,
             crypto.symbol,
-            request.prediction_horizon,
+            prediction_horizon,
             request.model_type,
             request.include_confidence
         )
@@ -305,10 +307,10 @@ async def make_prediction(
             job = prediction_jobs[prediction_id]
             if job["status"] == "completed" and job.get("prediction_result"):
                 result = job["prediction_result"]
-                target_datetime = datetime.now(timezone.utc) + timedelta(hours=request.prediction_horizon)
+                target_datetime = datetime.now(timezone.utc) + timedelta(hours=prediction_horizon)
                 
                 return PredictionResult(
-                    crypto_id=request.crypto_id,
+                    crypto_id=crypto_id,
                     crypto_symbol=crypto.symbol,
                     model_name=result.get("model_name", "unknown"),
                     predicted_price=result["predicted_price"],
@@ -430,15 +432,20 @@ async def make_batch_predictions(
                     target_datetime = datetime.now(timezone.utc) + timedelta(hours=request.prediction_horizon)
                     
                     return PredictionResult(
-                        crypto_id=crypto.id,
+                        crypto_id=request.crypto_id,
                         crypto_symbol=crypto.symbol,
-                        model_name=result.get("model_name", "unknown"),
-                        predicted_price=result["predicted_price"],
-                        confidence_score=result.get("confidence_score", 0.0),
-                        target_datetime=target_datetime,
-                        features_used=result.get("features_used", []),
-                        model_accuracy=result.get("model_accuracy"),
-                        prediction_id=None
+                        model_name=cached_result["model_name"],
+                        predicted_price=cached_result["predicted_price"],
+                        confidence_score=cached_result["confidence_score"],
+                        target_datetime=cached_result["target_datetime"],
+                        features_used=cached_result.get("features_used", []),
+                        model_accuracy=cached_result.get("model_accuracy"),
+                        prediction_id=None,
+                        # frontend
+                        current_price=await _get_current_price(crypto.symbol),
+                        confidence=int(float(cached_result["confidence_score"]) * 100) if cached_result["confidence_score"] <= 1 else int(float(cached_result["confidence_score"])),
+                        symbol=crypto.symbol,
+                        timestamp=datetime.now(timezone.utc)
                     )
                 else:
                     errors.append({

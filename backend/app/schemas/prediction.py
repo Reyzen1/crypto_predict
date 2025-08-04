@@ -2,7 +2,7 @@
 # ML prediction related Pydantic schemas - FIXED for Pydantic V2
 
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, model_validator
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import json
@@ -68,16 +68,63 @@ class PredictionBase(BaseSchema):
         return v
 
 
-class PredictionCreate(PredictionBase):
-    """Schema for creating new predictions"""
+class PredictionCreate(BaseSchema):
+    """Schema for prediction requests"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),
         str_strip_whitespace=True,
         validate_assignment=True
     )
     
-    user_id: int = Field(gt=0, description="User ID who requested the prediction")
+    crypto_id: int = Field(gt=0, description="Cryptocurrency ID")
+    prediction_horizon: Optional[int] = Field(
+        default=None,
+        ge=1, 
+        le=365, 
+        description="Prediction horizon in days"
+    )
+    model_type: str = Field(
+        default="LSTM", 
+        description="Type of ML model to use"
+    )
+    include_confidence: bool = Field(
+        default=True, 
+        description="Whether to include confidence score"
+    )
+    days: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=365,
+        description="Prediction horizon in days (alternative to prediction_horizon)"
+    )
 
+    @model_validator(mode='before')
+    @classmethod
+    def validate_prediction_horizon(cls, values):
+        """Handle days to prediction_horizon conversion"""
+        if isinstance(values, dict):
+            days = values.get('days')
+            prediction_horizon = values.get('prediction_horizon')
+            
+            # If days provided but no prediction_horizon, convert
+            if days is not None and not prediction_horizon:
+                values['prediction_horizon'] = days * 24
+            
+            # Ensure at least one is provided
+            if not days and not prediction_horizon:
+                values['prediction_horizon'] = 24  # Default to 1 day
+                
+        return values
+
+    @field_validator('model_type')
+    @classmethod
+    def validate_model_type(cls, v):
+        """Validate model type"""
+        valid_models = ["LSTM", "LINEAR_REGRESSION", "RANDOM_FOREST", "ARIMA", "ENSEMBLE"]
+        if v.upper() not in valid_models:
+            raise ValueError(f'Model type must be one of: {", ".join(valid_models)}')
+        return v.upper()
 
 class PredictionUpdate(BaseModel):
     """Schema for updating predictions"""
@@ -174,12 +221,26 @@ class PredictionRequest(BaseModel):
     )
 
     @field_validator('days')
-    @classmethod
-    def convert_days_to_hours(cls, v, values):
+    @classmethod 
+    def convert_days_to_hours(cls, v, info):
         """Convert days to prediction_horizon if provided"""
-        if v is not None and not values.get('prediction_horizon'):
-            values['prediction_horizon'] = v * 24
+        # In Pydantic v2, can't modify other fields in validator
+        # This validation logic should be moved to model_validator
         return v
+
+    @model_validator(mode='before')
+    @classmethod
+    def validate_prediction_horizon(cls, values):
+        """Handle days to prediction_horizon conversion"""
+        if isinstance(values, dict):
+            days = values.get('days')
+            prediction_horizon = values.get('prediction_horizon')
+            
+            # If days provided but no prediction_horizon, convert
+            if days is not None and not prediction_horizon:
+                values['prediction_horizon'] = days * 24
+        
+        return values
 
     @field_validator('model_type')
     @classmethod
@@ -190,15 +251,15 @@ class PredictionRequest(BaseModel):
             raise ValueError(f'Model type must be one of: {", ".join(valid_models)}')
         return v.upper()
 
-
 class PredictionResult(BaseModel):
-    """Schema for prediction results"""
+    """Schema for prediction results - Enhanced for frontend compatibility"""
     
     model_config = ConfigDict(
         protected_namespaces=(),
         str_strip_whitespace=True
     )
     
+    # فیلدهای اصلی ML
     crypto_id: int = Field(description="Cryptocurrency ID")
     crypto_symbol: str = Field(description="Cryptocurrency symbol")
     model_name: str = Field(description="Model used for prediction")
@@ -206,34 +267,37 @@ class PredictionResult(BaseModel):
     confidence_score: Decimal = Field(description="Confidence score")
     target_datetime: datetime = Field(description="Target prediction date")
     features_used: List[str] = Field(description="Features used in prediction")
-    model_accuracy: Optional[float] = Field(
-        default=None, 
-        description="Historical accuracy of the model"
-    )
-    prediction_id: Optional[int] = Field(
-        default=None, 
-        description="Saved prediction ID"
-    )
-    current_price: Optional[Decimal] = Field(
-        default=None,
-        description="Current market price for comparison"
-    )
-    confidence: Optional[int] = Field(
-        default=None,
-        ge=0,
-        le=100,
-        description="Confidence as percentage (0-100)"
-    )
-    symbol: Optional[str] = Field(
-        default=None,
-        description="Cryptocurrency symbol (alternative to crypto_symbol)"
-    )
-    timestamp: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        description="Response timestamp"
-    )
+    model_accuracy: Optional[float] = Field(default=None, description="Model accuracy percentage")
+    prediction_id: Optional[str] = Field(default=None, description="Prediction job ID")
+    
+    # frontend compatibility
+    current_price: Optional[Decimal] = Field(default=None, description="Current market price")
+    confidence: Optional[int] = Field(default=None, description="Confidence as percentage (0-100)")
+    symbol: Optional[str] = Field(default=None, description="Crypto symbol (alias for crypto_symbol)")
+    timestamp: Optional[datetime] = Field(default=None, description="Prediction timestamp")
+    
+    @model_validator(mode='after')
+    def populate_frontend_fields(self):
+        """Populate frontend-specific fields from ML fields"""
+        # Set symbol from crypto_symbol
+        if not self.symbol and self.crypto_symbol:
+            self.symbol = self.crypto_symbol
+            
+        # Convert confidence_score to percentage
+        if not self.confidence and self.confidence_score is not None:
+            # اگر confidence_score بین 0-1 است، به درصد تبدیل کن
+            if self.confidence_score <= 1:
+                self.confidence = int(float(self.confidence_score) * 100)
+            else:
+                self.confidence = int(float(self.confidence_score))
+        
+        # Set timestamp if not provided
+        if not self.timestamp:
+            self.timestamp = datetime.now(timezone.utc)
+            
+        return self
 
-
+        
 class BatchPredictionRequest(BaseModel):
     """Schema for batch prediction requests"""
     
@@ -443,3 +507,36 @@ class ModelTrainingResponse(BaseModel):
     features_used: List[str] = Field(description="Features used in training")
     hyperparameters: Dict[str, Any] = Field(description="Final hyperparameters")
     training_completed_at: datetime = Field(description="Training completion timestamp")
+
+class SymbolPredictionRequest(BaseSchema):
+    """Schema for symbol-based prediction requests (no crypto_id required)"""
+    
+    model_config = ConfigDict(
+        protected_namespaces=(),
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+    
+    days: int = Field(
+        default=1,
+        ge=1,
+        le=365, 
+        description="Prediction horizon in days"
+    )
+    model_type: str = Field(
+        default="LSTM", 
+        description="Type of ML model to use"
+    )
+    include_confidence: bool = Field(
+        default=True, 
+        description="Whether to include confidence score"
+    )
+
+    @field_validator('model_type')
+    @classmethod
+    def validate_model_type(cls, v):
+        """Validate model type"""
+        valid_models = ["LSTM", "LINEAR_REGRESSION", "RANDOM_FOREST", "ARIMA", "ENSEMBLE"]
+        if v.upper() not in valid_models:
+            raise ValueError(f'Model type must be one of: {", ".join(valid_models)}')
+        return v.upper()

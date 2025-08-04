@@ -274,7 +274,7 @@ class DataValidator:
             required_columns = ['timestamp', 'close_price', 'volume']
         
         # Check if DataFrame is empty
-        if data.empty:
+        if data is None or (hasattr(data, 'empty') and data.empty) or (isinstance(data, np.ndarray) and data.size == 0):
             issues.append("DataFrame is empty")
             return False, issues
         

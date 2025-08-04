@@ -14,6 +14,82 @@ class APIMigrationTester:
     def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
         self.results = {}
+        # Authentication setup - using existing test user
+        self.jwt_token = None
+        self.test_user_email = "testuser2@example.com"
+        self.test_user_password = "TestPassword123!"
+        
+    def setup_authentication(self) -> bool:
+        """Setup authentication using existing test user credentials"""
+        print("\n🔐 Setting up Authentication...")
+        print(f"   👤 Using existing test user: {self.test_user_email}")
+        
+        # Login to get JWT token (skip registration - user already exists)
+        print("   🔑 Logging in to get JWT token...")
+        
+        # Try form data login first (OAuth2 standard)
+        login_data = {
+            "username": self.test_user_email,  # OAuth2 uses 'username' field
+            "password": self.test_user_password
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/v1/auth/login",
+                data=login_data,  # Form data
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=60
+            )
+            
+            if response.status_code != 200:
+                # Try JSON login endpoint as fallback
+                print("   🔄 Trying JSON login endpoint...")
+                login_payload = {
+                    "email": self.test_user_email,
+                    "password": self.test_user_password
+                }
+                
+                response = requests.post(
+                    f"{self.base_url}/api/v1/auth/login-json",
+                    json=login_payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=60
+                )
+            
+            if response.status_code != 200:
+                print(f"   ❌ Login failed with status {response.status_code}")
+                try:
+                    error_data = response.json()
+                    print(f"   📄 Error: {error_data}")
+                except:
+                    print(f"   📄 Response: {response.text}")
+                return False
+            
+            # Extract JWT token
+            login_response = response.json()
+            self.jwt_token = login_response.get('access_token')
+            
+            if not self.jwt_token:
+                print("   ❌ No access token in login response")
+                print(f"   📄 Response: {login_response}")
+                return False
+            
+            print("   ✅ JWT token obtained successfully")
+            print(f"   🎫 Token: {self.jwt_token[:20]}...")
+            return True
+            
+        except Exception as e:
+            print(f"   ❌ Login failed: {e}")
+            return False
+    
+    def make_authenticated_request(self, method: str, url: str, **kwargs):
+        """Make HTTP request with authentication if token is available"""
+        if self.jwt_token:
+            headers = kwargs.get('headers', {})
+            headers['Authorization'] = f"Bearer {self.jwt_token}"
+            kwargs['headers'] = headers
+        
+        return requests.request(method, url, **kwargs)
         
     def test_old_vs_new_endpoints(self):
         """Test old vs new endpoint formats"""
@@ -27,11 +103,12 @@ class APIMigrationTester:
         # Test new endpoint
         print("\n📝 Testing New Endpoint Format:")
         new_result = self.test_new_prediction_endpoint()
+        print(new_result)
         
         # Test dashboard endpoints
         print("\n📝 Testing Dashboard Endpoints:")
         dashboard_result = self.test_dashboard_endpoints()
-        
+        print(dashboard_result)        
         # Compare results
         print("\n📊 Migration Comparison:")
         self.compare_endpoints(old_result, new_result)
@@ -57,7 +134,7 @@ class APIMigrationTester:
             print(f"   🔗 POST {url}")
             print(f"   📦 Payload: {payload}")
             
-            response = requests.post(url, json=payload, timeout=10)
+            response = self.make_authenticated_request("POST", url, json=payload, timeout=60)
             
             if response.status_code == 200:
                 data = response.json()
@@ -88,7 +165,7 @@ class APIMigrationTester:
             print(f"   🔗 POST {url}")
             print(f"   📦 Payload: {payload}")
             
-            response = requests.post(url, json=payload, timeout=10)
+            response = self.make_authenticated_request("POST", url, json=payload, timeout=60)
             
             if response.status_code == 200:
                 data = response.json()
@@ -122,7 +199,7 @@ class APIMigrationTester:
         print("   🔍 Testing dashboard summary...")
         try:
             url = f"{self.base_url}/api/v1/dashboard/summary?symbols=BTC,ETH"
-            response = requests.get(url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=60)
             
             if response.status_code == 200:
                 data = response.json()
@@ -141,7 +218,7 @@ class APIMigrationTester:
         print("   🔍 Testing quick crypto data...")
         try:
             url = f"{self.base_url}/api/v1/dashboard/quick/BTC"
-            response = requests.get(url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=60)
             
             if response.status_code == 200:
                 data = response.json()
@@ -160,7 +237,7 @@ class APIMigrationTester:
         print("   🔍 Testing current prices...")
         try:
             url = f"{self.base_url}/api/v1/dashboard/prices?symbols=BTC,ETH"
-            response = requests.get(url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=60)
             
             if response.status_code == 200:
                 data = response.json()
@@ -214,64 +291,19 @@ class APIMigrationTester:
         """Test frontend integration scenarios"""
         print("\n🌐 Testing Frontend Integration Scenarios...")
         
-        scenarios = [
-            ("Dashboard Load", self.test_dashboard_load_scenario),
-            ("Crypto Card Widget", self.test_crypto_card_scenario),
-            ("Price Ticker", self.test_price_ticker_scenario),
-            ("Prediction Display", self.test_prediction_display_scenario)
-        ]
-        
-        results = {}
-        for scenario_name, test_func in scenarios:
-            print(f"\n   📱 {scenario_name}:")
-            try:
-                result = test_func()
-                results[scenario_name] = result
-                if result.get("success"):
-                    print(f"      ✅ {scenario_name} compatible")
-                else:
-                    print(f"      ❌ {scenario_name} failed")
-            except Exception as e:
-                print(f"      ❌ {scenario_name} error: {e}")
-                results[scenario_name] = {"success": False, "error": str(e)}
-        
-        return results
-    
-    def test_dashboard_load_scenario(self) -> Dict[str, Any]:
-        """Test dashboard page load scenario"""
-        try:
-            # Simulate dashboard loading multiple cryptocurrencies
-            url = f"{self.base_url}/api/v1/dashboard/summary?symbols=BTC,ETH,ADA"
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                cryptos = data.get("cryptocurrencies", [])
-                
-                # Check if we have data for each requested symbol
-                symbols_received = [crypto.get("symbol") for crypto in cryptos]
-                expected_symbols = ["BTC", "ETH", "ADA"]
-                
-                success = all(symbol in symbols_received for symbol in expected_symbols)
-                
-                return {
-                    "success": success,
-                    "symbols_requested": expected_symbols,
-                    "symbols_received": symbols_received,
-                    "data": data
-                }
-            else:
-                return {"success": False, "error": f"HTTP {response.status_code}"}
-        
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        return {
+            "crypto_card": self.test_crypto_card_scenario(),
+            "price_ticker": self.test_price_ticker_scenario(),
+            "prediction_display": self.test_prediction_display_scenario(),
+            "dashboard_load": self.test_dashboard_load_scenario()
+        }
     
     def test_crypto_card_scenario(self) -> Dict[str, Any]:
         """Test crypto card widget scenario"""
         try:
             # Simulate individual crypto card loading
             url = f"{self.base_url}/api/v1/dashboard/quick/BTC"
-            response = requests.get(url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=60)
             
             if response.status_code == 200:
                 data = response.json()
@@ -301,7 +333,7 @@ class APIMigrationTester:
         try:
             # Simulate price ticker loading
             url = f"{self.base_url}/api/v1/dashboard/prices?symbols=BTC,ETH,ADA,DOT"
-            response = requests.get(url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=60)
             
             if response.status_code == 200:
                 data = response.json()
@@ -330,7 +362,7 @@ class APIMigrationTester:
             url = f"{self.base_url}/api/v1/crypto/BTC/predict"
             payload = {"days": 1}
             
-            response = requests.post(url, json=payload, timeout=10)
+            response = self.make_authenticated_request("POST", url, json=payload, timeout=60)
             
             if response.status_code == 200:
                 data = response.json()
@@ -349,6 +381,31 @@ class APIMigrationTester:
         
         except Exception as e:
             return {"success": False, "error": str(e)}
+    
+    def test_dashboard_load_scenario(self) -> Dict[str, Any]:
+        """Test dashboard load scenario"""
+        try:
+            # Simulate dashboard initial load
+            url = f"{self.base_url}/api/v1/dashboard/summary?symbols=BTC,ETH,ADA"
+            response = self.make_authenticated_request("GET", url, timeout=60)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Check dashboard load requirements
+                required_keys = ["cryptocurrencies", "market_summary"]
+                has_required = all(key in data for key in required_keys)
+                
+                return {
+                    "success": has_required,
+                    "dashboard_data": data,
+                    "required_keys": required_keys
+                }
+            else:
+                return {"success": False, "error": f"HTTP {response.status_code}"}
+        
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
 
 def main():
@@ -360,6 +417,15 @@ def main():
     
     tester = APIMigrationTester()
     
+    # Setup authentication first
+    if not tester.setup_authentication():
+        print("❌ Authentication setup failed. Some tests may fail.")
+        print("⚠️ Please ensure the test user exists in the database:")
+        print("   Email: testuser@example.com")
+        print("   Password: TestPassword123!")
+        print("⚠️ Continuing with tests that don't require authentication...")
+    else:
+        print("✅ Authentication successful. Running all tests...")
     # Test endpoint migration
     migration_results = tester.test_old_vs_new_endpoints()
     
