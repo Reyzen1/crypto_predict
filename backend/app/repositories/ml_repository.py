@@ -472,8 +472,8 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
         self,
         db: Session,
         crypto_id: int,
-        lookback_hours: int = 48,  # Reduced from 168 to 48 hours (2 days)
-        sequence_length: int = 10   # Reduced from 60 to 10 for limited data
+        lookback_hours: int = 72,   # 3 days of data (increased for better sequence)
+        sequence_length: int = 30   # Match Keras model requirement
     ) -> Optional[Any]:
         """
         Get recent data formatted for ML prediction (FIXED VERSION)
@@ -522,7 +522,6 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
                 data.append([
                     close_price,
                     volume,
-                    price_range if price_range > 0 else close_price * 0.01
                 ])
             
             # Ensure we have enough data
@@ -544,7 +543,6 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
                 if last_price > 0:
                     # Normalize prices relative to last price
                     data_array[:, 0] = data_array[:, 0] / last_price
-                    data_array[:, 2] = data_array[:, 2] / last_price
                 
                 # Normalize volume (simple min-max)
                 volume_col = data_array[:, 1]
@@ -572,6 +570,9 @@ class MLRepository(BaseRepository[PriceData, dict, dict]):
         except Exception as e:
             logger.error(f"Failed to get recent prediction data: {str(e)}")
             return None
+   
+   
+   
     def get_crypto_data_quality(
         self,
         db: Session,

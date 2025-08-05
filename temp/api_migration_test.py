@@ -38,7 +38,8 @@ class APIMigrationTester:
                 f"{self.base_url}/api/v1/auth/login",
                 data=login_data,  # Form data
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
-                timeout=60
+                timeout=10,
+                proxies={'http': None, 'https': None}  # FIXED: Add proxy bypass
             )
             
             if response.status_code != 200:
@@ -53,7 +54,8 @@ class APIMigrationTester:
                     f"{self.base_url}/api/v1/auth/login-json",
                     json=login_payload,
                     headers={"Content-Type": "application/json"},
-                    timeout=60
+                    timeout=10,
+                    proxies={'http': None, 'https': None}  # FIXED: Add proxy bypass
                 )
             
             if response.status_code != 200:
@@ -84,12 +86,29 @@ class APIMigrationTester:
     
     def make_authenticated_request(self, method: str, url: str, **kwargs):
         """Make HTTP request with authentication if token is available"""
+        
+        # DEBUG: Check URL before processing
+        print(f"   🔍 make_authenticated_request called:")
+        print(f"   🔍   method: '{method}'")
+        print(f"   🔍   url: '{url}'")
+        
         if self.jwt_token:
             headers = kwargs.get('headers', {})
             headers['Authorization'] = f"Bearer {self.jwt_token}"
             kwargs['headers'] = headers
+            print(f"   🔍   Added auth header")
         
-        return requests.request(method, url, **kwargs)
+        # FIXED: Remove trust_env (not valid for requests.request)
+        # FORCE: Disable proxy for localhost requests
+        kwargs['proxies'] = {'http': None, 'https': None}
+        
+        print(f"   🔍   Final URL being sent to requests: '{url}'")
+        
+        try:
+            return requests.request(method, url, **kwargs)
+        except Exception as e:
+            print(f"   🔍   requests.request failed with: {e}")
+            raise
         
     def test_old_vs_new_endpoints(self):
         """Test old vs new endpoint formats"""
@@ -103,12 +122,11 @@ class APIMigrationTester:
         # Test new endpoint
         print("\n📝 Testing New Endpoint Format:")
         new_result = self.test_new_prediction_endpoint()
-        print(new_result)
         
         # Test dashboard endpoints
         print("\n📝 Testing Dashboard Endpoints:")
         dashboard_result = self.test_dashboard_endpoints()
-        print(dashboard_result)        
+        
         # Compare results
         print("\n📊 Migration Comparison:")
         self.compare_endpoints(old_result, new_result)
@@ -134,7 +152,7 @@ class APIMigrationTester:
             print(f"   🔗 POST {url}")
             print(f"   📦 Payload: {payload}")
             
-            response = self.make_authenticated_request("POST", url, json=payload, timeout=60)
+            response = self.make_authenticated_request("POST", url, json=payload, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -164,6 +182,7 @@ class APIMigrationTester:
             
             print(f"   🔗 POST {url}")
             print(f"   📦 Payload: {payload}")
+            print("   ⏳ Running AI prediction... (this may take up to 60 seconds)")
             
             response = self.make_authenticated_request("POST", url, json=payload, timeout=60)
             
@@ -187,6 +206,9 @@ class APIMigrationTester:
                 print(f"   📄 Error: {response.text}")
                 return {"success": False, "error": response.text, "status": response.status_code}
         
+        except requests.exceptions.Timeout:
+            print(f"   ⏰ Request timed out (>60s) - AI prediction may be processing")
+            return {"success": False, "error": "Timeout - prediction taking too long"}
         except requests.exceptions.RequestException as e:
             print(f"   ❌ Request failed: {e}")
             return {"success": False, "error": str(e)}
@@ -197,9 +219,10 @@ class APIMigrationTester:
         
         # Test dashboard summary
         print("   🔍 Testing dashboard summary...")
+        print("   ⏳ Loading dashboard data... (this may take up to 30 seconds)")
         try:
             url = f"{self.base_url}/api/v1/dashboard/summary?symbols=BTC,ETH"
-            response = self.make_authenticated_request("GET", url, timeout=60)
+            response = self.make_authenticated_request("GET", url, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -210,6 +233,9 @@ class APIMigrationTester:
                 print(f"      ❌ Dashboard summary: {response.status_code}")
                 results["summary"] = {"success": False, "error": response.text}
         
+        except requests.exceptions.Timeout:
+            print(f"      ⏰ Dashboard summary timed out (>30s)")
+            results["summary"] = {"success": False, "error": "Timeout - dashboard loading too slow"}
         except Exception as e:
             print(f"      ❌ Dashboard summary failed: {e}")
             results["summary"] = {"success": False, "error": str(e)}
@@ -218,7 +244,7 @@ class APIMigrationTester:
         print("   🔍 Testing quick crypto data...")
         try:
             url = f"{self.base_url}/api/v1/dashboard/quick/BTC"
-            response = self.make_authenticated_request("GET", url, timeout=60)
+            response = self.make_authenticated_request("GET", url, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -237,7 +263,7 @@ class APIMigrationTester:
         print("   🔍 Testing current prices...")
         try:
             url = f"{self.base_url}/api/v1/dashboard/prices?symbols=BTC,ETH"
-            response = self.make_authenticated_request("GET", url, timeout=60)
+            response = self.make_authenticated_request("GET", url, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -303,7 +329,7 @@ class APIMigrationTester:
         try:
             # Simulate individual crypto card loading
             url = f"{self.base_url}/api/v1/dashboard/quick/BTC"
-            response = self.make_authenticated_request("GET", url, timeout=60)
+            response = self.make_authenticated_request("GET", url, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -333,7 +359,7 @@ class APIMigrationTester:
         try:
             # Simulate price ticker loading
             url = f"{self.base_url}/api/v1/dashboard/prices?symbols=BTC,ETH,ADA,DOT"
-            response = self.make_authenticated_request("GET", url, timeout=60)
+            response = self.make_authenticated_request("GET", url, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -387,7 +413,7 @@ class APIMigrationTester:
         try:
             # Simulate dashboard initial load
             url = f"{self.base_url}/api/v1/dashboard/summary?symbols=BTC,ETH,ADA"
-            response = self.make_authenticated_request("GET", url, timeout=60)
+            response = self.make_authenticated_request("GET", url, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
@@ -421,7 +447,7 @@ def main():
     if not tester.setup_authentication():
         print("❌ Authentication setup failed. Some tests may fail.")
         print("⚠️ Please ensure the test user exists in the database:")
-        print("   Email: testuser@example.com")
+        print("   Email: testuser2@example.com")
         print("   Password: TestPassword123!")
         print("⚠️ Continuing with tests that don't require authentication...")
     else:
