@@ -342,7 +342,7 @@ async def make_prediction(
         )
 
 
-@router.get("/status/{prediction_id}", operation_id="get_prediction_status")
+@router.get("/{prediction_id}/status", operation_id="get_prediction_status")
 async def get_prediction_status(
     prediction_id: str,
     current_user: User = Depends(get_current_active_user)
@@ -490,9 +490,9 @@ async def make_batch_predictions(
         )
 
 
-@router.get("/history/{crypto_id}", operation_id="get_prediction_history")
+@router.get("/{symbol}/history", operation_id="get_prediction_history")
 async def get_prediction_history(
-    crypto_id: int,
+    symbol: str,
     days_back: int = 30,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -504,16 +504,17 @@ async def get_prediction_history(
     for analysis and accuracy tracking.
     """
     try:
-        logger.info(f"User {current_user.id} requesting history for crypto_id {crypto_id}")
-        
-        # Validate cryptocurrency exists
-        crypto = cryptocurrency_repository.get_by_id(db, crypto_id)
-        if not crypto:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Cryptocurrency with ID {crypto_id} not found"
-            )
-        
+        logger.info(f"User {current_user.id} requesting history for symbol {symbol}")
+        # Convert symbol to crypto_id if needed
+        if symbol:
+            crypto = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
+            if not crypto:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Cryptocurrency '{symbol}' not found"
+                )
+            crypto_id = crypto.id
+
         # Get historical predictions from database
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         
@@ -553,9 +554,9 @@ async def get_prediction_history(
         )
 
 
-@router.get("/performance/{crypto_id}", operation_id="get_prediction_performance")
+@router.get("/{symbol}/performance", operation_id="get_prediction_performance")
 async def get_prediction_performance(
-    crypto_id: int,
+    symbol: str,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> ModelPerformance:
@@ -566,15 +567,17 @@ async def get_prediction_performance(
     including accuracy and error metrics.
     """
     try:
-        logger.info(f"User {current_user.id} requesting performance for crypto_id {crypto_id}")
+        logger.info(f"User {current_user.id} requesting performance for symbol {symbol}")
         
-        # Validate cryptocurrency exists
-        crypto = cryptocurrency_repository.get_by_id(db, crypto_id)
-        if not crypto:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Cryptocurrency with ID {crypto_id} not found"
-            )
+        if symbol:
+            crypto = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
+            if not crypto:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Cryptocurrency '{symbol}' not found"
+                )
+
+            crypto_id = crypto.id
         
         # Get performance data from prediction service
         performance_data = await prediction_service.get_model_performance(crypto.symbol)
@@ -608,9 +611,9 @@ async def get_prediction_performance(
         )
 
 
-@router.get("/analytics/{crypto_id}", operation_id="get_prediction_analytics")
+@router.get("/{symbol}/analytics", operation_id="get_prediction_analytics")
 async def get_prediction_analytics(
-    crypto_id: int,
+    symbol: str,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> PredictionAnalytics:
@@ -621,15 +624,16 @@ async def get_prediction_analytics(
     accuracy trends and model performance comparisons.
     """
     try:
-        logger.info(f"User {current_user.id} requesting analytics for crypto_id {crypto_id}")
-        
-        # Validate cryptocurrency exists
-        crypto = cryptocurrency_repository.get_by_id(db, crypto_id)
-        if not crypto:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Cryptocurrency with ID {crypto_id} not found"
-            )
+        logger.info(f"User {current_user.id} requesting analytics for symbol {symbol}")
+        # Get cryptocurrency by symbol
+        if symbol:
+            crypto = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
+            if not crypto:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Cryptocurrency '{symbol}' not found"
+                )
+            crypto_id = crypto.id
         
         # Get analytics data
         analytics_data = await prediction_service.get_prediction_analytics(crypto.symbol)
@@ -668,7 +672,7 @@ async def get_prediction_analytics(
         )
 
 
-@router.delete("/jobs/{prediction_id}", operation_id="cancel_prediction_job")
+@router.delete("/{prediction_id}/jobs", operation_id="cancel_prediction_job")
 async def cancel_prediction_job(
     prediction_id: str,
     current_user: User = Depends(get_current_active_user)
