@@ -21,7 +21,7 @@ from app.tasks.price_collector import (
     get_task_status
 )
 
-# Import ML tasks (NEW)
+# Import ML tasks 
 from app.tasks.ml_tasks import (
     start_auto_training,
     start_prediction_generation,
@@ -216,7 +216,7 @@ async def cleanup_old_data_manually(
 
 
 # =====================================
-# ML TASK ENDPOINTS (NEW)
+# ML TASK ENDPOINTS 
 # =====================================
 
 @router.post("/ml/auto-train", operation_id="start_ml_auto_training")
@@ -566,7 +566,7 @@ async def get_task_info(
                     }
                 },
                 
-                # ML Tasks (NEW)
+                # ML Tasks 
                 "auto_train_models": {
                     "description": "Automatically train ML models for all cryptocurrencies",
                     "endpoint": "/api/v1/tasks/ml/auto-train",

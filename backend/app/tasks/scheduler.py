@@ -359,7 +359,7 @@ def get_next_run_times() -> Dict[str, Any]:
                 "queue": "price_data"
             },
             
-            # ML Tasks (NEW)
+            # ML Tasks 
             "auto-train-models-weekly": {
                 "next_run": _get_next_cron_run(1, 0, day_of_week=0),
                 "pattern": "Weekly on Sunday at 1:00 AM",
@@ -367,7 +367,7 @@ def get_next_run_times() -> Dict[str, Any]:
                 "queue": "ml_tasks"
             },
             "generate-predictions-4hourly": {
-                "next_run": _get_next_interval_run(4, 0),
+                "next_run": _get_next_interval_run(hour_interval=4, minute=0),
                 "pattern": "Every 4 hours at minute 0", 
                 "category": "machine_learning",
                 "queue": "ml_tasks"

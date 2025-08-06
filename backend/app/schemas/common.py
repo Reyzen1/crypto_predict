@@ -13,20 +13,26 @@ class BaseSchema(BaseModel):
     """Base schema with common configuration - FIXED for Pydantic V2"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         # Enable ORM mode for SQLAlchemy integration
         from_attributes=True,
         # Use enum values instead of names
         use_enum_values=True,
         # Validate assignment when updating fields
-        validate_assignment=True
+        validate_assignment=True,
+        str_strip_whitespace=True
     )
 
 
 class PaginationParams(BaseModel):
     """Schema for pagination parameters in API requests"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     skip: int = Field(default=0, ge=0, description="Number of records to skip")
     limit: int = Field(default=100, ge=1, le=1000, description="Maximum number of records to return")
     order_by: str = Field(default="id", description="Field to order by")
@@ -36,8 +42,12 @@ class PaginationParams(BaseModel):
 class PaginatedResponse(BaseModel, Generic[DataT]):
     """Generic schema for paginated API responses"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     items: List[DataT] = Field(description="List of items")
     total: int = Field(description="Total number of items")
     skip: int = Field(description="Number of items skipped")
@@ -65,8 +75,12 @@ class PaginatedResponse(BaseModel, Generic[DataT]):
 class SuccessResponse(BaseModel):
     """Standard success response schema"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     status: str = Field(default="success", description="Response status")
     message: str = Field(description="Success message")
     data: Optional[Any] = Field(default=None, description="Response data")
@@ -76,8 +90,12 @@ class SuccessResponse(BaseModel):
 class ErrorResponse(BaseModel):
     """Standard error response schema"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     status: str = Field(default="error", description="Response status")
     message: str = Field(description="Error message")
     detail: Optional[str] = Field(default=None, description="Detailed error information")
@@ -88,8 +106,12 @@ class ErrorResponse(BaseModel):
 class HealthStatus(BaseModel):
     """Health check response schema"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     status: str = Field(description="Health status")
     timestamp: datetime = Field(description="Check timestamp")
     version: Optional[str] = Field(default=None, description="Application version")
@@ -103,8 +125,12 @@ HealthCheck = HealthStatus
 class DateRangeFilter(BaseModel):
     """Date range filter for API queries"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     start_date: Optional[datetime] = Field(default=None, description="Start date for filtering")
     end_date: Optional[datetime] = Field(default=None, description="End date for filtering")
     
@@ -118,8 +144,12 @@ class DateRangeFilter(BaseModel):
 class APIResponse(BaseModel, Generic[DataT]):
     """Generic API response wrapper"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     success: bool = Field(description="Whether the request was successful")
     message: str = Field(description="Response message")
     data: Optional[DataT] = Field(default=None, description="Response data")
@@ -156,8 +186,12 @@ class APIResponse(BaseModel, Generic[DataT]):
 class SortOrder(BaseModel):
     """Schema for sorting parameters - FIXED: regex -> pattern"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     field: str = Field(description="Field to sort by")
     direction: str = Field(default="asc", pattern="^(asc|desc)$", description="Sort direction")
 
@@ -165,8 +199,12 @@ class SortOrder(BaseModel):
 class FilterParams(BaseModel):
     """Base schema for filtering parameters"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     search: Optional[str] = Field(default=None, max_length=255, description="Search term")
     active_only: Optional[bool] = Field(default=None, description="Filter for active items only")
     date_range: Optional[DateRangeFilter] = Field(default=None, description="Date range filter")
@@ -175,8 +213,12 @@ class FilterParams(BaseModel):
 class BatchOperation(BaseModel):
     """Schema for batch operations"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     ids: List[int] = Field(description="List of IDs to operate on")
     operation: str = Field(description="Operation to perform")
     parameters: Optional[dict] = Field(default=None, description="Operation parameters")
@@ -185,8 +227,12 @@ class BatchOperation(BaseModel):
 class MetricsResponse(BaseModel):
     """Schema for metrics and statistics responses"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Metrics timestamp")
     period: str = Field(description="Time period for metrics")
     metrics: dict = Field(description="Metrics data")
@@ -196,8 +242,12 @@ class MetricsResponse(BaseModel):
 class BulkOperationResult(BaseModel):
     """Schema for bulk operation results"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     success_count: int = Field(description="Number of successful operations")
     error_count: int = Field(description="Number of failed operations")
     errors: List[dict] = Field(default=[], description="List of errors")
@@ -218,8 +268,12 @@ class BulkOperationResult(BaseModel):
 class SearchParams(BaseModel):
     """Schema for search parameters"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     query: str = Field(min_length=1, max_length=255, description="Search query")
     fields: Optional[List[str]] = Field(default=None, description="Fields to search in")
     exact_match: bool = Field(default=False, description="Whether to use exact matching")
@@ -229,8 +283,12 @@ class SearchParams(BaseModel):
 class TimeSeriesParams(BaseModel):
     """Schema for time series query parameters"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     start_time: datetime = Field(description="Start time for time series")
     end_time: datetime = Field(description="End time for time series")
     interval: str = Field(default="1h", description="Time interval (1m, 5m, 1h, 1d)")
@@ -240,8 +298,12 @@ class TimeSeriesParams(BaseModel):
 class ExportRequest(BaseModel):
     """Schema for data export requests"""
     
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     format: str = Field(description="Export format (csv, json, xlsx)")
     filters: Optional[FilterParams] = Field(default=None, description="Export filters")
     columns: Optional[List[str]] = Field(default=None, description="Columns to export")

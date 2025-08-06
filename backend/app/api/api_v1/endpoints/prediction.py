@@ -720,3 +720,95 @@ async def cancel_prediction_job(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to cancel prediction job: {str(e)}"
         )
+    
+@router.get("/stats", operation_id="get_prediction_stats")
+async def get_prediction_stats(
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Get ML prediction performance statistics
+    
+    Returns detailed statistics about prediction system performance including
+    cache hit rates, response times, prediction counts, and system metrics.
+    Requires authentication.
+    """
+    try:
+        logger.info(f"User {current_user.id} requesting prediction stats")
+        
+        # Get performance metrics from prediction service
+        stats = prediction_service.get_performance_metrics()
+        
+        # Add additional metadata
+        response_data = {
+            "success": True,
+            "stats": stats,
+            "requested_by": current_user.email,
+            "requested_at": datetime.now(timezone.utc).isoformat(),
+            "system_info": {
+                "prediction_service_active": True,
+                "cache_enabled": prediction_service.redis_client is not None,
+                "model_cache_enabled": len(prediction_service.model_cache) > 0
+            }
+        }
+        
+        logger.info(f"Prediction stats retrieved successfully for user {current_user.id}")
+        return response_data
+        
+    except Exception as e:
+        error_msg = f"Failed to retrieve prediction stats: {str(e)}"
+        logger.error(f"Stats retrieval error for user {current_user.id}: {error_msg}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_msg
+        )
+
+
+@router.delete("/cache/clear", operation_id="clear_prediction_cache")
+async def clear_prediction_cache(
+    current_user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """
+    Clear prediction cache
+    
+    Clears all cached prediction data from both memory and Redis cache.
+    This operation helps free up memory and reset the prediction cache system.
+    Requires authentication and should be used carefully as it will impact
+    performance temporarily until cache is rebuilt.
+    """
+    try:
+        logger.info(f"User {current_user.id} requesting prediction cache clear")
+        
+        # Clear cache using prediction service
+        clear_result = prediction_service.clear_cache()
+        
+        # Create comprehensive response
+        response_data = {
+            "success": True,
+            "operation": "cache_clear",
+            "result": clear_result,
+            "performed_by": current_user.email,
+            "performed_at": datetime.now(timezone.utc).isoformat(),
+            "impact": {
+                "description": "Prediction cache has been cleared",
+                "temporary_effect": "Next predictions may be slower until cache rebuilds",
+                "memory_freed": True,
+                "redis_cache_cleared": prediction_service.redis_client is not None
+            },
+            "recommendations": [
+                "Monitor system performance for the next few minutes",
+                "Cache will automatically rebuild with new prediction requests",
+                "Consider using this operation during low-traffic periods"
+            ]
+        }
+        
+        logger.info(f"Prediction cache cleared successfully by user {current_user.id}. {clear_result.get('message', 'Cache cleared')}")
+        return response_data
+        
+    except Exception as e:
+        error_msg = f"Failed to clear prediction cache: {str(e)}"
+        logger.error(f"Cache clear error for user {current_user.id}: {error_msg}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_msg
+        )
+

@@ -189,9 +189,13 @@ class UserStats(BaseSchema):
 
 class Token(BaseModel):
     """Schema for JWT tokens"""
-    
-    model_config = ConfigDict(str_strip_whitespace=True)
-    
+
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+
     access_token: str = Field(description="JWT access token")
     token_type: str = Field(default="bearer", description="Token type")
     expires_in: int = Field(description="Token expiration time in seconds")

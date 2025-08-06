@@ -4,7 +4,8 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict, field_validator
+
 from enum import Enum
 
 
@@ -35,8 +36,11 @@ class TrainingConfigRequest(BaseModel):
     validation_split: Optional[float] = Field(0.2, ge=0.1, le=0.3, description="Validation split")
     early_stopping_patience: Optional[int] = Field(10, ge=5, le=50, description="Early stopping patience")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        json_schema_extra={
             "example": {
                 "sequence_length": 60,
                 "lstm_units": [50, 50, 50],
@@ -48,6 +52,7 @@ class TrainingConfigRequest(BaseModel):
                 "early_stopping_patience": 10
             }
         }
+    )
 
 
 class TrainingRequest(BaseModel):
@@ -58,13 +63,18 @@ class TrainingRequest(BaseModel):
     data_days_back: Optional[int] = Field(180, ge=30, le=1000, description="Days of historical data")
     force_retrain: Optional[bool] = Field(False, description="Force retrain even if recent model exists")
     
-    @validator('crypto_symbol')
+   
+    @field_validator('crypto_symbol')
+    @classmethod  
     def validate_crypto_symbol(cls, v):
         return v.upper().strip()
     
-    class Config:
-        schema_extra = {
-            "example": {
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        json_schema_extra={
+            "example": {                
                 "crypto_symbol": "BTC",
                 "model_type": "lstm",
                 "data_days_back": 180,
@@ -75,6 +85,7 @@ class TrainingRequest(BaseModel):
                 }
             }
         }
+    )
 
 
 class TrainingResponse(BaseModel):
@@ -87,8 +98,11 @@ class TrainingResponse(BaseModel):
     started_at: datetime = Field(..., description="Training start time")
     estimated_duration_minutes: Optional[int] = Field(None, description="Estimated training duration")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        json_schema_extra={
             "example": {
                 "job_id": "train_btc_lstm_20240128_143022",
                 "crypto_symbol": "BTC",
@@ -99,7 +113,7 @@ class TrainingResponse(BaseModel):
                 "estimated_duration_minutes": 15
             }
         }
-
+    )
 
 class TrainingStatusResponse(BaseModel):
     """Response for training status check"""
@@ -121,8 +135,11 @@ class TrainingStatusResponse(BaseModel):
     validation_metrics: Optional[Dict[str, float]] = Field(None, description="Final validation metrics")
     model_performance: Optional[Dict[str, float]] = Field(None, description="Model performance metrics")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        json_schema_extra={
             "example": {
                 "job_id": "train_btc_lstm_20240128_143022",
                 "crypto_symbol": "BTC",
@@ -136,7 +153,7 @@ class TrainingStatusResponse(BaseModel):
                 "message": "Training in progress - epoch 65/100"
             }
         }
-
+    )
 
 class ModelInfo(BaseModel):
     """Information about a trained model"""
@@ -151,8 +168,11 @@ class ModelInfo(BaseModel):
     performance_metrics: Optional[Dict[str, float]] = Field(None, description="Performance metrics")
     model_path: Optional[str] = Field(None, description="Model file path")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        json_schema_extra={
             "example": {
                 "model_id": "btc_lstm_20240128_145530",
                 "crypto_symbol": "BTC",
@@ -169,7 +189,7 @@ class ModelInfo(BaseModel):
                 }
             }
         }
-
+    )
 
 class ModelListResponse(BaseModel):
     """Response for model list endpoint"""
@@ -177,8 +197,11 @@ class ModelListResponse(BaseModel):
     total: int = Field(..., description="Total number of models")
     active_models: int = Field(..., description="Number of active models")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        json_schema_extra={
             "example": {
                 "models": [
                     {
@@ -194,21 +217,24 @@ class ModelListResponse(BaseModel):
                 "active_models": 1
             }
         }
-
+    )
 
 class ModelActivationRequest(BaseModel):
     """Request to activate a model"""
     model_id: str = Field(..., description="Model identifier to activate")
     force_activation: Optional[bool] = Field(False, description="Force activation even if performance is low")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        json_schema_extra={
             "example": {
                 "model_id": "btc_lstm_20240128_145530",
                 "force_activation": False
             }
         }
-
+    )
 
 class ModelActivationResponse(BaseModel):
     """Response for model activation"""
@@ -218,8 +244,11 @@ class ModelActivationResponse(BaseModel):
     activated_at: datetime = Field(..., description="Activation time")
     message: str = Field(..., description="Activation message")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        json_schema_extra={
             "example": {
                 "model_id": "btc_lstm_20240128_145530",
                 "crypto_symbol": "BTC",
@@ -228,7 +257,7 @@ class ModelActivationResponse(BaseModel):
                 "message": "Model activated successfully"
             }
         }
-
+    )
 
 class ModelPerformanceResponse(BaseModel):
     """Response for model performance metrics"""
@@ -251,8 +280,11 @@ class ModelPerformanceResponse(BaseModel):
     data_points_used: int = Field(..., description="Training data points")
     training_duration_seconds: int = Field(..., description="Training duration")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        json_schema_extra={
             "example": {
                 "model_id": "btc_lstm_20240128_145530",
                 "crypto_symbol": "BTC",
@@ -274,3 +306,4 @@ class ModelPerformanceResponse(BaseModel):
                 "training_duration_seconds": 1200
             }
         }
+    )

@@ -13,6 +13,7 @@ class PriceDataBase(BaseSchema):
     """Base price data schema with common fields"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -52,6 +53,7 @@ class PriceDataCreate(PriceDataBase):
     """Schema for creating new price data"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -63,6 +65,7 @@ class PriceDataUpdate(BaseModel):
     """Schema for updating price data"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -79,6 +82,7 @@ class PriceDataResponse(PriceDataBase):
     """Schema for price data in API responses"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         from_attributes=True,
         str_strip_whitespace=True
     )
@@ -92,6 +96,7 @@ class PriceDataWithCrypto(PriceDataResponse):
     """Schema for price data with cryptocurrency information"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         from_attributes=True,
         str_strip_whitespace=True
     )
@@ -104,6 +109,7 @@ class OHLCV(BaseModel):
     """Schema for OHLCV (Open, High, Low, Close, Volume) data"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True
     )
     
@@ -119,6 +125,7 @@ class PriceHistoryRequest(BaseModel):
     """Schema for price history requests"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -149,6 +156,7 @@ class PriceHistoryResponse(BaseModel):
     """Schema for price history responses"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True
     )
     
@@ -164,6 +172,7 @@ class PriceStatistics(BaseSchema):
     """Schema for price statistics"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         from_attributes=True,
         str_strip_whitespace=True
     )
@@ -184,6 +193,7 @@ class MLDataRequest(BaseModel):
     """Schema for ML model data requests"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -216,6 +226,7 @@ class MLDataResponse(BaseModel):
     """Schema for ML model data responses"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True
     )
     
@@ -231,6 +242,7 @@ class PriceAlert(BaseSchema):
     """Schema for price alerts"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -255,6 +267,7 @@ class PriceDataBulkInsert(BaseModel):
     """Schema for bulk price data insertion"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -278,6 +291,7 @@ class PriceDataAnalytics(BaseSchema):
     """Schema for price data analytics"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         from_attributes=True,
         str_strip_whitespace=True
     )
@@ -299,6 +313,7 @@ class RealTimePriceUpdate(BaseSchema):
     """Schema for real-time price updates"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )

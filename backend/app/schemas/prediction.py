@@ -156,6 +156,7 @@ class PredictionResponse(PredictionBase):
     """Schema for prediction data in API responses"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         from_attributes=True,
         str_strip_whitespace=True
     )
@@ -169,8 +170,9 @@ class PredictionWithDetails(PredictionResponse):
     """Schema for prediction with additional details"""
     
     model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     crypto_symbol: str = Field(description="Cryptocurrency symbol")
@@ -255,11 +257,11 @@ class PredictionResult(BaseModel):
     """Schema for prediction results - Enhanced for frontend compatibility"""
     
     model_config = ConfigDict(
-        protected_namespaces=(),
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
-    # فیلدهای اصلی ML
     crypto_id: int = Field(description="Cryptocurrency ID")
     crypto_symbol: str = Field(description="Cryptocurrency symbol")
     model_name: str = Field(description="Model used for prediction")
@@ -327,7 +329,9 @@ class BatchPredictionResponse(BaseModel):
     """Schema for batch prediction responses"""
     
     model_config = ConfigDict(
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     predictions: List[PredictionResult] = Field(description="List of predictions")
@@ -341,9 +345,9 @@ class ModelPerformance(BaseSchema):
     """Schema for ML model performance metrics"""
     
     model_config = ConfigDict(
-        protected_namespaces=(),
-        from_attributes=True,
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     model_name: str = Field(description="Model name")
@@ -383,7 +387,9 @@ class PredictionComparison(BaseModel):
     """Schema for comparing predictions with actual prices"""
     
     model_config = ConfigDict(
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     prediction_id: int = Field(description="Prediction ID")
@@ -409,8 +415,9 @@ class UserPredictionStats(BaseSchema):
     """Schema for user prediction statistics"""
     
     model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     user_id: int = Field(description="User ID")
@@ -437,6 +444,7 @@ class PredictionAlert(BaseSchema):
     """Schema for prediction-based alerts"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -461,7 +469,7 @@ class ModelTrainingRequest(BaseModel):
     """Schema for model training requests"""
     
     model_config = ConfigDict(
-        protected_namespaces=(),
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -492,8 +500,9 @@ class ModelTrainingResponse(BaseModel):
     """Schema for model training responses"""
     
     model_config = ConfigDict(
-        protected_namespaces=(),
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     model_id: str = Field(description="Trained model identifier")
@@ -508,20 +517,28 @@ class ModelTrainingResponse(BaseModel):
     hyperparameters: Dict[str, Any] = Field(description="Final hyperparameters")
     training_completed_at: datetime = Field(description="Training completion timestamp")
 
-class SymbolPredictionRequest(BaseSchema):
-    """Schema for symbol-based prediction requests (no crypto_id required)"""
+class SymbolPredictionRequest(BaseModel):
+    """
+    Schema for symbol-based prediction requests
+    Used when predicting by crypto symbol instead of crypto_id
+    """
     
     model_config = ConfigDict(
-        protected_namespaces=(),
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
     
-    days: int = Field(
-        default=1,
-        ge=1,
-        le=365, 
-        description="Prediction horizon in days"
+    crypto_symbol: str = Field(
+        description="Cryptocurrency symbol (e.g., BTC, ETH)",
+        min_length=2,
+        max_length=10
+    )
+    prediction_horizon: Optional[int] = Field(
+        default=24,  # Default to 24 hours (1 day)
+        ge=1, 
+        le=8760,  # Max 1 year in hours
+        description="Prediction horizon in hours"
     )
     model_type: str = Field(
         default="LSTM", 
@@ -531,6 +548,30 @@ class SymbolPredictionRequest(BaseSchema):
         default=True, 
         description="Whether to include confidence score"
     )
+    days: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=365,
+        description="Prediction horizon in days (converts to hours)"
+    )
+
+    @model_validator(mode='before')
+    @classmethod
+    def handle_days_conversion(cls, values):
+        """Convert days to hours if provided"""
+        if isinstance(values, dict):
+            days = values.get('days')
+            prediction_horizon = values.get('prediction_horizon')
+            
+            # If days provided, convert to hours
+            if days is not None and not prediction_horizon:
+                values['prediction_horizon'] = days * 24
+            
+            # Ensure we have a prediction horizon
+            if not values.get('prediction_horizon'):
+                values['prediction_horizon'] = 24  # Default 1 day
+                
+        return values
 
     @field_validator('model_type')
     @classmethod
@@ -540,3 +581,12 @@ class SymbolPredictionRequest(BaseSchema):
         if v.upper() not in valid_models:
             raise ValueError(f'Model type must be one of: {", ".join(valid_models)}')
         return v.upper()
+
+    @field_validator('crypto_symbol')
+    @classmethod
+    def validate_crypto_symbol(cls, v):
+        """Validate crypto symbol format"""
+        v = v.upper().strip()
+        if not v.isalpha():
+            raise ValueError("Cryptocurrency symbol must contain only letters")
+        return v

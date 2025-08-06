@@ -13,6 +13,7 @@ class CryptocurrencyBase(BaseSchema):
     """Base cryptocurrency schema with common fields"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -51,6 +52,7 @@ class CryptocurrencyCreate(CryptocurrencyBase):
     """Schema for creating a new cryptocurrency"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -62,6 +64,7 @@ class CryptocurrencyUpdate(BaseModel):
     """Schema for updating cryptocurrency information"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -92,8 +95,9 @@ class CryptocurrencyResponse(CryptocurrencyBase):
     """Schema for cryptocurrency data in API responses"""
     
     model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     id: int = Field(description="Unique identifier")
@@ -106,8 +110,9 @@ class CryptocurrencyWithPrice(CryptocurrencyResponse):
     """Schema for cryptocurrency with latest price information"""
     
     model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     latest_price: Optional[Decimal] = Field(
@@ -132,8 +137,9 @@ class CryptocurrencyStats(BaseSchema):
     """Schema for cryptocurrency statistics"""
     
     model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     crypto_id: int = Field(description="Cryptocurrency ID")
@@ -160,7 +166,9 @@ class CryptocurrencyList(BaseModel):
     """Schema for cryptocurrency list responses"""
     
     model_config = ConfigDict(
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     cryptocurrencies: List[CryptocurrencyResponse] = Field(
@@ -174,6 +182,7 @@ class CryptocurrencySearch(BaseModel):
     """Schema for cryptocurrency search parameters"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -197,6 +206,7 @@ class CryptocurrencyBulkUpdate(BaseModel):
     """Schema for bulk cryptocurrency operations"""
     
     model_config = ConfigDict(
+        protected_namespaces=(),  
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -222,7 +232,9 @@ class MarketData(BaseSchema):
     """Schema for market data from external APIs"""
     
     model_config = ConfigDict(
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     symbol: str = Field(description="Cryptocurrency symbol")
@@ -250,8 +262,9 @@ class CryptocurrencyRanking(BaseModel):
     """Schema for cryptocurrency rankings"""
     
     model_config = ConfigDict(
-        from_attributes=True,
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     rank: int = Field(description="Market cap rank")
@@ -263,7 +276,9 @@ class SupportedCryptocurrencies(BaseModel):
     """Schema for supported cryptocurrencies list"""
     
     model_config = ConfigDict(
-        str_strip_whitespace=True
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
     )
     
     total_supported: int = Field(description="Total supported cryptocurrencies")
