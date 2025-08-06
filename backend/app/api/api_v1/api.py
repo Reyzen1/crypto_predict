@@ -30,9 +30,10 @@ api_router.include_router(external.router, prefix="/external", tags=["External A
 api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks"])
 api_router.include_router(health.router, prefix="/system", tags=["System Health"])
 api_router.include_router(ml_training.router, prefix="/ml", tags=["Machine Learning"])
-api_router.include_router(prediction.router, prefix="/crypto", tags=["Predictions"])
+api_router.include_router(prediction.router, prefix="/ml/predictions", tags=["Predictions"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(websocket.router, prefix="/ws", tags=["WebSocket"])
+api_router.include_router(crypto.router, prefix="/crypto", tags=["Cryptocurrency"])
 
 # =====================================
 # API INFORMATION ENDPOINT
@@ -59,7 +60,7 @@ async def api_info():
         ],
         "endpoints": {
             "predictions": {
-                "symbol_prediction": "POST /crypto/{symbol}/predict",
+                "symbol_prediction": "POST /ml/predictions/{symbol}/predict",
                 "legacy_prediction": "POST /predictions/predict"
             },
             "dashboard": {

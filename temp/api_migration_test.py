@@ -172,7 +172,7 @@ class APIMigrationTester:
         """Test new symbol-based prediction endpoint"""
         try:
             symbol = "BTC"
-            url = f"{self.base_url}/api/v1/crypto/{symbol}/predict"
+            url = f"{self.base_url}/api/v1/ml/predictions/{symbol}/predict"
             
             # New request format (frontend compatible)
             payload = {
@@ -385,7 +385,7 @@ class APIMigrationTester:
         """Test prediction display scenario"""
         try:
             # Simulate prediction request from frontend
-            url = f"{self.base_url}/api/v1/crypto/BTC/predict"
+            url = f"{self.base_url}/api/v1/ml/predictions/BTC/predict"
             payload = {"days": 1}
             
             response = self.make_authenticated_request("POST", url, json=payload, timeout=60)
@@ -490,7 +490,7 @@ def main():
         print("   Significant issues need to be addressed")
     
     print("\n🔗 New Endpoint URLs:")
-    print("   • Prediction: POST /api/crypto/{symbol}/predict")
+    print("   • Prediction: POST /api/ml/predictions/{symbol}/predict")
     print("   • Dashboard: GET /api/dashboard/summary")
     print("   • Quick Data: GET /api/dashboard/quick/{symbol}")
     print("   • Prices: GET /api/dashboard/prices")

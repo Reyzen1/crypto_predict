@@ -51,7 +51,7 @@ def check_registered_routes():
         print("\n🎯 Checking Target Endpoints:")
         
         target_patterns = [
-            "/api/v1/crypto/{symbol}/predict",
+            "/api/v1/ml/predictions/{symbol}/predict",
             "/api/v1/dashboard/summary", 
             "/api/v1/dashboard/quick/{symbol}",
             "/api/v1/dashboard/prices",

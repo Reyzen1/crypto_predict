@@ -120,7 +120,7 @@ Cryptocurrency:
 GET /crypto/list
 GET /crypto/{symbol}/price
 GET /crypto/{symbol}/historical
-POST /crypto/{symbol}/predict
+POST /ml/predictions/{symbol}/predict
 
 Health:
 GET /health

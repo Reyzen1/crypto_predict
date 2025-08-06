@@ -174,7 +174,7 @@ CREATE TABLE predictions (
 # /crypto/list
 # /crypto/{symbol}/price
 # /crypto/{symbol}/historical
-# /crypto/{symbol}/predict
+# /ml/predictions/{symbol}/predict
 ```
 
 ### روز 5-7: API Gateway Foundation + Data Pipeline
@@ -570,7 +570,7 @@ Cryptocurrency:
 GET /crypto/list
 GET /crypto/{symbol}/price
 GET /crypto/{symbol}/historical
-POST /crypto/{symbol}/predict
+POST /ml/predictions/{symbol}/predict
 
 Health:
 GET /health
