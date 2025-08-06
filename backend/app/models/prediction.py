@@ -1,7 +1,7 @@
 # File: backend/app/models/prediction.py
 # SQLAlchemy model for ML predictions storage
 
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, Index, Boolean, Text, JSON
+from sqlalchemy import Column, Integer, String, DECIMAL, Numeric, DateTime, ForeignKey, Index, Boolean, Text, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
@@ -28,10 +28,10 @@ class Prediction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # Optional user association
     
     # Prediction details
-    model_name = Column(String(50), nullable=False, index=True)           # LSTM, ARIMA, etc.
-    model_version = Column(String(20), nullable=False, default="1.0")     # Model version
-    predicted_price = Column(Numeric(precision=20, scale=8), nullable=False) # Predicted price
-    confidence_score = Column(Numeric(precision=5, scale=4), nullable=False) # Confidence (0-1)
+    model_name = Column(String(100), nullable=False, index=True)           # LSTM, ARIMA, etc.
+    model_version = Column(String(50), nullable=False, default="1.0")     # Model version
+    predicted_price = Column(DECIMAL(15, 4), nullable=False)              # Predicted price
+    confidence_score = Column(DECIMAL(5, 2), nullable=True)               # Confidence (0-1)
     
     # Prediction metadata
     prediction_horizon = Column(Integer, nullable=False)                  # Hours ahead (1, 24, 168, etc.)
@@ -40,7 +40,7 @@ class Prediction(Base):
     model_parameters = Column(JSON, nullable=True)                       # Model hyperparameters
     
     # Input data at prediction time
-    input_price = Column(Numeric(precision=20, scale=8), nullable=False)  # Price when prediction was made
+    input_price = Column(DECIMAL(15, 4), nullable=True)                  # Price when prediction was made
     input_features = Column(JSON, nullable=True)                         # Feature values at prediction time
     
     # Actual vs Predicted (filled when target_datetime is reached)

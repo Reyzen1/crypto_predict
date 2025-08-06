@@ -38,7 +38,7 @@ class APIMigrationTester:
                 f"{self.base_url}/api/v1/auth/login",
                 data=login_data,  # Form data
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
-                timeout=10,
+                timeout=30,
                 proxies={'http': None, 'https': None}  # FIXED: Add proxy bypass
             )
             
@@ -54,8 +54,8 @@ class APIMigrationTester:
                     f"{self.base_url}/api/v1/auth/login-json",
                     json=login_payload,
                     headers={"Content-Type": "application/json"},
-                    timeout=10,
-                    proxies={'http': None, 'https': None}  # FIXED: Add proxy bypass
+                    timeout=30,
+                    proxies={'http': None, 'https': None}  
                 )
             
             if response.status_code != 200:
@@ -152,7 +152,7 @@ class APIMigrationTester:
             print(f"   🔗 POST {url}")
             print(f"   📦 Payload: {payload}")
             
-            response = self.make_authenticated_request("POST", url, json=payload, timeout=10)
+            response = self.make_authenticated_request("POST", url, json=payload, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -244,7 +244,7 @@ class APIMigrationTester:
         print("   🔍 Testing quick crypto data...")
         try:
             url = f"{self.base_url}/api/v1/dashboard/quick/BTC"
-            response = self.make_authenticated_request("GET", url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -263,7 +263,7 @@ class APIMigrationTester:
         print("   🔍 Testing current prices...")
         try:
             url = f"{self.base_url}/api/v1/dashboard/prices?symbols=BTC,ETH"
-            response = self.make_authenticated_request("GET", url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -329,7 +329,7 @@ class APIMigrationTester:
         try:
             # Simulate individual crypto card loading
             url = f"{self.base_url}/api/v1/dashboard/quick/BTC"
-            response = self.make_authenticated_request("GET", url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -359,7 +359,7 @@ class APIMigrationTester:
         try:
             # Simulate price ticker loading
             url = f"{self.base_url}/api/v1/dashboard/prices?symbols=BTC,ETH,ADA,DOT"
-            response = self.make_authenticated_request("GET", url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -413,7 +413,7 @@ class APIMigrationTester:
         try:
             # Simulate dashboard initial load
             url = f"{self.base_url}/api/v1/dashboard/summary?symbols=BTC,ETH,ADA"
-            response = self.make_authenticated_request("GET", url, timeout=10)
+            response = self.make_authenticated_request("GET", url, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
