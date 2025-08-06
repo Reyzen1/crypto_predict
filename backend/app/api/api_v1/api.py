@@ -57,30 +57,7 @@ async def api_info():
             "Real-time WebSocket updates",
             "ML model training and serving",
             "User authentication and management"
-        ],
-        "endpoints": {
-            "predictions": {
-                "symbol_prediction": "POST /ml/predictions/{symbol}/predict",
-                "legacy_prediction": "POST /predictions/predict"
-            },
-            "dashboard": {
-                "summary": "GET /dashboard/summary",
-                "crypto_details": "GET /dashboard/crypto/{symbol}",
-                "quick_data": "GET /dashboard/quick/{symbol}",
-                "prices": "GET /dashboard/prices"
-            },
-            "websocket": {
-                "dashboard": "ws://host/ws/dashboard",
-                "symbol_prices": "ws://host/ws/prices/{symbol}"
-            },
-            "authentication": {
-                "register": "POST /auth/register",
-                "login": "POST /auth/login"
-            }
-        },
-        "supported_symbols": ["BTC", "ETH", "ADA", "DOT"],
-        "ml_models": ["LSTM", "LINEAR_REGRESSION", "RANDOM_FOREST"],
-        "system_status": "operational"
+        ]
     }
 
 # =====================================
