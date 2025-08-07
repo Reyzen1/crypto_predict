@@ -1,0 +1,167 @@
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+ 
+ -------------- data_worker@DESKTOP-M6P1TMF v5.3.4 (emerald-rush)
+--- ***** ----- 
+-- ******* ---- Windows-10-10.0.19045-SP0 2025-08-07 13:57:41
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         crypto_predict:0x270f5baef00
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     redis://localhost:6379/0
+- *** --- * --- .> concurrency: 3 (prefork)
+-- ******* ---- .> task events: ON
+--- ***** ----- 
+ -------------- [queues]
+                .> default          exchange=default(direct) key=default
+                .> price_data       exchange=price_data(direct) key=price_data
+
+[tasks]
+  . app.tasks.celery_app.debug_task
+  . app.tasks.celery_app.health_check
+  . app.tasks.price_collector.cleanup_old_data
+  . app.tasks.price_collector.discover_new_cryptocurrencies
+  . app.tasks.price_collector.get_task_status
+  . app.tasks.price_collector.sync_all_prices
+  . app.tasks.price_collector.sync_historical_data
+  . app.tasks.price_collector.sync_specific_cryptocurrency
+  . ml_tasks.auto_train_models
+  . ml_tasks.cleanup_old_predictions
+  . ml_tasks.evaluate_model_performance
+  . ml_tasks.generate_scheduled_predictions
+
+[2025-08-07 13:57:41,325: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2025-08-07 13:57:41,325: INFO/MainProcess] mingle: searching for neighbors
+[2025-08-07 13:57:42,368: INFO/MainProcess] mingle: sync with 1 nodes
+[2025-08-07 13:57:42,368: INFO/MainProcess] mingle: sync complete
+[2025-08-07 13:57:42,434: INFO/MainProcess] data_worker@DESKTOP-M6P1TMF ready.
+[2025-08-07 13:57:42,434: INFO/MainProcess] Task app.tasks.price_collector.sync_all_prices[0c083fd8-9193-46d8-8c83-e2fe674626a0] received
+[2025-08-07 13:57:42,434: INFO/MainProcess] Task app.tasks.price_collector.sync_all_prices[f746fd61-83bc-480a-bdba-77d49fac109e] received
+[2025-08-07 13:57:42,434: INFO/MainProcess] Task app.tasks.price_collector.sync_all_prices[27e19bfd-6970-4f39-901e-3c27d3c0b28c] received
+[2025-08-07 13:57:42,761: INFO/SpawnPoolWorker-2] child process 7748 calling self.run()
+[2025-08-07 13:57:42,819: INFO/SpawnPoolWorker-1] child process 8208 calling self.run()
+[2025-08-07 13:57:42,850: INFO/SpawnPoolWorker-3] child process 4164 calling self.run()
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+[2025-08-07 13:58:08,175: INFO/SpawnPoolWorker-6] child process 7364 calling self.run()
+[2025-08-07 13:58:08,457: INFO/SpawnPoolWorker-4] child process 9692 calling self.run()
+[2025-08-07 13:58:08,463: INFO/SpawnPoolWorker-5] child process 5536 calling self.run()
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+[2025-08-07 13:58:30,232: INFO/SpawnPoolWorker-8] child process 288 calling self.run()
+[2025-08-07 13:58:30,238: INFO/SpawnPoolWorker-7] child process 3500 calling self.run()
+[2025-08-07 13:58:30,253: INFO/SpawnPoolWorker-9] child process 4456 calling self.run()
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized

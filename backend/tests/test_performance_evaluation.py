@@ -663,14 +663,14 @@ class TestSystemResourcePerformance:
         from app.ml.config.ml_config import ml_config
         import tempfile
         
-        model_storage_path = ml_config.model_storage_path
+        models_storage_path = ml_config.models_storage_path
         
         # Test directory access
         start_time = time.time()
         
         # List files in model storage
-        if os.path.exists(model_storage_path):
-            files = os.listdir(model_storage_path)
+        if os.path.exists(models_storage_path):
+            files = os.listdir(models_storage_path)
             list_time = (time.time() - start_time) * 1000
             
             print(f"📁 Model storage performance:")

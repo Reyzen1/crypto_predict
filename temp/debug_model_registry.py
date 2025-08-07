@@ -56,7 +56,7 @@ def check_model_registry():
         traceback.print_exc()
         return False
 
-def check_model_storage_path():
+def check_models_storage_path():
     """بررسی مسیر ذخیره مدل‌ها"""
     print("\n🗂️ Checking Model Storage Path...")
     print("=" * 40)
@@ -149,7 +149,7 @@ def main():
     registry_ok = check_model_registry()
     
     # Check 2: Storage Path
-    storage_ok = check_model_storage_path()
+    storage_ok = check_models_storage_path()
     
     # Check 3: Database
     db_ok = check_training_results()

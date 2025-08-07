@@ -305,7 +305,7 @@ def cleanup_test_data():
     
     # Clean up any test model files
     import glob
-    test_model_pattern = os.path.join(ml_config.model_storage_path, "test*")
+    test_model_pattern = os.path.join(ml_config.models_storage_path, "test*")
     for test_file in glob.glob(test_model_pattern):
         try:
             os.remove(test_file)
