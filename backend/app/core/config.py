@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:admin123@localhost:5433/cryptopredict")
     
     # Redis settings - AUTO-DETECT from environment
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
     
     # External API settings
     COINGECKO_API_KEY: Optional[str] = os.getenv("COINGECKO_API_KEY")

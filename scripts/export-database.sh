@@ -150,10 +150,10 @@ JWT_SECRET_KEY=dev-jwt-secret-key-change-in-production-87654321
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 # Redis Settings
-REDIS_URL=redis://localhost:6379/0
+REDIS_URL=redis://127.0.0.1:6379/0
 
 # CORS Settings
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://testserver
+CORS_ORIGINS=http://localhost:3000,http://localhost:3000,http://localhost:8000,http://testserver
 
 # External API Keys (update with your own)
 COINGECKO_API_KEY=your_coingecko_api_key_here

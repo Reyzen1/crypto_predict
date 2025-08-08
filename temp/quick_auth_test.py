@@ -19,7 +19,7 @@ def test_auth_register():
         "last_name": "User"
     }
     
-    url = "http://127.0.0.1:8000/api/v1/auth/register"
+    url = "http://localhost:8000/api/v1/auth/register"
     
     try:
         print(f"📡 POST {url}")
@@ -66,7 +66,7 @@ def test_health_endpoint():
     print("=" * 27)
     
     try:
-        response = requests.get("http://127.0.0.1:8000/health", timeout=5)
+        response = requests.get("http://localhost:8000/health", timeout=5)
         print(f"📈 Status: {response.status_code}")
         
         if response.status_code == 200:

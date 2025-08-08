@@ -60,7 +60,7 @@ class MLTrainingAPITester:
                 "last_name": "User"
             }
             
-            url = "http://127.0.0.1:8000/api/v1/auth/register"
+            url = "http://localhost:8000/api/v1/auth/register"
 
             response = requests.post(
                 url,

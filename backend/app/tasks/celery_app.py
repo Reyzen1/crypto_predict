@@ -98,3 +98,7 @@ def health_check():
         "broker": celery_app.conf.broker_url,
         "backend": celery_app.conf.result_backend
     }
+
+app = celery_app
+
+__all__ = ['app', 'celery_app']

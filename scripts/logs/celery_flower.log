@@ -1,3 +1,4 @@
+=== New start Sat Aug  9 00:20:12 IST 2025 ===
 INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
 INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
 INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
@@ -10,8 +11,8 @@ INFO:app.ml.training.training_service:MLTrainingService initialized with existin
 INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
 INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
 INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
-INFO:flower.command:Visit me at http://127.0.0.1:5555
-INFO:flower.command:Broker: redis://localhost:6379/0
+INFO:flower.command:Visit me at http://0.0.0.0:5561
+INFO:flower.command:Broker: redis://127.0.0.1:6379/0
 INFO:flower.command:Registered tasks: 
 ['app.tasks.celery_app.debug_task',
  'app.tasks.celery_app.health_check',
@@ -34,4 +35,4 @@ INFO:flower.command:Registered tasks:
  'ml_tasks.cleanup_old_predictions',
  'ml_tasks.evaluate_model_performance',
  'ml_tasks.generate_scheduled_predictions']
-INFO:kombu.mixins:Connected to redis://localhost:6379/0
+INFO:kombu.mixins:Connected to redis://127.0.0.1:6379/0

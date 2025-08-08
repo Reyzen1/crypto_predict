@@ -6,7 +6,7 @@
 ```bash
 # Ensure you have your .env file configured
 # DATABASE_URL=postgresql://postgres:admin123@localhost:5433/cryptopredict
-# REDIS_URL=redis://localhost:6379/0
+# REDIS_URL=redis://127.0.0.1:6379/0
 ```
 
 ### 2. Switch to Local Development
@@ -37,7 +37,7 @@ chmod +x dev-mode-switcher.sh
 ```bash
 ./dev-mode-switcher.sh local
 ```
-**Uses**: PostgreSQL (localhost:5433) + Redis (localhost:6379)
+**Uses**: PostgreSQL (localhost:5433) + Redis (127.0.0.1:6379)
 
 ### To Docker Development
 ```bash

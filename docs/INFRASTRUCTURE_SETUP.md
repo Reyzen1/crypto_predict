@@ -66,7 +66,7 @@ The system automatically detects your local services. Update `.env` file:
 ```env
 # Local Development Configuration
 DATABASE_URL=postgresql://USERNAME:PASSWORD@localhost:PORT/cryptopredict
-REDIS_URL=redis://localhost:6379/0
+REDIS_URL=redis://127.0.0.1:6379/0
 ENVIRONMENT=development
 DEBUG=true
 ```
@@ -193,7 +193,7 @@ cryptopredict-mvp/
 | Variable | Description | Local Example | Docker Example |
 |----------|-------------|---------------|----------------|
 | `DATABASE_URL` | PostgreSQL connection | `postgresql://postgres:admin123@localhost:5433/cryptopredict` | `postgresql://postgres:postgres123@postgres:5432/cryptopredict` |
-| `REDIS_URL` | Redis connection | `redis://localhost:6379/0` | `redis://redis:6379/0` |
+| `REDIS_URL` | Redis connection | `redis://127.0.0.1:6379/0` | `redis://redis:6379/0` |
 | `ENVIRONMENT` | Environment mode | `development` | `development` |
 | `DEBUG` | Debug mode | `true` | `true` |
 

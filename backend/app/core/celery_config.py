@@ -16,8 +16,8 @@ class CeleryConfig:
     """
     
     # Redis Broker Configuration
-    broker_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    result_backend: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    broker_url: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+    result_backend: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
     
     # Task Serialization
     task_serializer: str = "json"

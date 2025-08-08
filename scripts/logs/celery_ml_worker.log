@@ -1,0 +1,50 @@
+=== New start Sat Aug  9 00:19:39 IST 2025 ===
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+ 
+ -------------- ml_worker@DESKTOP-M6P1TMF v5.3.4 (emerald-rush)
+--- ***** ----- 
+-- ******* ---- Windows-10-10.0.19045-SP0 2025-08-09 00:19:49
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         crypto_predict:0x2317395e1b0
+- ** ---------- .> transport:   redis://127.0.0.1:6379/0
+- ** ---------- .> results:     redis://127.0.0.1:6379/0
+- *** --- * --- .> concurrency: 4 (eventlet)
+-- ******* ---- .> task events: ON
+--- ***** ----- 
+ -------------- [queues]
+                .> ml_tasks         exchange=ml_tasks(direct) key=ml_tasks
+                
+
+[tasks]
+  . app.tasks.celery_app.debug_task
+  . app.tasks.celery_app.health_check
+  . app.tasks.price_collector.cleanup_old_data
+  . app.tasks.price_collector.discover_new_cryptocurrencies
+  . app.tasks.price_collector.get_task_status
+  . app.tasks.price_collector.sync_all_prices
+  . app.tasks.price_collector.sync_historical_data
+  . app.tasks.price_collector.sync_specific_cryptocurrency
+  . ml_tasks.auto_train_models
+  . ml_tasks.cleanup_old_predictions
+  . ml_tasks.evaluate_model_performance
+  . ml_tasks.generate_scheduled_predictions
+
+[2025-08-09 00:19:49,785: INFO/MainProcess] Connected to redis://127.0.0.1:6379/0
+[2025-08-09 00:19:50,160: INFO/MainProcess] mingle: searching for neighbors
+[2025-08-09 00:19:51,879: INFO/MainProcess] mingle: sync with 1 nodes
+[2025-08-09 00:19:51,879: INFO/MainProcess] mingle: sync complete
+[2025-08-09 00:19:52,441: INFO/MainProcess] ml_worker@DESKTOP-M6P1TMF ready.
+[2025-08-09 00:19:52,535: INFO/MainProcess] pidbox: Connected to redis://127.0.0.1:6379/0.
+[2025-08-09 00:24:22,216: INFO/MainProcess] missed heartbeat from data_worker@DESKTOP-M6P1TMF

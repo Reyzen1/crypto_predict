@@ -55,7 +55,7 @@ show_status() {
         
         # Check Redis
         REDIS_URL=$(grep "REDIS_URL" .env | cut -d'=' -f2)
-        if [[ "$REDIS_URL" == *"localhost:6379"* ]]; then
+        if [[ "$REDIS_URL" == *"127.0.0.1:6379"* ]]; then
             echo "🔹 Cache: Local Redis"
         elif [[ "$REDIS_URL" == *"redis:6379"* ]]; then
             echo "🔹 Cache: Docker Redis"
@@ -136,9 +136,9 @@ switch_to_local() {
             if [[ $line =~ ^DATABASE_URL= ]]; then
                 echo "DATABASE_URL=postgresql://postgres:admin123@localhost:5433/cryptopredict" >> "$temp_env"
             elif [[ $line =~ ^REDIS_URL= ]]; then
-                echo "REDIS_URL=redis://localhost:6379/0" >> "$temp_env"
+                echo "REDIS_URL=redis://127.0.0.1:6379/0" >> "$temp_env"
             elif [[ $line =~ ^CORS_ORIGINS= ]]; then
-                echo "CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://testserver" >> "$temp_env"
+                echo "CORS_ORIGINS=http://localhost:3000,http://localhost:3000,http://localhost:8000,http://testserver" >> "$temp_env"
             elif [[ $line =~ ^API_URL= ]]; then
                 echo "API_URL=http://localhost:8000" >> "$temp_env"
             elif [[ $line =~ ^WS_URL= ]]; then
