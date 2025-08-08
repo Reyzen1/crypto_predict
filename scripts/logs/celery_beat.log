@@ -1,4 +1,3 @@
-=== New start Sat Aug  9 00:20:05 IST 2025 ===
 INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
 INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
 INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
@@ -11,7 +10,9 @@ INFO:app.ml.training.training_service:MLTrainingService initialized with existin
 INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
 INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
 INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
-[2025-08-09 00:20:15,379: INFO/MainProcess] beat: Starting...
-[2025-08-09 00:25:15,497: INFO/MainProcess] Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
-[2025-08-09 00:30:00,015: INFO/MainProcess] Scheduler: Sending due task sync-historical-every-hour (app.tasks.price_collector.sync_historical_data)
-[2025-08-09 00:30:15,482: INFO/MainProcess] Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+[2025-08-09 02:58:25,434: INFO/MainProcess] beat: Starting...
+[2025-08-09 02:58:25,796: INFO/MainProcess] Scheduler: Sending due task discover-new-cryptos-daily (app.tasks.price_collector.discover_new_cryptocurrencies)
+[2025-08-09 02:58:26,356: INFO/MainProcess] Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+[2025-08-09 02:58:26,591: INFO/MainProcess] Scheduler: Sending due task sync-historical-every-hour (app.tasks.price_collector.sync_historical_data)
+[2025-08-09 03:03:26,360: INFO/MainProcess] Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+[2025-08-09 03:08:26,361: INFO/MainProcess] Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
