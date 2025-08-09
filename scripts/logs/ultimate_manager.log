@@ -1,0 +1,38 @@
+[2025-08-09 12:28:25] [INFO] 📡 Redis Connectivity Check:
+[2025-08-09 12:28:26] [INFO] 🌐 Port Availability Check:
+[2025-08-09 12:28:26] [SUCCESS] Redis port 6379 is listening
+[2025-08-09 12:28:26] [SUCCESS] Flower port 5555 is available
+[2025-08-09 12:28:26] [SUCCESS] 🎉 Environment is fully ready!
+[2025-08-09 12:28:26] [INFO] 📁 Setting up enhanced directory structure...
+[2025-08-09 12:28:26] [SUCCESS] Directory structure created successfully
+[2025-08-09 12:28:26] [INFO] 🔄 Rotating large log files...
+[2025-08-09 12:28:27] [INFO] No log rotation needed
+[2025-08-09 12:28:27] [HEADER] 🧹 Comprehensive Process Cleanup
+[2025-08-09 12:28:27] [INFO] 1️⃣ Graceful worker shutdown...
+[2025-08-09 12:28:27] [INFO] 2️⃣ System services shutdown...
+[2025-08-09 12:28:27] [INFO] 3️⃣ Force cleanup remaining processes...
+[2025-08-09 12:28:27] [INFO] 4️⃣ Cleaning PID files...
+[2025-08-09 12:28:27] [INFO] 5️⃣ Cleaning problematic files...
+[2025-08-09 12:28:27] [SUCCESS] Cleanup completed successfully
+[2025-08-09 12:28:27] [INFO] 🤖 Smart cleanup based on process detection...
+[2025-08-09 12:28:30] [INFO] 🎯 Starting 4 Enhanced Solo Pool Workers...\n
+[2025-08-09 12:28:30] [INFO] 🔄 Processing data_worker...
+[2025-08-09 12:28:30] [WORKER] Starting data_worker with Enhanced Solo Pool...
+[2025-08-09 12:28:30] [INFO] Worker index: 0
+[2025-08-09 12:28:30] [INFO] Queues: price_data,market_data,data_sync
+[2025-08-09 12:28:30] [INFO] Log: scripts/logs/data_worker_solo.log
+[2025-08-09 12:28:30] [INFO] PID file: scripts/logs/pids/data_worker_solo.pid
+[2025-08-09 12:28:31] [INFO] ⏳ Monitoring startup (PID: 806)...
+[2025-08-09 12:28:35] [SUCCESS] data_worker started successfully (PID: 806)
+[2025-08-09 12:28:35] [SUCCESS] data_worker started with Solo Pool (PID: 806)
+[2025-08-09 12:28:35] [WARNING] \n🚨 Script interrupted with exit code: 1
+[2025-08-09 12:28:35] [WARNING] Script interrupted with exit code: 1
+[2025-08-09 12:28:35] [INFO] Ultimate Worker Manager session ended at 2025-08-09 12:28:35
+[2025-08-09 12:29:51] [INFO] Ultimate Worker Manager started with action: status
+[2025-08-09 12:29:51] [HEADER] 📊 Comprehensive System Status
+[2025-08-09 12:29:51] [HEADER] ==============================\n
+[2025-08-09 12:29:51] [INFO] 🖥️  SYSTEM OVERVIEW:
+[2025-08-09 12:29:51] [INFO] 🔧 SOLO POOL WORKERS:
+[2025-08-09 12:29:52] [WARNING] \n🚨 Script interrupted with exit code: 1
+[2025-08-09 12:29:52] [WARNING] Script interrupted with exit code: 1
+[2025-08-09 12:29:52] [INFO] Ultimate Worker Manager session ended at 2025-08-09 12:29:52
