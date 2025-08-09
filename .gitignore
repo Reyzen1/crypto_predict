@@ -65,3 +65,14 @@ dmypy.json
 
 # macOS system files
 .DS_Store
+
+# Ignore scripts logs folder
+scripts/logs/
+
+# Ignore specific file extensions
+*.bak
+*.dir
+*.dat
+
+# Ignore backend models folder
+backend/models/
