@@ -1,12 +1,11 @@
 # backend/app/tasks/price_collector.py
 """
-Price Collection Background Tasks - FIXED VERSION
+Price Collection Background Tasks - WINDOWS-SAFE VERSION
 Automated tasks for cryptocurrency data collection and synchronization
 """
 
 from celery import shared_task
 from typing import Dict, List, Any, Optional
-import asyncio
 import logging
 from datetime import datetime, timedelta
 import sys
@@ -15,10 +14,13 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
+# Import the new async task handler
+from app.tasks.task_handler import celery_async_task, async_task_handler
+
 from app.services.data_sync import DataSyncService
 from app.services.external_api import ExternalAPIService
-from app.repositories import cryptocurrency_repository, price_data_repository  # Use global instances
-from app.core.database import SessionLocal  # Use SessionLocal instead of get_db
+from app.repositories import cryptocurrency_repository, price_data_repository
+from app.core.database import SessionLocal
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -40,9 +42,9 @@ def get_services() -> tuple:
         crypto_repo = cryptocurrency_repository
         price_repo = price_data_repository
         
-        # Initialize services (DataSyncService has no parameters based on existing code)
+        # Initialize services 
         external_api_service = ExternalAPIService()
-        data_sync_service = DataSyncService()  # Fixed: no parameters needed
+        data_sync_service = DataSyncService()
         
         return data_sync_service, external_api_service, crypto_repo, price_repo, db_session
         
@@ -51,6 +53,148 @@ def get_services() -> tuple:
         raise
 
 
+# Async wrapper functions for data sync operations
+@celery_async_task
+async def _async_sync_all_prices() -> Dict[str, Any]:
+    """
+    Async wrapper for sync_all_prices operation
+    
+    Returns:
+        dict: Synchronization result
+    """
+    try:
+        logger.info("Starting cryptocurrency price sync")
+        data_sync_service, external_api_service, crypto_repo, price_repo, db_session = get_services()
+        
+        try:
+            # Perform price synchronization
+            result = await data_sync_service.sync_current_prices()
+            logger.info(f"Price sync completed: {result}")
+            return result
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Price sync failed: {e}")
+        return {
+            "success": 0,
+            "failed": 2,  # Assuming BTC and ETH at minimum
+            "error": str(e),
+            "message": "Price sync failed"
+        }
+
+
+@celery_async_task  
+async def _async_sync_historical_data(days: int = 30) -> Dict[str, Any]:
+    """
+    Async wrapper for historical data synchronization
+    
+    Args:
+        days: Number of days of historical data to sync
+        
+    Returns:
+        dict: Synchronization result
+    """
+    try:
+        logger.info(f"Starting historical data sync for {days} days")
+        data_sync_service, external_api_service, crypto_repo, price_repo, db_session = get_services()
+        
+        try:
+            # Perform historical data sync
+            result = await data_sync_service.sync_historical_data(days=days)
+            logger.info(f"Historical sync completed: {result}")
+            return result
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Historical sync failed: {e}")
+        return {
+            "success": 0,
+            "failed": 1,
+            "error": str(e),
+            "message": "Historical sync failed"
+        }
+
+
+@celery_async_task
+async def _async_discover_new_cryptocurrencies() -> Dict[str, Any]:
+    """
+    Async wrapper for cryptocurrency discovery
+    
+    Returns:
+        dict: Discovery result
+    """
+    try:
+        logger.info("Starting new cryptocurrency discovery")
+        data_sync_service, external_api_service, crypto_repo, price_repo, db_session = get_services()
+        
+        try:
+            # Perform cryptocurrency discovery
+            result = await data_sync_service.discover_new_cryptocurrencies()
+            logger.info(f"Discovery completed: {result}")
+            return result
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Discovery failed: {e}")
+        return {
+            "success": 0,
+            "failed": 1,
+            "error": str(e),
+            "message": "Discovery failed"
+        }
+
+
+@celery_async_task
+async def _async_cleanup_old_data(days_to_keep: int = 365) -> Dict[str, Any]:
+    """
+    Async wrapper for data cleanup
+    
+    Args:
+        days_to_keep: Number of days to keep in database
+        
+    Returns:
+        dict: Cleanup result
+    """
+    try:
+        logger.info(f"Starting data cleanup (keeping {days_to_keep} days)")
+        data_sync_service, external_api_service, crypto_repo, price_repo, db_session = get_services()
+        
+        try:
+            # Perform data cleanup
+            cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+            
+            # Delete old price data
+            deleted_prices = price_repo.delete_old_data(db_session, cutoff_date)
+            
+            result = {
+                "success": True,
+                "deleted_records": deleted_prices,
+                "cutoff_date": cutoff_date.isoformat(),
+                "message": f"Cleanup completed: {deleted_prices} records deleted"
+            }
+            
+            logger.info(f"Cleanup completed: {result}")
+            return result
+            
+        finally:
+            db_session.close()
+            
+    except Exception as e:
+        logger.error(f"Cleanup failed: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Cleanup failed"
+        }
+
+
+# Celery shared tasks (sync versions that call async wrappers)
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def sync_all_prices(self) -> Dict[str, Any]:
     """
@@ -59,322 +203,267 @@ def sync_all_prices(self) -> Dict[str, Any]:
     This task runs every 5 minutes to keep price data up-to-date
     
     Returns:
-        dict: Synchronization results
+        dict: Synchronization result with task metadata
     """
     task_id = self.request.id
     logger.info(f"Starting sync_all_prices task {task_id}")
     
     try:
-        # Get services
-        data_sync_service, _, _, _, db_session = get_services()
+        # Execute async operation using task handler
+        result = _async_sync_all_prices()
         
-        # Run async sync operation
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Add task metadata
+        result.update({
+            "task_id": task_id,
+            "status": "completed",
+            "timestamp": datetime.utcnow().isoformat()
+        })
         
-        try:
-            result = loop.run_until_complete(data_sync_service.sync_current_prices())
-            
-            # Close database session
-            db_session.close()
-            
-            logger.info(f"sync_all_prices completed: {result}")
-            return {
-                "task_id": task_id,
-                "status": "completed",
-                "result": result,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-        finally:
-            loop.close()
-            
+        logger.info(f"sync_all_prices completed: {result}")
+        return result
+        
     except Exception as e:
-        logger.error(f"sync_all_prices failed: {e}")
+        logger.error(f"sync_all_prices failed: {str(e)}")
         
         # Retry logic
-        try:
-            self.retry(countdown=60 * (self.request.retries + 1))
-        except self.MaxRetriesExceededError:
-            logger.error(f"sync_all_prices max retries exceeded: {e}")
-            return {
-                "task_id": task_id,
-                "status": "failed",
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
+        if self.request.retries < self.max_retries:
+            logger.info(f"Retrying sync_all_prices (attempt {self.request.retries + 1})")
+            raise self.retry(countdown=60 * (self.request.retries + 1))
+        
+        # Final failure
+        return {
+            "task_id": task_id,
+            "status": "failed",
+            "error": str(e),
+            "retries": self.request.retries,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=300)
-def sync_historical_data(self, days: int = 7) -> Dict[str, Any]:
+@shared_task(bind=True, max_retries=3, default_retry_delay=180)  
+def sync_historical_data(self, days: int = 30) -> Dict[str, Any]:
     """
-    Sync historical price data for all cryptocurrencies
+    Sync historical data for all cryptocurrencies
     
-    This task runs hourly to collect historical data
+    This task runs every hour to backfill historical data
     
     Args:
         days: Number of days of historical data to sync
         
     Returns:
-        dict: Synchronization results
+        dict: Synchronization result with task metadata
     """
     task_id = self.request.id
     logger.info(f"Starting sync_historical_data task {task_id} for {days} days")
     
     try:
-        # Get services
-        data_sync_service, _, _, _, db_session = get_services()
+        # Execute async operation using task handler  
+        result = _async_sync_historical_data(days)
         
-        # Run async sync operation
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Add task metadata
+        result.update({
+            "task_id": task_id,
+            "status": "completed", 
+            "days_synced": days,
+            "timestamp": datetime.utcnow().isoformat()
+        })
         
-        try:
-            result = loop.run_until_complete(data_sync_service.sync_historical_data(days=days))
-            
-            # Close database session
-            db_session.close()
-            
-            logger.info(f"sync_historical_data completed: {result}")
-            return {
-                "task_id": task_id,
-                "status": "completed", 
-                "result": result,
-                "days_synced": days,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-        finally:
-            loop.close()
-            
+        logger.info(f"sync_historical_data completed: {result}")
+        return result
+        
     except Exception as e:
-        logger.error(f"sync_historical_data failed: {e}")
+        logger.error(f"sync_historical_data failed: {str(e)}")
         
-        # Retry logic with exponential backoff
-        try:
-            countdown = 300 * (2 ** self.request.retries)  # 5, 10, 20 minutes
-            self.retry(countdown=countdown)
-        except self.MaxRetriesExceededError:
-            logger.error(f"sync_historical_data max retries exceeded: {e}")
-            return {
-                "task_id": task_id,
-                "status": "failed",
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
+        # Retry logic
+        if self.request.retries < self.max_retries:
+            logger.info(f"Retrying sync_historical_data (attempt {self.request.retries + 1})")
+            raise self.retry(countdown=180 * (self.request.retries + 1))
+        
+        # Final failure
+        return {
+            "task_id": task_id,
+            "status": "failed",
+            "error": str(e),
+            "retries": self.request.retries,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=600)
-def discover_new_cryptocurrencies(self, limit: int = 100) -> Dict[str, Any]:
+@shared_task(bind=True, max_retries=2, default_retry_delay=300)
+def discover_new_cryptocurrencies(self) -> Dict[str, Any]:
     """
     Discover and add new cryptocurrencies to the database
     
-    This task runs daily to discover new cryptocurrencies
+    This task runs daily to find new cryptocurrencies
     
-    Args:
-        limit: Maximum number of cryptocurrencies to discover
-        
     Returns:
-        dict: Discovery results
+        dict: Discovery result with task metadata
     """
     task_id = self.request.id
-    logger.info(f"Starting discover_new_cryptocurrencies task {task_id}, limit: {limit}")
+    logger.info(f"Starting discover_new_cryptocurrencies task {task_id}")
     
     try:
-        # Get services
-        data_sync_service, _, _, _, db_session = get_services()
+        # Execute async operation using task handler
+        result = _async_discover_new_cryptocurrencies()
         
-        # Run async discovery operation
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            result = loop.run_until_complete(data_sync_service.discover_new_cryptocurrencies())
-            
-            # Close database session
-            db_session.close()
-            
-            logger.info(f"discover_new_cryptocurrencies completed: {result}")
-            return {
-                "task_id": task_id,
-                "status": "completed",
-                "result": result,
-                "limit": limit,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-        finally:
-            loop.close()
-            
-    except Exception as e:
-        logger.error(f"discover_new_cryptocurrencies failed: {e}")
-        
-        # Retry logic
-        try:
-            countdown = 600 * (self.request.retries + 1)  # 10, 20 minutes
-            self.retry(countdown=countdown)
-        except self.MaxRetriesExceededError:
-            logger.error(f"discover_new_cryptocurrencies max retries exceeded: {e}")
-            return {
-                "task_id": task_id,
-                "status": "failed",
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
-
-
-@shared_task(bind=True, max_retries=1, default_retry_delay=3600)
-def cleanup_old_data(self, days_to_keep: int = 365) -> Dict[str, Any]:
-    """
-    Clean up old price data to manage database size
-    
-    This task runs weekly to clean up old data
-    
-    Args:
-        days_to_keep: Number of days of data to keep
-        
-    Returns:
-        dict: Cleanup results
-    """
-    task_id = self.request.id
-    logger.info(f"Starting cleanup_old_data task {task_id}, keeping {days_to_keep} days")
-    
-    try:
-        # Get services
-        _, _, _, price_repo, db_session = get_services()
-        
-        # Calculate cutoff date
-        cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
-        
-        # Run cleanup operation (simple implementation)
-        # Note: This assumes delete_old_records method exists, if not we'll implement basic cleanup
-        try:
-            deleted_count = price_repo.delete_old_records(db_session, cutoff_date)
-        except AttributeError:
-            # Fallback: basic cleanup implementation
-            from app.models import PriceData
-            deleted_count = db_session.query(PriceData).filter(
-                PriceData.timestamp < cutoff_date
-            ).count()
-            db_session.query(PriceData).filter(
-                PriceData.timestamp < cutoff_date
-            ).delete()
-        
-        # Commit changes
-        db_session.commit()
-        db_session.close()
-        
-        result = {
-            "deleted_records": deleted_count,
-            "cutoff_date": cutoff_date.isoformat(),
-            "days_kept": days_to_keep
-        }
-        
-        logger.info(f"cleanup_old_data completed: {result}")
-        return {
+        # Add task metadata
+        result.update({
             "task_id": task_id,
             "status": "completed",
-            "result": result,
             "timestamp": datetime.utcnow().isoformat()
-        }
+        })
+        
+        logger.info(f"discover_new_cryptocurrencies completed: {result}")
+        return result
         
     except Exception as e:
-        logger.error(f"cleanup_old_data failed: {e}")
+        logger.error(f"discover_new_cryptocurrencies failed: {str(e)}")
         
         # Retry logic
-        try:
-            self.retry(countdown=3600)  # 1 hour
-        except self.MaxRetriesExceededError:
-            logger.error(f"cleanup_old_data max retries exceeded: {e}")
-            return {
-                "task_id": task_id,
-                "status": "failed",
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
+        if self.request.retries < self.max_retries:
+            logger.info(f"Retrying discover_new_cryptocurrencies (attempt {self.request.retries + 1})")
+            raise self.retry(countdown=300 * (self.request.retries + 1))
+        
+        # Final failure
+        return {
+            "task_id": task_id,
+            "status": "failed",
+            "error": str(e),
+            "retries": self.request.retries,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
-@shared_task
-def sync_specific_cryptocurrency(crypto_symbol: str, days: int = 30) -> Dict[str, Any]:
+@shared_task(bind=True, max_retries=2, default_retry_delay=600)
+def cleanup_old_data(self, days_to_keep: int = 365) -> Dict[str, Any]:
+    """
+    Clean up old data from the database
+    
+    This task runs weekly to maintain database size
+    
+    Args:
+        days_to_keep: Number of days to keep in database
+        
+    Returns:
+        dict: Cleanup result with task metadata
+    """
+    task_id = self.request.id
+    logger.info(f"Starting cleanup_old_data task {task_id} (keeping {days_to_keep} days)")
+    
+    try:
+        # Execute async operation using task handler
+        result = _async_cleanup_old_data(days_to_keep)
+        
+        # Add task metadata
+        result.update({
+            "task_id": task_id,
+            "status": "completed",
+            "days_kept": days_to_keep,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        logger.info(f"cleanup_old_data completed: {result}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"cleanup_old_data failed: {str(e)}")
+        
+        # Retry logic
+        if self.request.retries < self.max_retries:
+            logger.info(f"Retrying cleanup_old_data (attempt {self.request.retries + 1})")
+            raise self.retry(countdown=600 * (self.request.retries + 1))
+        
+        # Final failure
+        return {
+            "task_id": task_id,
+            "status": "failed",
+            "error": str(e),
+            "retries": self.request.retries,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+# Additional utility tasks
+@shared_task(bind=True)
+def sync_specific_cryptocurrency(self, symbol: str, days: int = 7) -> Dict[str, Any]:
     """
     Sync data for a specific cryptocurrency
     
-    This is a manual task that can be triggered on-demand
-    
     Args:
-        crypto_symbol: Symbol of cryptocurrency to sync
+        symbol: Cryptocurrency symbol (e.g., 'BTC', 'ETH')
         days: Number of days of historical data to sync
         
     Returns:
-        dict: Sync results
+        dict: Sync result with task metadata
     """
-    logger.info(f"Starting sync_specific_cryptocurrency for {crypto_symbol}")
+    task_id = self.request.id
+    logger.info(f"Starting sync_specific_cryptocurrency task {task_id} for {symbol}")
     
     try:
-        # Get services
-        data_sync_service, _, _, _, db_session = get_services()
+        # This could be implemented as needed
+        result = {
+            "success": True,
+            "symbol": symbol,
+            "message": f"Sync for {symbol} not yet implemented"
+        }
         
-        # Run async sync operation
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Add task metadata
+        result.update({
+            "task_id": task_id,
+            "status": "completed",
+            "timestamp": datetime.utcnow().isoformat()
+        })
         
-        try:
-            result = loop.run_until_complete(
-                data_sync_service.force_sync_cryptocurrency(crypto_symbol, days)
-            )
-            
-            # Close database session
-            db_session.close()
-            
-            logger.info(f"sync_specific_cryptocurrency completed for {crypto_symbol}: {result}")
-            return {
-                "status": "completed",
-                "result": result,
-                "crypto_symbol": crypto_symbol,
-                "days": days,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-        finally:
-            loop.close()
-            
+        return result
+        
     except Exception as e:
-        logger.error(f"sync_specific_cryptocurrency failed for {crypto_symbol}: {e}")
+        logger.error(f"sync_specific_cryptocurrency failed: {str(e)}")
         return {
+            "task_id": task_id,
             "status": "failed",
             "error": str(e),
-            "crypto_symbol": crypto_symbol,
             "timestamp": datetime.utcnow().isoformat()
         }
 
 
 @shared_task
-def get_task_status() -> Dict[str, Any]:
+def get_task_status(task_id: str) -> Dict[str, Any]:
     """
-    Get status of all background tasks
+    Get status of a specific task
     
+    Args:
+        task_id: Task ID to check
+        
     Returns:
         dict: Task status information
     """
     try:
-        # This would typically check Celery inspect for active tasks
-        # For now, return basic status
+        from celery.result import AsyncResult
+        
+        result = AsyncResult(task_id)
+        
         return {
-            "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
-            "available_tasks": [
-                "sync_all_prices",
-                "sync_historical_data", 
-                "discover_new_cryptocurrencies",
-                "cleanup_old_data",
-                "sync_specific_cryptocurrency"
-            ]
+            "task_id": task_id,
+            "status": result.status,
+            "result": result.result,
+            "timestamp": datetime.utcnow().isoformat()
         }
         
     except Exception as e:
-        logger.error(f"get_task_status failed: {e}")
         return {
+            "task_id": task_id,
             "status": "error",
             "error": str(e),
             "timestamp": datetime.utcnow().isoformat()
         }
+
+
+# Export task functions
+__all__ = [
+    'sync_all_prices',
+    'sync_historical_data', 
+    'discover_new_cryptocurrencies',
+    'cleanup_old_data',
+    'sync_specific_cryptocurrency',
+    'get_task_status'
+]

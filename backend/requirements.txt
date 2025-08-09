@@ -1,6 +1,5 @@
-# File: backend/requirements.txt
-# CryptoPredict MVP Requirements - Updated with tested versions
-# All packages tested and verified working with Python 3.12
+# backend/requirements.txt - MINIMAL ASYNC VERSION
+# CryptoPredict MVP Requirements - Minimal async support to avoid conflicts
 
 # ================================
 # WEB FRAMEWORK & API
@@ -63,6 +62,13 @@ kombu==5.3.2                  # Message queue library (Celery dependency)
 billiard==4.1.0               # Process pool for Celery workers
 vine==5.0.0                   # Python promises (Celery dependency)
 apscheduler==3.10.4           # Advanced Python Scheduler (alternative to Celery Beat)
+
+# ================================
+# ASYNC/AWAIT SUPPORT (MINIMAL - CRITICAL FOR CELERY+ASYNCIO)
+# ================================
+nest-asyncio==1.5.8           # Enable nested asyncio event loops for Celery (ESSENTIAL)
+asyncio-mqtt==0.16.1          # Async MQTT client support (OPTIONAL)
+aioredis==2.0.1               # Async Redis client for improved performance (OPTIONAL)
 
 # ================================
 # FILE HANDLING
@@ -139,11 +145,20 @@ pydantic-extra-types==2.1.0   # Extra types for Pydantic
 python-socketio==5.10.0       # WebSocket client/server support (Socket.IO)
 
 # ================================
+# CELERY MONITORING & MANAGEMENT
+# ================================
+flower==2.0.1                 # Celery monitoring tool
+celery[redis]==5.3.4          # Celery with Redis broker support
+
+# ================================
 # NOTES
 # ================================
-# Excluded packages for Python 3.12 compatibility:
-# - numba: Not compatible with Python 3.12 yet
-# - cython: Build issues on Windows
-# - TA-Lib: Requires C++ compiler (use 'ta' library instead)
+# Excluded packages to avoid dependency conflicts:
+# - anyio: Conflicts with FastAPI 0.104.1 requirements
+# - trio: Not essential for core functionality
+# - Some optional async utilities: Only essential ones included
 
-flower
+# ASYNC COMPATIBILITY NOTES:
+# - nest-asyncio: ESSENTIAL - Allows nested event loops in Celery workers
+# - asyncio-mqtt: Optional - For async MQTT operations if needed
+# - aioredis: Optional - Async Redis operations for better performance

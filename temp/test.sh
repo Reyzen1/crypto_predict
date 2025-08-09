@@ -1,108 +1,61 @@
 #!/bin/bash
-# File: temp/install-deps.sh
-# Install missing Celery dependencies
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+# Fix Celery Rate Limit Issues
+# Celery only supports: s (second), m (minute), h (hour)
 
-print_success() { echo -e "${GREEN}✅ $1${NC}"; }
-print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-print_error() { echo -e "${RED}❌ $1${NC}"; }
-print_info() { echo -e "${CYAN}ℹ️  $1${NC}"; }
+echo "🔧 Fixing Celery Rate Limit Configuration..."
+echo "=================================="
 
-echo -e "${CYAN}📦 Installing Missing Celery Dependencies${NC}"
-echo "=========================================="
-echo
+# Navigate to backend directory
+cd backend
 
-# Check if in virtual environment
-if [ -n "$VIRTUAL_ENV" ]; then
-    print_success "Virtual environment detected: $(basename $VIRTUAL_ENV)"
+# Backup current config
+cp app/core/celery_config.py app/core/celery_config.py.backup
+echo "💾 Backup created: celery_config.py.backup"
+
+# Fix rate limits using sed
+echo "🔍 Converting unsupported rate limit formats..."
+
+# Convert 1/d to 1/24h (once per day = once per 24 hours)
+sed -i 's/"rate_limit": *"1\/d"/"rate_limit": "1\/24h"/g' app/core/celery_config.py
+
+# Convert any other /d patterns to /24h
+sed -i 's/"rate_limit": *"\([0-9]*\)\/d"/"rate_limit": "\1\/24h"/g' app/core/celery_config.py
+
+# Convert weekly patterns if they exist
+sed -i 's/"rate_limit": *"1\/w"/"rate_limit": "1\/168h"/g' app/core/celery_config.py
+
+echo "✅ Rate limit conversions completed:"
+echo "   • 1/d → 1/24h (once per day)"
+echo "   • 1/w → 1/168h (once per week)"
+
+# Show the current rate limits in the config
+echo ""
+echo "📋 Current rate limits in config:"
+grep -n "rate_limit" app/core/celery_config.py | head -10
+
+echo ""
+echo "🚀 Testing worker startup..."
+echo "Starting price worker to test configuration..."
+
+# Test with a quick worker startup
+timeout 10s python -m celery -A app.tasks.celery_app worker --queues=price_data --pool=threads --loglevel=info &
+WORKER_PID=$!
+
+sleep 5
+
+if kill -0 $WORKER_PID 2>/dev/null; then
+    echo "✅ Worker started successfully!"
+    kill $WORKER_PID
+    wait $WORKER_PID 2>/dev/null
 else
-    print_warning "No virtual environment detected"
-    print_info "Consider activating venv: source venv/bin/activate"
+    echo "❌ Worker failed to start"
 fi
 
-echo
-
-# Install flower
-print_info "1️⃣ Installing Flower..."
-if pip install flower; then
-    print_success "Flower installed successfully"
-else
-    print_error "Failed to install Flower"
-    exit 1
-fi
-
-# Install other useful Celery packages
-print_info "2️⃣ Installing additional Celery tools..."
-
-packages=(
-    "celery[redis]"
-    "redis"
-    "eventlet"
-)
-
-for package in "${packages[@]}"; do
-    print_info "Installing $package..."
-    if pip install "$package" --upgrade; then
-        print_success "$package installed"
-    else
-        print_warning "$package installation failed"
-    fi
-done
-
-# Verify installations
-echo
-print_info "3️⃣ Verifying installations..."
-
-# Test flower
-if python -c "import flower; print('Flower version:', flower.__version__)" 2>/dev/null; then
-    print_success "Flower import successful"
-else
-    print_error "Flower import failed"
-fi
-
-# Test celery flower command
-cd backend 2>/dev/null || { print_error "Cannot access backend directory"; exit 1; }
-
-if python -m celery flower --help >/dev/null 2>&1; then
-    print_success "Celery flower command available"
-else
-    print_error "Celery flower command failed"
-fi
-
-cd - >/dev/null
-
-# Test redis
-if python -c "import redis; print('Redis version:', redis.__version__)" 2>/dev/null; then
-    print_success "Redis import successful"
-else
-    print_warning "Redis import failed"
-fi
-
-# Show installed versions
-echo
-print_info "📋 Installed versions:"
-python -c "
-try:
-    import celery; print('  🔧 Celery:', celery.__version__)
-except: print('  ❌ Celery: Not available')
-
-try:
-    import flower; print('  🌸 Flower:', flower.__version__)
-except: print('  ❌ Flower: Not available')
-
-try:
-    import redis; print('  📡 Redis:', redis.__version__)
-except: print('  ❌ Redis: Not available')
-"
-
-echo
-print_success "🎉 Dependency installation completed!"
-print_info "💡 Now you can start workers with Flower monitoring:"
-print_info "   ./scripts/simple-workers.sh start"
-print_info "   ./scripts/run-workers.sh start"
+echo ""
+echo "🎯 Manual commands to run workers:"
+echo "Price worker:"
+echo "  python -m celery -A app.tasks.celery_app worker --queues=price_data --pool=threads"
+echo ""
+echo "General worker:"
+echo "  python -m celery -A app.tasks.celery_app worker --queues=general --pool=threads"

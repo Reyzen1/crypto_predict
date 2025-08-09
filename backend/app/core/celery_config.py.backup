@@ -146,7 +146,7 @@ class CeleryConfig:
     # Monitoring and Logging (ENHANCED)
     worker_send_task_events: bool = True  # Send task events for monitoring
     task_send_sent_event: bool = True  # Send task sent events
-    """  
+    
     # Error Handling (ENHANCED WITH FIXED RATE LIMITS)
     task_annotations: Dict[str, Dict[str, Any]] = {
         # Price collection tasks with FIXED rate limits
@@ -171,7 +171,7 @@ class CeleryConfig:
             "soft_time_limit": 1740 # 29 minutes soft limit
         }
     }
-    """
+    
     # Security Settings (ENHANCED)
     worker_hijack_root_logger: bool = False  # Don't hijack root logger
     worker_log_color: bool = False  # Disable colored logs for production

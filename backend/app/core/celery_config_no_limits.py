@@ -36,7 +36,7 @@ class CeleryConfig:
     # Worker Configuration (ENHANCED FOR ASYNC)
     worker_prefetch_multiplier: int = 1  # Better for async tasks
     worker_max_tasks_per_child: int = 1000  # Prevent memory leaks
-    worker_disable_rate_limits: bool = True
+    worker_disable_rate_limits: bool = True  # DISABLED DUE TO CELERY ISSUES
     
     # Task Execution Settings (ASYNC OPTIMIZED)
     task_acks_late: bool = True  # Acknowledge tasks after completion
@@ -146,32 +146,32 @@ class CeleryConfig:
     # Monitoring and Logging (ENHANCED)
     worker_send_task_events: bool = True  # Send task events for monitoring
     task_send_sent_event: bool = True  # Send task sent events
-    """  
+    
     # Error Handling (ENHANCED WITH FIXED RATE LIMITS)
-    task_annotations: Dict[str, Dict[str, Any]] = {
-        # Price collection tasks with FIXED rate limits
-        "app.tasks.price_collector.sync_all_prices": {
-            "rate_limit": "12/m",  # Max 12 times per minute (FIXED: was working)
-            "time_limit": 300,     # 5 minutes max
-            "soft_time_limit": 240  # 4 minutes soft limit
-        },
-        "app.tasks.price_collector.sync_historical_data": {
-            "rate_limit": "4/h",   # Max 4 times per hour (FIXED: was working)
-            "time_limit": 600,     # 10 minutes max
-            "soft_time_limit": 540  # 9 minutes soft limit
-        },
-        "app.tasks.price_collector.discover_new_cryptocurrencies": {
-            "rate_limit": "1/24h",   # Max once per day (FIXED: was 1/d instead of 1/w)
-            "time_limit": 900,     # 15 minutes max
-            "soft_time_limit": 840  # 14 minutes soft limit
-        },
-        "app.tasks.price_collector.cleanup_old_data": {
-            "rate_limit": "1/24h",   # Max once per day (FIXED: was 1/w which caused error)
-            "time_limit": 1800,    # 30 minutes max
-            "soft_time_limit": 1740 # 29 minutes soft limit
-        }
-    }
-    """
+    #     task_annotations: Dict[str, Dict[str, Any]] = {
+    #         # Price collection tasks with FIXED rate limits
+    #         "app.tasks.price_collector.sync_all_prices": {
+    #             "rate_limit": "12/m",  # Max 12 times per minute (FIXED: was working)
+    #             "time_limit": 300,     # 5 minutes max
+    #             "soft_time_limit": 240  # 4 minutes soft limit
+    #         },
+    #         "app.tasks.price_collector.sync_historical_data": {
+    #             "rate_limit": "4/h",   # Max 4 times per hour (FIXED: was working)
+    #             "time_limit": 600,     # 10 minutes max
+    #             "soft_time_limit": 540  # 9 minutes soft limit
+    #         },
+    #         "app.tasks.price_collector.discover_new_cryptocurrencies": {
+    #             "rate_limit": "1/24h",   # Max once per day (FIXED: was 1/d instead of 1/w)
+    #             "time_limit": 900,     # 15 minutes max
+    #             "soft_time_limit": 840  # 14 minutes soft limit
+    #         },
+    #         "app.tasks.price_collector.cleanup_old_data": {
+    #             "rate_limit": "1/24h",   # Max once per day (FIXED: was 1/w which caused error)
+    #             "time_limit": 1800,    # 30 minutes max
+    #             "soft_time_limit": 1740 # 29 minutes soft limit
+    #         }
+    #     }
+    
     # Security Settings (ENHANCED)
     worker_hijack_root_logger: bool = False  # Don't hijack root logger
     worker_log_color: bool = False  # Disable colored logs for production
