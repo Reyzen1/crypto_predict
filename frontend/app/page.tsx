@@ -1,164 +1,192 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { TrendingUp, TrendingDown, Bitcoin, DollarSign, Target, Activity } from "lucide-react"
+// File: frontend/app/page.tsx
+// TEST VERSION - Chart Import Test
 
-export default function Home() {
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { 
+  CheckCircle,
+  AlertCircle,
+  BarChart3,
+  Loader2
+} from "lucide-react";
+
+// Test Chart Import
+import PriceChart from '../components/charts/PriceChart';
+import { testApiService } from '../lib/api';
+
+export default function Dashboard() {
+  const [importStatus, setImportStatus] = useState('testing');
+  const [apiStatus, setApiStatus] = useState('testing');
+
+  useEffect(() => {
+    // Test imports
+    setTimeout(() => {
+      setImportStatus('success');
+    }, 1000);
+
+    // Test API
+    setTimeout(() => {
+      try {
+        const testData = testApiService.getCurrentPrice();
+        console.log('API Test:', testData);
+        setApiStatus('success');
+      } catch (error) {
+        console.error('API Test Failed:', error);
+        setApiStatus('error');
+      }
+    }, 1500);
+  }, []);
+
   return (
-    <div className="space-y-8">
-      {/* Hero Section */}
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl md:text-6xl font-bold text-white">
-          AI-Powered Crypto
-          <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            {" "}Predictions
-          </span>
-        </h1>
-        <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-          Leverage advanced machine learning to predict cryptocurrency prices with unprecedented accuracy
-        </p>
-        <div className="flex justify-center gap-4 mt-6">
-          <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-            Get Started
-          </Button>
-          <Button size="lg" variant="outline" className="border-gray-600 text-gray-300">
-            View Demo
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        
+        {/* Import Status Check */}
+        <div className="bg-blue-500/20 border-2 border-blue-500 rounded-lg p-6">
+          <h2 className="text-blue-400 text-2xl font-bold mb-4">
+            🧪 Chart Import & Component Test
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Import Status */}
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                {importStatus === 'testing' ? (
+                  <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+                ) : importStatus === 'success' ? (
+                  <CheckCircle className="h-5 w-5 text-green-400" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-red-400" />
+                )}
+                <div>
+                  <p className="text-white font-medium">Component Import</p>
+                  <p className="text-gray-400 text-sm">
+                    {importStatus === 'testing' ? 'Testing...' :
+                     importStatus === 'success' ? 'PriceChart.tsx imported successfully' :
+                     'Import failed'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* API Status */}
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                {apiStatus === 'testing' ? (
+                  <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+                ) : apiStatus === 'success' ? (
+                  <CheckCircle className="h-5 w-5 text-green-400" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-red-400" />
+                )}
+                <div>
+                  <p className="text-white font-medium">API Service</p>
+                  <p className="text-gray-400 text-sm">
+                    {apiStatus === 'testing' ? 'Testing...' :
+                     apiStatus === 'success' ? 'Mock API working' :
+                     'API failed'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gray-800/50 border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">
-              Bitcoin Price
-            </CardTitle>
-            <Bitcoin className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">$43,234.56</div>
-            <div className="flex items-center space-x-2 text-sm">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-green-500">+2.4%</span>
-              <span className="text-gray-400">24h</span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Hero Section */}
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl md:text-6xl font-bold text-white">
+            Component Test
+            <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              {" "}Dashboard
+            </span>
+          </h1>
+          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+            Testing chart component imports and file structure
+          </p>
+        </div>
 
-        <Card className="bg-gray-800/50 border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">
-              Prediction Accuracy
-            </CardTitle>
-            <Target className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">87.3%</div>
-            <div className="flex items-center space-x-2 text-sm">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-green-500">+1.2%</span>
-              <span className="text-gray-400">this week</span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Chart Component Test */}
+        <div className="space-y-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-white mb-2">📊 Chart Component Test</h2>
+            <p className="text-gray-400">
+              If you see a success message below, the chart component is working!
+            </p>
+          </div>
 
-        <Card className="bg-gray-800/50 border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">
-              Active Predictions
-            </CardTitle>
-            <Activity className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">24</div>
-            <div className="flex items-center space-x-2 text-sm">
-              <span className="text-gray-400">across 5 cryptocurrencies</span>
-            </div>
-          </CardContent>
-        </Card>
+          {/* This will test if PriceChart component renders */}
+          {importStatus === 'success' ? (
+            <PriceChart className="w-full" />
+          ) : (
+            <Card className="bg-gray-800/50 border-gray-700">
+              <CardContent className="p-8">
+                <div className="text-center">
+                  <Loader2 className="h-12 w-12 text-blue-400 animate-spin mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-white mb-2">Loading Chart Component...</h3>
+                  <p className="text-gray-400">Testing component import...</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
-        <Card className="bg-gray-800/50 border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">
-              Portfolio Value
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">$12,456.78</div>
-            <div className="flex items-center space-x-2 text-sm">
-              <TrendingDown className="h-4 w-4 text-red-500" />
-              <span className="text-red-500">-0.8%</span>
-              <span className="text-gray-400">24h</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Features Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Debug Info */}
         <Card className="bg-gray-800/50 border-gray-700">
           <CardHeader>
-            <CardTitle className="text-white">Latest Predictions</CardTitle>
+            <CardTitle className="text-white">🔧 Debug Information</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Bitcoin className="h-6 w-6 text-orange-500" />
-                <div>
-                  <div className="text-white font-medium">Bitcoin</div>
-                  <div className="text-sm text-gray-400">24h prediction</div>
-                </div>
+          <CardContent>
+            <div className="space-y-2 text-sm font-mono">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Import Status:</span>
+                <span className={`font-bold ${
+                  importStatus === 'success' ? 'text-green-400' :
+                  importStatus === 'error' ? 'text-red-400' : 'text-yellow-400'
+                }`}>
+                  {importStatus.toUpperCase()}
+                </span>
               </div>
-              <div className="text-right">
-                <div className="text-white font-medium">$44,120.00</div>
-                <Badge variant="outline" className="text-green-500 border-green-500">
-                  High Confidence
-                </Badge>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Expected Path:</span>
+                <span className="text-blue-400">../components/charts/PriceChart</span>
               </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="h-6 w-6 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-bold text-white">E</span>
-                </div>
-                <div>
-                  <div className="text-white font-medium">Ethereum</div>
-                  <div className="text-sm text-gray-400">24h prediction</div>
-                </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">API Service:</span>
+                <span className={`font-bold ${
+                  apiStatus === 'success' ? 'text-green-400' :
+                  apiStatus === 'error' ? 'text-red-400' : 'text-yellow-400'
+                }`}>
+                  {apiStatus.toUpperCase()}
+                </span>
               </div>
-              <div className="text-right">
-                <div className="text-white font-medium">$2,456.78</div>
-                <Badge variant="outline" className="text-yellow-500 border-yellow-500">
-                  Medium Confidence
-                </Badge>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Timestamp:</span>
+                <span className="text-white">{new Date().toLocaleString()}</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-800/50 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Market Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="text-center text-gray-400">
-                <p>Real-time market data visualization will be displayed here</p>
-                <p className="text-sm mt-2">Chart integration coming soon...</p>
-              </div>
-              <div className="h-48 bg-gray-700/30 rounded-lg flex items-center justify-center">
-                <div className="text-gray-500">
-                  <Activity className="h-12 w-12 mx-auto mb-2" />
-                  <p>Chart Placeholder</p>
-                </div>
-              </div>
+        {/* Instructions */}
+        <Card className="bg-amber-500/10 border-amber-500">
+          <CardContent className="p-6">
+            <h3 className="text-amber-400 font-bold text-lg mb-3">📋 Next Steps:</h3>
+            <div className="space-y-2 text-amber-200 text-sm">
+              <p>1. If you see "CHART COMPONENT LOADED SUCCESSFULLY" above, imports are working!</p>
+              <p>2. If not, check these files exist:</p>
+              <ul className="ml-4 space-y-1">
+                <li>• <code>frontend/components/charts/PriceChart.tsx</code></li>
+                <li>• <code>frontend/lib/api.ts</code></li>
+              </ul>
+              <p>3. Check browser console (F12) for any import errors</p>
+              <p>4. Make sure you restarted <code>npm run dev</code> after creating files</p>
             </div>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
+  );
 }

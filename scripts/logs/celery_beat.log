@@ -1,0 +1,30 @@
+INFO:app.ml.config.persistent_registry:\U0001f504 Loading existing models on startup...
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Loaded 12 models from registry file
+INFO:app.ml.config.persistent_registry:\U0001f4c2 Found 12 model files
+INFO:app.ml.config.persistent_registry:\u2705 Startup complete: 12 models loaded
+INFO:app.ml.config.persistent_registry:   From registry file: 12
+INFO:app.ml.config.persistent_registry:   From file scanning: 0
+INFO:app.ml.config.persistent_registry:\u2705 PersistentModelRegistry initialized with 12 models
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.training.training_service:MLTrainingService initialized with existing components
+INFO:app.ml.preprocessing.data_processor:Initialized CryptoPriceDataProcessor with standard scaling
+INFO:app.ml.prediction.prediction_service:Redis connection established for prediction optimization
+INFO:app.ml.prediction.prediction_service:Optimized prediction service initialized
+INFO:celery.beat:beat: Starting...
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-historical-every-hour (app.tasks.price_collector.sync_historical_data)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
+INFO:celery.beat:Scheduler: Sending due task sync-prices-every-5-minutes (app.tasks.price_collector.sync_all_prices)
