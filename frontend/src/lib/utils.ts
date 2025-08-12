@@ -107,19 +107,46 @@ export const apiRequest = async <T>(
   try {
     const response = await fetch(`/api/v1${endpoint}`, config);
     
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch {
-        errorData = { detail: `HTTP ${response.status}: ${response.statusText}` };
+    // خواندن response یکبار
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (jsonError) {
+      // اگر response JSON نیست
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
-      throw new Error(errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error('Invalid JSON response');
     }
     
-    const data = await response.json();
-    return data;
+    // بررسی success بعد از خواندن data
+    if (!response.ok) {
+      console.error('API Error Details:', {
+        status: response.status,
+        statusText: response.statusText,
+        endpoint,
+        responseData
+      });
+      
+      // پردازش error message
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      if (responseData?.detail) {
+        errorMessage = typeof responseData.detail === 'string' 
+          ? responseData.detail 
+          : JSON.stringify(responseData.detail);
+      } else if (responseData?.message) {
+        errorMessage = typeof responseData.message === 'string' 
+          ? responseData.message 
+          : JSON.stringify(responseData.message);
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    // برگرداندن data در صورت موفقیت
+    return responseData;
+    
   } catch (error) {
     console.error(`API request failed for ${endpoint}:`, error);
     throw error;

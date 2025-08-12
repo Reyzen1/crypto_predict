@@ -222,7 +222,7 @@ class ApiService {
     try {
       const response = await fetch('/api/v1/health', {
         method: 'GET',
-        timeout: 5000
+        //timeout: 5000
       });
       return response.ok;
     } catch {

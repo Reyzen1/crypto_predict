@@ -119,7 +119,7 @@ async def get_crypto_details(
     days_history: int = Query(
         default=7,
         ge=1,
-        le=30,
+        le=365,
         description="Number of days of historical data to include"
     ),
     current_user: User = Depends(get_optional_current_user),

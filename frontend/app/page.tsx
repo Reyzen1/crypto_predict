@@ -114,6 +114,18 @@ const formatMarketCap = (cap: number): string => {
   return `$${(cap / 1000000).toFixed(1)}M`;
 };
 
+const getInitialDays = (timeframe: string): number => {
+  switch (timeframe) {
+    case '1h': return 1;
+    case '4h': return 2;
+    case '1d': return 7;  
+    case '1w': return 30;
+    case '1m': return 30;
+    case '1y': return 30;
+    default: return 7;
+  }
+};
+
 // =====================================
 // MAIN COMPONENT
 // =====================================
@@ -121,7 +133,7 @@ const formatMarketCap = (cap: number): string => {
 export default function CompleteDashboard() {
   // State management
   const [selectedCrypto, setSelectedCrypto] = useState('BTC');
-  const [timeframe, setTimeframe] = useState('24h');
+  const [timeframe, setTimeframe] = useState('1d');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null);
@@ -170,12 +182,12 @@ export default function CompleteDashboard() {
       toast.error('Failed to load dashboard data', errorMessage);
       console.error('Dashboard data fetch error:', err);
     }
-  }, [toast]);
+  }, []);
 
-  const fetchChartData = useCallback(async (symbol: string) => {
+
+  const fetchChartData = useCallback(async (symbol: string, daysHistory: number = 30) => {
     try {
-      const cryptoDetails = await apiService.getCryptoDetails(symbol, 30);
-      
+      const cryptoDetails = await apiService.getCryptoDetails(symbol, daysHistory);handleTimeframeChange 
       const chartPoints: ChartDataPoint[] = cryptoDetails.price_history.map(point => ({
         timestamp: point.timestamp,
         price: point.price,
@@ -205,7 +217,7 @@ export default function CompleteDashboard() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [fetchDashboardData, fetchChartData, selectedCrypto, isRefreshing, toast]);
+  }, [fetchDashboardData, fetchChartData, selectedCrypto, isRefreshing]);
 
   // =====================================
   // EFFECTS
@@ -217,9 +229,11 @@ export default function CompleteDashboard() {
       setIsLoading(true);
       try {
         if (isOnline) {
+          const initialDays = getInitialDays(timeframe);
+
           await Promise.all([
             fetchDashboardData(),
-            fetchChartData(selectedCrypto)
+            fetchChartData(selectedCrypto, initialDays)
           ]);
         } else {
           setError('Backend service is not available');
@@ -231,7 +245,7 @@ export default function CompleteDashboard() {
     };
 
     initializeData();
-  }, [fetchDashboardData, fetchChartData, selectedCrypto, isOnline, toast]);
+  }, [fetchDashboardData, fetchChartData, selectedCrypto, isOnline]);
 
   // Update chart when crypto selection changes
   useEffect(() => {
@@ -276,8 +290,9 @@ export default function CompleteDashboard() {
                  newTimeframe === '1d' ? 7 : 
                  newTimeframe === '1w' ? 30 : 
                  newTimeframe === '1m' ? 90 : 365;
-    
-    fetchChartData(selectedCrypto);
+    if (selectedCrypto) {
+        fetchChartData(selectedCrypto, days);
+    }
   }, [selectedCrypto, fetchChartData]);
 
   // =====================================

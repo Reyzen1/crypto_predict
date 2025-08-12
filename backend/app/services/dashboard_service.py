@@ -14,6 +14,7 @@ import logging
 from app.repositories import cryptocurrency_repository, price_data_repository, prediction_repository
 from app.services.external_api import external_api_service
 from app.services.prediction_service import prediction_service_new
+from app.models import PriceData
 
 logger = logging.getLogger(__name__)
 
@@ -225,9 +226,8 @@ class SuperOptimizedDashboardService:
                 # Process results with fallback
                 for i, result in enumerate(crypto_results):
                     if isinstance(result, Exception):
-                        logger.warning(f"Using fallback for {symbols[i]}: {result}")
-                        fallback_data = self._get_instant_fallback(symbols[i])
-                        dashboard_data["cryptocurrencies"].append(fallback_data)
+                        real_data = await self._get_real_crypto_data(db, symbol[i])
+                        dashboard_data["cryptocurrencies"].append(real_data)
                         dashboard_data["data_freshness"] = "mixed"
                     elif result:
                         dashboard_data["cryptocurrencies"].append(result)
@@ -507,73 +507,124 @@ class SuperOptimizedDashboardService:
                 warmed.append(symbol)
         
         return {"warmed_symbols": warmed, "timestamp": datetime.now(timezone.utc).isoformat()}
+        
+    async def _get_real_crypto_data(self, db: Session, symbol: str) -> Optional[Dict[str, Any]]:
+        """Get real data from database for a cryptocurrency"""
+        try:
+            # Get cryptocurrency record
+            crypto = cryptocurrency_repository.get_by_symbol(db, symbol)
+            if not crypto:
+                return None
+            
+            # Get latest price data
+            latest_price = price_data_repository.get_latest_price(db, crypto.id)
+            if not latest_price:
+                return None
+            
+            # Get previous day price for change calculation
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+            prev_price = db.query(PriceData).filter(
+                PriceData.crypto_id == crypto.id,
+                PriceData.timestamp >= yesterday
+            ).order_by(PriceData.timestamp).first()
+            
+            # Calculate price change
+            price_change_24h = 0
+            price_change_24h_percent = 0
+            if prev_price:
+                current = float(latest_price.close_price)
+                previous = float(prev_price.close_price)
+                price_change_24h = current - previous
+                price_change_24h_percent = (price_change_24h / previous) * 100 if previous > 0 else 0
+            
+            # Get latest prediction (optional)
+            latest_prediction = prediction_repository.get_latest_prediction(db, crypto.id)
+            predicted_price = float(latest_prediction.predicted_price) if latest_prediction else float(latest_price.close_price) * 1.02
+            confidence = int(float(latest_prediction.confidence_score) * 100) if latest_prediction else 75
+            
+            return {
+                "symbol": crypto.symbol,
+                "name": crypto.name,
+                "current_price": float(latest_price.close_price),
+                "predicted_price": predicted_price,
+                "confidence": confidence,
+                "price_change_24h": price_change_24h,
+                "price_change_24h_percent": round(price_change_24h_percent, 2),
+                "volume_24h": float(latest_price.volume) if latest_price.volume else 0,
+                "market_cap": float(latest_price.market_cap) if latest_price.market_cap else 0,
+                "last_updated": latest_price.timestamp.isoformat(),
+                "status": "active"
+            }
+        except Exception as e:
+            logger.error(f"Error getting real data for {symbol}: {str(e)}")
+            return None
 
-async def get_crypto_details(
-    self, 
-    db: Session, 
-    symbol: str, 
-    days_history: int = 30,
-    user_id: Optional[str] = None
-) -> Dict[str, Any]:
-    """Get detailed crypto information with history - FIXED"""
-    
-    try:
-        # Use existing cache-aware dashboard summary for basic data
-        dashboard_data = await self.get_dashboard_summary(
-            db=db, 
-            symbols=[symbol], 
-            user_id=user_id
-        )
+    async def get_crypto_details(
+        self, 
+        db: Session, 
+        symbol: str, 
+        days_history: int = 365,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get detailed crypto information with history - FIXED"""
         
-        if not dashboard_data["cryptocurrencies"]:
-            raise ValueError(f"Cryptocurrency {symbol} not found")
-        
-        crypto = dashboard_data["cryptocurrencies"][0]
-        
-        # Get crypto by symbol for historical data
-        crypto_obj = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
-        if not crypto_obj:
-            raise ValueError(f"Cryptocurrency {symbol} not found")
-        
-        # Get historical data using existing repository method
-        cutoff_date = datetime.utcnow() - timedelta(days=days_history)
-        price_history_raw = price_data_repository.get_price_history(
-            db, crypto_obj.id, start_date=cutoff_date, limit=days_history * 24
-        )
-        
-        # Format price history with OHLC data
-        price_history = [
-            {
-                'timestamp': price.timestamp.isoformat(),
-                'open': float(price.open_price),
-                'high': float(price.high_price),
-                'low': float(price.low_price),
-                'close': float(price.close_price),
-                'price': float(price.close_price),  # for compatibility
-                'volume': float(price.volume) if price.volume else 0
+        try:
+            # Use existing cache-aware dashboard summary for basic data
+            dashboard_data = await self.get_dashboard_summary(
+                db=db, 
+                symbols=[symbol], 
+                user_id=user_id
+            )
+            
+            if not dashboard_data["cryptocurrencies"]:
+                raise ValueError(f"Cryptocurrency {symbol} not found")
+            
+            crypto = dashboard_data["cryptocurrencies"][0]
+            
+            # Get crypto by symbol for historical data
+            crypto_obj = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
+            if not crypto_obj:
+                raise ValueError(f"Cryptocurrency {symbol} not found")
+            
+            # Get historical data using existing repository method
+            cutoff_date = datetime.utcnow() - timedelta(days=days_history)
+            price_history_raw = price_data_repository.get_price_history(
+                db, crypto_obj.id, start_date=cutoff_date, limit=days_history * 24
+            )
+            
+            # Format price history with OHLC data
+            price_history = [
+                {
+                    'timestamp': price.timestamp.isoformat(),
+                    'open': float(price.open_price),
+                    'high': float(price.high_price),
+                    'low': float(price.low_price),
+                    'close': float(price.close_price),
+                    'price': float(price.close_price),  # for compatibility
+                    'volume': float(price.volume) if price.volume else 0
+                }
+                for price in price_history_raw
+            ]
+            
+            # Combine basic data with historical data
+            result = {
+                **crypto,
+                "price_history": price_history,
+                "prediction_history": [],  # Will implement later when needed
+                "technical_indicators": {
+                    'daily_high': crypto.get('high_price', crypto['current_price']),
+                    'daily_low': crypto.get('low_price', crypto['current_price']),
+                    'daily_range': crypto.get('high_price', crypto['current_price']) - crypto.get('low_price', crypto['current_price']),
+                    'daily_change': crypto.get('close_price', crypto['current_price']) - crypto.get('open_price', crypto['current_price'])
+                }
             }
-            for price in price_history_raw
-        ]
-        
-        # Combine basic data with historical data
-        result = {
-            **crypto,
-            "price_history": price_history,
-            "prediction_history": [],  # Will implement later when needed
-            "technical_indicators": {
-                'daily_high': crypto.get('high_price', crypto['current_price']),
-                'daily_low': crypto.get('low_price', crypto['current_price']),
-                'daily_range': crypto.get('high_price', crypto['current_price']) - crypto.get('low_price', crypto['current_price']),
-                'daily_change': crypto.get('close_price', crypto['current_price']) - crypto.get('open_price', crypto['current_price'])
-            }
-        }
-        
-        logger.info(f"Crypto details completed for {symbol}, {len(price_history)} history points")
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error getting crypto details for {symbol}: {str(e)}")
-        raise e
+            
+            logger.info(f"Crypto details completed for {symbol}, {len(price_history)} history points")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error getting crypto details for {symbol}: {str(e)}")
+            raise e
 
 # Create global instance with new optimized service
 dashboard_service = SuperOptimizedDashboardService()
