@@ -267,7 +267,7 @@ class SuperOptimizedDashboardService:
             logger.error(f"Dashboard summary error: {str(e)}")
             # Return instant fallback
             return self._get_instant_fallback_dashboard(symbols or ["BTC", "ETH"])
-    
+
     async def _get_crypto_data_ultra_fast(
         self, 
         db: Session, 
@@ -276,65 +276,84 @@ class SuperOptimizedDashboardService:
     ) -> Optional[Dict[str, Any]]:
         """
         Ultra-fast crypto data with aggressive caching and timeouts
-        Target: <200ms per crypto
+        Target: <200ms per crypto - FIXED to use OHLC data
         """
         try:
-            # Check individual crypto cache
+            # Check individual crypto cache FIRST (existing cache system)
             cache_key = self._get_cache_key("crypto_ultra", symbol, user_id or "anon")
             cached_data = self._get_from_multi_cache(cache_key)
             
             if cached_data:
                 return cached_data
             
-            # Get crypto info (should be very fast from DB)
+            # Get crypto info (existing method)
             crypto = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
             if not crypto:
                 return self._get_instant_fallback(symbol)
             
-            # Ultra-aggressive parallel data fetching
-            tasks = [
-                asyncio.wait_for(self._get_current_price_instant(symbol), timeout=1.0),
-                asyncio.wait_for(self._get_prediction_instant(db, crypto.id, symbol), timeout=1.5),
-                asyncio.wait_for(self._get_price_change_instant(db, crypto.id), timeout=0.5)
-            ]
-            
-            try:
-                current_price, prediction, price_change = await asyncio.gather(*tasks, return_exceptions=True)
-            except:
-                # Use instant fallback if any task fails
+            # Get latest OHLC price data (existing method)
+            latest_price = price_data_repository.get_latest_price(db, crypto.id)
+            if not latest_price:
                 return self._get_instant_fallback(symbol)
             
-            # Handle task exceptions
-            if isinstance(current_price, Exception):
-                current_price = self._prebuilt_data.get(symbol, {}).get("current_price", 100.0)
-            if isinstance(prediction, Exception) or not prediction:
-                prediction = {"predicted_price": current_price * 1.02, "confidence_score": 75.0}
-            if isinstance(price_change, Exception):
-                price_change = current_price * 0.01  # 1% default change
+            # Get latest prediction (existing method)
+            predictions = prediction_repository.get_by_crypto(db, crypto.id, limit=1)
+            prediction = predictions[0] if predictions else None
             
-            # Build response lightning-fast
+            # Calculate 24h change using existing method
+            yesterday = datetime.utcnow() - timedelta(days=1)
+            historical_prices = price_data_repository.get_price_history(
+                db, crypto.id, start_date=yesterday, limit=1
+            )
+            yesterday_price = historical_prices[0] if historical_prices else latest_price
+            
+            current_price = float(latest_price.close_price)
+            yesterday_close = float(yesterday_price.close_price)
+            price_change_24h = current_price - yesterday_close
+            price_change_24h_percent = (price_change_24h / yesterday_close) * 100 if yesterday_close > 0 else 0
+            
+            # Build crypto data structure
             crypto_data = {
                 "symbol": crypto.symbol,
                 "name": crypto.name,
                 "current_price": current_price,
-                "predicted_price": prediction.get("predicted_price", current_price * 1.02),
-                "confidence": int(prediction.get("confidence_score", 75)),
-                "price_change_24h": price_change,
-                "price_change_24h_percent": (price_change / current_price * 100) if current_price > 0 else 0.0,
-                "prediction_target_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
-                "last_updated": datetime.now(timezone.utc).isoformat(),
-                "status": "live"
+                "open_price": float(latest_price.open_price),
+                "high_price": float(latest_price.high_price),
+                "low_price": float(latest_price.low_price),
+                "close_price": float(latest_price.close_price),
+                "volume_24h": float(latest_price.volume) if latest_price.volume else 0,
+                "market_cap": float(latest_price.market_cap) if latest_price.market_cap else 0,
+                "price_change_24h": price_change_24h,
+                "price_change_24h_percent": price_change_24h_percent,
+                "last_updated": latest_price.timestamp.isoformat(),
+                "status": "active"
             }
             
-            # Cache immediately
+            # Add prediction data
+            if prediction:
+                crypto_data.update({
+                    "predicted_price": float(prediction.predicted_price),
+                    "confidence": float(prediction.confidence_score),
+                    "prediction_target_date": prediction.target_datetime.isoformat()
+                })
+            else:
+                crypto_data.update({
+                    "predicted_price": current_price * 1.02,
+                    "confidence": 50.0,
+                    "prediction_target_date": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+                })
+            
+            # Cache the result (using existing cache system)
             self._set_multi_cache(cache_key, crypto_data)
             
+            logger.debug(f"Generated fresh data for {symbol}: price={current_price}")
             return crypto_data
             
         except Exception as e:
-            logger.warning(f"Ultra-fast crypto data failed for {symbol}: {e}")
+            logger.warning(f"Error getting data for {symbol}: {str(e)}, using fallback")
             return self._get_instant_fallback(symbol)
-    
+
+
     async def _get_current_price_instant(self, symbol: str) -> float:
         """Get current price with instant fallback"""
         try:
@@ -489,37 +508,72 @@ class SuperOptimizedDashboardService:
         
         return {"warmed_symbols": warmed, "timestamp": datetime.now(timezone.utc).isoformat()}
 
-    async def get_crypto_details(
-        self, 
-        db: Session, 
-        symbol: str, 
-        days_history: int = 30,
-        user_id: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Get detailed crypto information with history"""
-        
-        # Get basic crypto data
-        crypto_data = await self.get_dashboard_summary(
+async def get_crypto_details(
+    self, 
+    db: Session, 
+    symbol: str, 
+    days_history: int = 30,
+    user_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """Get detailed crypto information with history - FIXED"""
+    
+    try:
+        # Use existing cache-aware dashboard summary for basic data
+        dashboard_data = await self.get_dashboard_summary(
             db=db, 
             symbols=[symbol], 
             user_id=user_id
         )
         
-        if not crypto_data["cryptocurrencies"]:
+        if not dashboard_data["cryptocurrencies"]:
             raise ValueError(f"Cryptocurrency {symbol} not found")
         
-        crypto = crypto_data["cryptocurrencies"][0]
+        crypto = dashboard_data["cryptocurrencies"][0]
         
-        # Get historical data (you'll need to implement this)
-        # price_history = await self.get_price_history(db, symbol, days_history)
-        # prediction_history = await self.get_prediction_history(db, symbol, days_history)
+        # Get crypto by symbol for historical data
+        crypto_obj = cryptocurrency_repository.get_by_symbol(db, symbol.upper())
+        if not crypto_obj:
+            raise ValueError(f"Cryptocurrency {symbol} not found")
         
-        return {
+        # Get historical data using existing repository method
+        cutoff_date = datetime.utcnow() - timedelta(days=days_history)
+        price_history_raw = price_data_repository.get_price_history(
+            db, crypto_obj.id, start_date=cutoff_date, limit=days_history * 24
+        )
+        
+        # Format price history with OHLC data
+        price_history = [
+            {
+                'timestamp': price.timestamp.isoformat(),
+                'open': float(price.open_price),
+                'high': float(price.high_price),
+                'low': float(price.low_price),
+                'close': float(price.close_price),
+                'price': float(price.close_price),  # for compatibility
+                'volume': float(price.volume) if price.volume else 0
+            }
+            for price in price_history_raw
+        ]
+        
+        # Combine basic data with historical data
+        result = {
             **crypto,
-            "price_history": [], # Implement when ready
-            "prediction_history": [], # Implement when ready  
-            "technical_indicators": {} # Implement when ready
+            "price_history": price_history,
+            "prediction_history": [],  # Will implement later when needed
+            "technical_indicators": {
+                'daily_high': crypto.get('high_price', crypto['current_price']),
+                'daily_low': crypto.get('low_price', crypto['current_price']),
+                'daily_range': crypto.get('high_price', crypto['current_price']) - crypto.get('low_price', crypto['current_price']),
+                'daily_change': crypto.get('close_price', crypto['current_price']) - crypto.get('open_price', crypto['current_price'])
+            }
         }
+        
+        logger.info(f"Crypto details completed for {symbol}, {len(price_history)} history points")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error getting crypto details for {symbol}: {str(e)}")
+        raise e
 
 # Create global instance with new optimized service
 dashboard_service = SuperOptimizedDashboardService()
