@@ -17,7 +17,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+#lib/
 lib64/
 parts/
 sdist/
@@ -67,7 +67,7 @@ dmypy.json
 .DS_Store
 
 # Ignore scripts logs folder
-scripts/logs/
+logs/
 
 # Ignore specific file extensions
 *.bak
@@ -75,4 +75,4 @@ scripts/logs/
 *.dat
 
 # Ignore backend models folder
-backend/models/
+models/
