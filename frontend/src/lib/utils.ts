@@ -1,8 +1,12 @@
 // File: frontend/src/lib/utils.ts
-// Utility functions for CryptoPredict Frontend
+// Complete utility functions for CryptoPredict Frontend
 
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+
+// =====================================
+// STYLING UTILITIES
+// =====================================
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -17,11 +21,14 @@ export const formatPrice = (price: number, currency: string = 'USD'): string => 
     style: 'currency',
     currency,
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 8,
   }).format(price);
 };
 
 export const formatLargeNumber = (num: number): string => {
+  if (num >= 1e12) {
+    return `${(num / 1e12).toFixed(2)}T`;
+  }
   if (num >= 1e9) {
     return `${(num / 1e9).toFixed(2)}B`;
   }
@@ -77,77 +84,50 @@ export const calculatePercentageChange = (current: number, previous: number): nu
 
 export const getTrendColor = (trend: 'up' | 'down' | 'neutral'): string => {
   switch (trend) {
-    case 'up': return 'text-green-500';
-    case 'down': return 'text-red-500';
+    case 'up': return 'text-green-400';
+    case 'down': return 'text-red-400';
     default: return 'text-gray-400';
   }
 };
 
-// =====================================
-// CHART UTILITIES
-// =====================================
-
-export const generateChartColors = (count: number): string[] => {
-  const baseColors = [
-    '#3B82F6', // blue
-    '#A855F7', // purple
-    '#10B981', // green
-    '#F59E0B', // yellow
-    '#EF4444', // red
-    '#8B5CF6', // violet
-    '#06B6D4', // cyan
-    '#84CC16', // lime
-  ];
-  
-  const colors: string[] = [];
-  for (let i = 0; i < count; i++) {
-    colors.push(baseColors[i % baseColors.length]);
+export const getTrendIcon = (trend: 'up' | 'down' | 'neutral'): string => {
+  switch (trend) {
+    case 'up': return '▲';
+    case 'down': return '▼';
+    default: return '●';
   }
-  return colors;
-};
-
-export const formatChartTooltip = (value: number, name: string): [string, string] => {
-  let formattedValue: string;
-  
-  if (name.toLowerCase().includes('price')) {
-    formattedValue = formatPrice(value);
-  } else if (name.toLowerCase().includes('volume')) {
-    formattedValue = formatLargeNumber(value);
-  } else if (name.toLowerCase().includes('percent') || name.toLowerCase().includes('%')) {
-    formattedValue = formatPercentage(value);
-  } else {
-    formattedValue = value.toLocaleString();
-  }
-  
-  return [formattedValue, name];
 };
 
 // =====================================
 // VALIDATION UTILITIES
 // =====================================
 
-export const isValidPrice = (price: any): boolean => {
-  return typeof price === 'number' && price > 0 && isFinite(price);
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 };
 
-export const isValidTimestamp = (timestamp: any): boolean => {
-  const date = new Date(timestamp);
-  return !isNaN(date.getTime());
+export const isStrongPassword = (password: string): boolean => {
+  // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
+  return passwordRegex.test(password);
 };
 
-export const sanitizeApiResponse = (data: any): any => {
-  if (Array.isArray(data)) {
-    return data.filter(item => item !== null && item !== undefined);
+export const validateRequired = (value: string, fieldName: string): string | null => {
+  if (!value || value.trim().length === 0) {
+    return `${fieldName} is required`;
   }
-  return data;
+  return null;
 };
 
 // =====================================
 // LOCAL STORAGE UTILITIES
 // =====================================
 
-export const getFromLocalStorage = <T>(key: string, defaultValue: T): T => {
-  if (typeof window === 'undefined') return defaultValue;
+export const getLocalStorageItem = <T>(key: string, defaultValue: T): T => {
+  if (typeof window === 'undefined') {
+    return defaultValue;
+  }
   
   try {
     const item = localStorage.getItem(key);
@@ -158,8 +138,10 @@ export const getFromLocalStorage = <T>(key: string, defaultValue: T): T => {
   }
 };
 
-export const setToLocalStorage = <T>(key: string, value: T): void => {
-  if (typeof window === 'undefined') return;
+export const setLocalStorageItem = <T>(key: string, value: T): void => {
+  if (typeof window === 'undefined') {
+    return;
+  }
   
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -168,8 +150,10 @@ export const setToLocalStorage = <T>(key: string, value: T): void => {
   }
 };
 
-export const removeFromLocalStorage = (key: string): void => {
-  if (typeof window === 'undefined') return;
+export const removeLocalStorageItem = (key: string): void => {
+  if (typeof window === 'undefined') {
+    return;
+  }
   
   try {
     localStorage.removeItem(key);
@@ -179,144 +163,166 @@ export const removeFromLocalStorage = (key: string): void => {
 };
 
 // =====================================
-// CONSTANTS AND CONFIGURATIONS
+// API UTILITIES
 // =====================================
 
-export const CRYPTO_SYMBOLS = {
-  BTC: 'Bitcoin',
-  ETH: 'Ethereum',
-  ADA: 'Cardano',
-  DOT: 'Polkadot',
-} as const;
+export const createApiUrl = (endpoint: string, params?: Record<string, string>): string => {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  const url = new URL(`${baseUrl}${endpoint}`);
+  
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, value);
+    });
+  }
+  
+  return url.toString();
+};
 
-export const TIME_RANGES = {
-  '24h': { label: '24 Hours', days: 1 },
-  '7d': { label: '7 Days', days: 7 },
-  '30d': { label: '30 Days', days: 30 },
-  '90d': { label: '90 Days', days: 90 },
-} as const;
-
-export const CHART_THEMES = {
-  dark: {
-    background: '#1F2937',
-    grid: '#374151',
-    text: '#9CA3AF',
-    primary: '#3B82F6',
-    secondary: '#A855F7',
-    success: '#10B981',
-    warning: '#F59E0B',
-    error: '#EF4444',
-  },
-  light: {
-    background: '#FFFFFF',
-    grid: '#E5E7EB',
-    text: '#374151',
-    primary: '#2563EB',
-    secondary: '#7C3AED',
-    success: '#059669',
-    warning: '#D97706',
-    error: '#DC2626',
-  },
-} as const;
-
-export const API_REFRESH_INTERVALS = {
-  realtime: 5000,    // 5 seconds
-  frequent: 30000,   // 30 seconds
-  normal: 60000,     // 1 minute
-  slow: 300000,      // 5 minutes
-} as const;
+export const getAuthHeaders = (): Record<string, string> => {
+  const token = getLocalStorageItem('access_token', null);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+};
 
 // =====================================
-// ERROR HANDLING UTILITIES
+// CHART UTILITIES
+// =====================================
+
+export const generateChartColors = (count: number): string[] => {
+  const colors = [
+    '#3B82F6', // Blue
+    '#10B981', // Green
+    '#F59E0B', // Yellow
+    '#EF4444', // Red
+    '#8B5CF6', // Purple
+    '#F97316', // Orange
+    '#06B6D4', // Cyan
+    '#84CC16', // Lime
+    '#EC4899', // Pink
+    '#6B7280', // Gray
+  ];
+  
+  return Array.from({ length: count }, (_, i) => colors[i % colors.length]);
+};
+
+export const smoothDataPoints = (data: number[], smoothingFactor: number = 0.3): number[] => {
+  if (data.length === 0) return data;
+  
+  const smoothed = [data[0]];
+  for (let i = 1; i < data.length; i++) {
+    smoothed[i] = smoothingFactor * data[i] + (1 - smoothingFactor) * smoothed[i - 1];
+  }
+  
+  return smoothed;
+};
+
+// =====================================
+// CRYPTO UTILITIES
+// =====================================
+
+export const getCryptoIcon = (symbol: string): string => {
+  const icons: Record<string, string> = {
+    'BTC': '₿',
+    'ETH': 'Ξ',
+    'ADA': '₳',
+    'DOT': '●',
+    'LTC': 'Ł',
+    'XRP': '◉',
+    'BCH': '⟐',
+    'LINK': '⬢',
+    'ATOM': '⚛',
+    'XLM': '*',
+  };
+  
+  return icons[symbol.toUpperCase()] || '○';
+};
+
+export const getCryptoGradient = (symbol: string): string => {
+  const gradients: Record<string, string> = {
+    'BTC': 'from-orange-400 to-orange-600',
+    'ETH': 'from-blue-400 to-blue-600',
+    'ADA': 'from-green-400 to-green-600',
+    'DOT': 'from-pink-400 to-pink-600',
+    'LTC': 'from-gray-400 to-gray-600',
+    'XRP': 'from-blue-300 to-blue-500',
+    'BCH': 'from-green-500 to-green-700',
+    'LINK': 'from-blue-500 to-blue-700',
+    'ATOM': 'from-purple-400 to-purple-600',
+    'XLM': 'from-cyan-400 to-cyan-600',
+  };
+  
+  return gradients[symbol.toUpperCase()] || 'from-gray-400 to-gray-600';
+};
+
+// =====================================
+// DEBOUNCE UTILITY
+// =====================================
+
+export const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): T => {
+  let timeout: NodeJS.Timeout;
+  
+  return ((...args: any[]) => {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  }) as T;
+};
+
+// =====================================
+// ERROR HANDLING
 // =====================================
 
 export const handleApiError = (error: any): string => {
   if (error?.response?.data?.detail) {
     return error.response.data.detail;
   }
+  
   if (error?.message) {
     return error.message;
   }
+  
   return 'An unexpected error occurred';
 };
 
 export const isNetworkError = (error: any): boolean => {
-  return error?.code === 'NETWORK_ERROR' || 
-         error?.message?.includes('Network Error') ||
-         !navigator.onLine;
+  return !error?.response && error?.request;
 };
 
 // =====================================
-// PERFORMANCE UTILITIES
+// THEME UTILITIES
 // =====================================
 
-export const debounce = <T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout;
-  
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
+export const getStatusColor = (status: 'success' | 'error' | 'warning' | 'info'): string => {
+  switch (status) {
+    case 'success': return 'text-green-400';
+    case 'error': return 'text-red-400';
+    case 'warning': return 'text-yellow-400';
+    case 'info': return 'text-blue-400';
+    default: return 'text-gray-400';
+  }
 };
 
-export const throttle = <T extends (...args: any[]) => any>(
-  func: T,
-  limit: number
-): ((...args: Parameters<T>) => void) => {
-  let inThrottle: boolean;
-  
-  return (...args: Parameters<T>) => {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
-    }
-  };
-};
-
-// =====================================
-// CRYPTO-SPECIFIC UTILITIES
-// =====================================
-
-export const formatCryptoSymbol = (symbol: string): string => {
-  return symbol.toUpperCase();
-};
-
-export const getCryptoIcon = (symbol: string): string => {
-  const icons: Record<string, string> = {
-    BTC: '₿',
-    ETH: 'Ξ',
-    ADA: '₳',
-    DOT: '●',
-  };
-  return icons[symbol.toUpperCase()] || '◦';
-};
-
-export const getCryptoColor = (symbol: string): string => {
-  const colors: Record<string, string> = {
-    BTC: '#F7931A',
-    ETH: '#627EEA', 
-    ADA: '#0033AD',
-    DOT: '#E6007A',
-  };
-  return colors[symbol.toUpperCase()] || '#6B7280';
-};
-
-export const calculateMarketCap = (price: number, circulatingSupply: number): number => {
-  return price * circulatingSupply;
-};
-
-export const calculatePriceChange = (current: number, previous: number): {
-  absolute: number;
-  percentage: number;
-  trend: 'up' | 'down' | 'neutral';
-} => {
-  const absolute = current - previous;
-  const percentage = calculatePercentageChange(current, previous);
-  const trend = calculateTrend(current, previous);
-  
-  return { absolute, percentage, trend };
+export const getStatusBgColor = (status: 'success' | 'error' | 'warning' | 'info'): string => {
+  switch (status) {
+    case 'success': return 'bg-green-500/10 border-green-500/30';
+    case 'error': return 'bg-red-500/10 border-red-500/30';
+    case 'warning': return 'bg-yellow-500/10 border-yellow-500/30';
+    case 'info': return 'bg-blue-500/10 border-blue-500/30';
+    default: return 'bg-gray-500/10 border-gray-500/30';
+  }
 };

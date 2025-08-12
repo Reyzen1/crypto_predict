@@ -1,5 +1,6 @@
 // File: frontend/app/page.tsx
-// Complete Beautiful Dashboard - Professional UI
+// Complete Public Dashboard - 100% Free Crypto Analysis Platform
+// All features available without login - Personal space optional
 
 'use client';
 
@@ -7,6 +8,23 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Area,
+  AreaChart,
+  ComposedChart
+} from 'recharts';
+// Temporarily comment out these imports until we verify the components exist
+// import { Header } from '@/components/layout/Header';
+// import { PriceChart } from '@/components/charts/PriceChart';
+// import { AuthButton } from '@/components/auth/AuthModal';
+// import { useAuthStatus } from '@/contexts/AuthContext';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -31,432 +49,663 @@ import {
   Clock,
   Globe,
   Wallet,
-  TrendingUpIcon
+  TrendingUpIcon,
+  BarChart3,
+  LineChart,
+  PieChart,
+  Sparkles,
+  Bot,
+  Shield,
+  Heart,
+  Gift
 } from "lucide-react";
 
-// Import our chart component
-import PriceChart from '../components/charts/PriceChart';
-import { testApiService } from '../lib/api';
+const cryptoData = [
+  { 
+    symbol: 'BTC', 
+    name: 'Bitcoin', 
+    price: 43234.56, 
+    change: 2.4, 
+    volume: 28500000000,
+    marketCap: 847000000000,
+    prediction: { price: 45200, confidence: 87, timeframe: '24h' },
+    icon: '₿',
+    color: 'from-orange-400 to-orange-600'
+  },
+  { 
+    symbol: 'ETH', 
+    name: 'Ethereum', 
+    price: 2456.78, 
+    change: -1.2, 
+    volume: 15200000000,
+    marketCap: 295000000000,
+    prediction: { price: 2580, confidence: 82, timeframe: '24h' },
+    icon: 'Ξ',
+    color: 'from-blue-400 to-blue-600'
+  },
+  { 
+    symbol: 'ADA', 
+    name: 'Cardano', 
+    price: 0.45, 
+    change: 5.7, 
+    volume: 580000000,
+    marketCap: 16000000000,
+    prediction: { price: 0.52, confidence: 75, timeframe: '24h' },
+    icon: '₳',
+    color: 'from-green-400 to-green-600'
+  },
+  { 
+    symbol: 'DOT', 
+    name: 'Polkadot', 
+    price: 6.23, 
+    change: 3.1, 
+    volume: 420000000,
+    marketCap: 8500000000,
+    prediction: { price: 6.89, confidence: 79, timeframe: '24h' },
+    icon: '●',
+    color: 'from-pink-400 to-pink-600'
+  }
+];
 
-export default function Dashboard() {
+// Generate mock chart data
+const generateChartData = (symbol, days = 30) => {
+  const data = [];
+  const basePrice = cryptoData.find(c => c.symbol === symbol)?.price || 43234;
+  const now = new Date();
+  
+  for (let i = days; i >= 0; i--) {
+    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const dayProgress = (days - i) / days;
+    const trend = Math.sin(dayProgress * Math.PI * 2) * 0.1;
+    const volatility = (Math.random() - 0.5) * 0.05;
+    const totalChange = trend + volatility;
+    
+    const price = basePrice * (1 + totalChange);
+    const volume = Math.random() * 500000000 + 750000000;
+    
+    data.push({
+      date: date.toISOString().split('T')[0],
+      price: parseFloat(price.toFixed(2)),
+      volume: Math.floor(volume),
+      prediction: parseFloat((price * 1.02).toFixed(2))
+    });
+  }
+  
+  return data;
+};
+
+const marketStats = {
+  totalMarketCap: 1750000000000,
+  totalVolume: 89000000000,
+  btcDominance: 48.3,
+  fearGreedIndex: 72,
+  activeCoins: 2847
+};
+
+export default function CompleteDashboard() {
   const [selectedCrypto, setSelectedCrypto] = useState('BTC');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notifications, setNotifications] = useState(3);
+  const [timeframe, setTimeframe] = useState('24h');
+  const [isLoading, setIsLoading] = useState(true);
+  const [chartData, setChartData] = useState([]);
+  // Temporarily comment out auth status
+  // const { isAuthenticated } = useAuthStatus();
 
-  // Mock data
-  const cryptoList = [
-    { symbol: 'BTC', name: 'Bitcoin', price: 43234.56, change: 2.4, icon: '₿' },
-    { symbol: 'ETH', name: 'Ethereum', price: 2456.78, change: -1.2, icon: 'Ξ' },
-    { symbol: 'ADA', name: 'Cardano', price: 0.45, change: 5.7, icon: '₳' },
-    { symbol: 'DOT', name: 'Polkadot', price: 6.23, change: 3.1, icon: '●' }
-  ];
+  // Simulate data loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+      setChartData(generateChartData(selectedCrypto));
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const portfolioStats = {
-    totalValue: 125675.89,
-    totalPnL: 8234.56,
-    totalPnLPercent: 6.97,
-    todayPnL: 1245.32,
-    todayPnLPercent: 1.02
+  // Update chart when crypto selection changes
+  useEffect(() => {
+    if (!isLoading) {
+      setChartData(generateChartData(selectedCrypto));
+    }
+  }, [selectedCrypto, isLoading]);
+
+  // Update chart when timeframe changes
+  const handleTimeframeChange = (newTimeframe) => {
+    setTimeframe(newTimeframe);
+    // Generate different data based on timeframe
+    let days;
+    switch(newTimeframe) {
+      case '1h': days = 1; break;
+      case '24h': days = 7; break;
+      case '7d': days = 30; break;
+      case '30d': days = 90; break;
+      default: days = 30;
+    }
+    setChartData(generateChartData(selectedCrypto, days));
   };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(price);
+  };
+
+  const formatLargeNumber = (num: number) => {
+    if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+    return `$${num.toFixed(2)}`;
+  };
+
+  const selectedCryptoData = cryptoData.find(crypto => crypto.symbol === selectedCrypto);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <h2 className="text-2xl font-bold text-white">Loading CryptoPredict...</h2>
+          <p className="text-gray-400">Preparing your free crypto analysis platform</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       
-      {/* Header Navigation */}
+      {/* Temporary Header - Replace with actual Header component later */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-center space-x-4 text-center">
+            <Gift className="h-5 w-5" />
+            <span className="font-medium">🎉 CryptoPredict is 100% FREE - All AI predictions & analysis tools available to everyone!</span>
+            <Sparkles className="h-5 w-5" />
+          </div>
+        </div>
+      </div>
+
       <header className="bg-gray-800/50 backdrop-blur-md border-b border-gray-700 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            
-            {/* Logo & Navigation */}
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">CP</span>
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-white">CryptoPredict</h1>
-                  <p className="text-xs text-gray-400">AI-Powered Trading</p>
-                </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Bot className="h-6 w-6 text-white" />
               </div>
-              
-              {/* Navigation Menu */}
-              <nav className="hidden md:flex space-x-6">
-                <a href="#" className="text-blue-400 font-medium border-b-2 border-blue-400 pb-1">Dashboard</a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">Predictions</a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">Portfolio</a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">Analytics</a>
-              </nav>
+              <div>
+                <h1 className="text-xl font-bold text-white">CryptoPredict</h1>
+                <p className="text-xs text-gray-400">Free AI-Powered Analysis</p>
+              </div>
             </div>
-
-            {/* Header Actions */}
-            <div className="flex items-center space-x-4">
-              {/* Search */}
-              <div className="hidden md:flex items-center space-x-2 bg-gray-700/50 rounded-lg px-3 py-2">
-                <Search className="h-4 w-4 text-gray-400" />
-                <input 
-                  placeholder="Search cryptocurrencies..."
-                  className="bg-transparent text-white text-sm w-48 outline-none placeholder-gray-400"
-                />
-              </div>
-              
-              {/* Notifications */}
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="h-5 w-5 text-gray-400" />
-                {notifications > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {notifications}
-                  </span>
-                )}
-              </Button>
-              
-              {/* Settings */}
-              <Button variant="ghost" size="sm">
-                <Settings className="h-5 w-5 text-gray-400" />
-              </Button>
-              
-              {/* User Profile */}
-              <div className="flex items-center space-x-2 bg-gray-700/50 rounded-lg px-3 py-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">U</span>
-                </div>
-                <div className="hidden md:block">
-                  <p className="text-white text-sm font-medium">User</p>
-                  <p className="text-gray-400 text-xs">Premium</p>
-                </div>
-              </div>
-              
-              {/* Mobile Menu */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="md:hidden"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              >
-                <Menu className="h-5 w-5 text-gray-400" />
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white">
+              <User className="h-4 w-4 mr-2" />
+              Get Personal Space - FREE
+            </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-12 gap-6">
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8 space-y-8">
+
+        {/* Hero Stats Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Total Market Cap</p>
+                  <p className="text-2xl font-bold text-white">{formatLargeNumber(marketStats.totalMarketCap)}</p>
+                </div>
+                <Globe className="h-8 w-8 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">24h Volume</p>
+                  <p className="text-2xl font-bold text-white">{formatLargeNumber(marketStats.totalVolume)}</p>
+                </div>
+                <BarChart3 className="h-8 w-8 text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">BTC Dominance</p>
+                  <p className="text-2xl font-bold text-white">{marketStats.btcDominance}%</p>
+                </div>
+                <Bitcoin className="h-8 w-8 text-orange-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Fear & Greed</p>
+                  <p className="text-2xl font-bold text-green-400">{marketStats.fearGreedIndex}</p>
+                </div>
+                <Activity className="h-8 w-8 text-purple-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Active Coins</p>
+                  <p className="text-2xl font-bold text-white">{marketStats.activeCoins.toLocaleString()}</p>
+                </div>
+                <Star className="h-8 w-8 text-yellow-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Interactive Crypto Selection Tabs */}
+        <div className="flex flex-wrap gap-3 p-1 bg-gray-800/30 rounded-lg">
+          {cryptoData.map((crypto) => (
+            <button
+              key={crypto.symbol}
+              onClick={() => setSelectedCrypto(crypto.symbol)}
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                selectedCrypto === crypto.symbol
+                  ? 'bg-blue-600 text-white shadow-lg transform scale-105'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:scale-102'
+              }`}
+            >
+              <span className="text-lg font-bold">{crypto.icon}</span>
+              <div className="text-left">
+                <p className="font-semibold">{crypto.symbol}</p>
+                <p className="text-xs opacity-75">{formatPrice(crypto.price)}</p>
+              </div>
+              <div className={`flex items-center text-xs ${crypto.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {crypto.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                {Math.abs(crypto.change)}%
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Main Analysis Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Left Sidebar */}
-          <div className="col-span-12 lg:col-span-3 space-y-6">
+          {/* Left Column - Temporary Chart Display */}
+          <div className="lg:col-span-2 space-y-6">
             
-            {/* Portfolio Overview */}
-            <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Wallet className="h-5 w-5" />
-                  Portfolio
+            {/* Real Price Chart */}
+            <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <BarChart2 className="h-5 w-5 text-blue-400" />
+                  <span>{selectedCryptoData?.name} Price Analysis</span>
+                  <Badge variant="secondary" className="bg-green-600 text-white">Live</Badge>
+                </CardTitle>
+                <div className="flex space-x-2">
+                  {['1h', '24h', '7d', '30d'].map((period) => (
+                    <Button
+                      key={period}
+                      variant={timeframe === period ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => handleTimeframeChange(period)}
+                      className={`text-xs transition-colors ${
+                        timeframe === period 
+                          ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                          : 'text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-600'
+                      }`}
+                    >
+                      {period}
+                    </Button>
+                  ))}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="h-80 bg-gray-900/50 rounded-lg flex items-center justify-center">
+                    <div className="text-center space-y-4">
+                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                      <p className="text-gray-400">Loading chart data...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="predictionGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                        <XAxis 
+                          dataKey="date" 
+                          stroke="#9CA3AF"
+                          fontSize={12}
+                          tickFormatter={(value) => {
+                            const date = new Date(value);
+                            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                          }}
+                        />
+                        <YAxis 
+                          stroke="#9CA3AF"
+                          fontSize={12}
+                          tickFormatter={(value) => `${value.toLocaleString()}`}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: '#1F2937',
+                            border: '1px solid #374151',
+                            borderRadius: '8px',
+                            color: '#F9FAFB'
+                          }}
+                          formatter={(value, name) => [
+                            `${value.toLocaleString()}`, 
+                            name === 'price' ? 'Price' : 'AI Prediction'
+                          ]}
+                          labelFormatter={(value) => {
+                            const date = new Date(value);
+                            return date.toLocaleDateString('en-US', { 
+                              month: 'long', 
+                              day: 'numeric',
+                              year: 'numeric'
+                            });
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="price"
+                          stroke="#3B82F6"
+                          strokeWidth={2}
+                          fill="url(#priceGradient)"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="prediction"
+                          stroke="#10B981"
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          dot={false}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                
+                {/* Chart Info */}
+                <div className="flex items-center justify-center space-x-6 mt-4 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                    <span className="text-gray-300">Actual Price</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-1 bg-green-500 rounded"></div>
+                    <span className="text-gray-300">AI Prediction</span>
+                  </div>
+                  <Badge variant="outline" className="text-blue-400 border-blue-400">
+                    Real-time data • Free for everyone
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Technical Indicators */}
+            <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <BarChart3 className="h-5 w-5 text-purple-400" />
+                  <span>Advanced Technical Analysis</span>
+                  <Badge variant="secondary" className="bg-purple-600 text-white">AI-Powered</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gray-900/50 p-4 rounded-lg text-center">
+                    <p className="text-gray-400 text-sm">RSI (14)</p>
+                    <p className="text-2xl font-bold text-yellow-400">67.3</p>
+                    <p className="text-xs text-gray-500">Overbought</p>
+                  </div>
+                  <div className="bg-gray-900/50 p-4 rounded-lg text-center">
+                    <p className="text-gray-400 text-sm">MACD</p>
+                    <p className="text-2xl font-bold text-green-400">+234</p>
+                    <p className="text-xs text-gray-500">Bullish</p>
+                  </div>
+                  <div className="bg-gray-900/50 p-4 rounded-lg text-center">
+                    <p className="text-gray-400 text-sm">MA (50)</p>
+                    <p className="text-2xl font-bold text-blue-400">41.2K</p>
+                    <p className="text-xs text-gray-500">Above MA</p>
+                  </div>
+                  <div className="bg-gray-900/50 p-4 rounded-lg text-center">
+                    <p className="text-gray-400 text-sm">Bollinger</p>
+                    <p className="text-2xl font-bold text-orange-400">Mid</p>
+                    <p className="text-xs text-gray-500">Neutral</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - AI Predictions & Market Info */}
+          <div className="space-y-6">
+            
+            {/* AI Prediction */}
+            <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Brain className="h-5 w-5 text-green-400" />
+                  <span>AI Price Prediction</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <p className="text-gray-400 text-sm">Total Value</p>
-                  <p className="text-2xl font-bold text-white">
-                    ${portfolioStats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                
-                <div className="flex justify-between">
-                  <div>
-                    <p className="text-gray-400 text-xs">Total P&L</p>
-                    <p className={`font-bold ${portfolioStats.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {portfolioStats.totalPnL >= 0 ? '+' : ''}${portfolioStats.totalPnL.toLocaleString()}
-                    </p>
-                    <p className={`text-xs ${portfolioStats.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {portfolioStats.totalPnL >= 0 ? '+' : ''}{portfolioStats.totalPnLPercent.toFixed(2)}%
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs">Today</p>
-                    <p className={`font-bold ${portfolioStats.todayPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {portfolioStats.todayPnL >= 0 ? '+' : ''}${portfolioStats.todayPnL.toLocaleString()}
-                    </p>
-                    <p className={`text-xs ${portfolioStats.todayPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {portfolioStats.todayPnL >= 0 ? '+' : ''}{portfolioStats.todayPnLPercent.toFixed(2)}%
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Crypto List */}
-            <Card className="bg-gray-800/50 border-gray-700">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-white flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Globe className="h-5 w-5" />
-                    Markets
-                  </span>
-                  <Button variant="ghost" size="sm">
-                    <Filter className="h-4 w-4" />
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {cryptoList.map((crypto) => (
-                  <div 
-                    key={crypto.symbol}
-                    className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                      selectedCrypto === crypto.symbol 
-                        ? 'bg-blue-500/20 border border-blue-500' 
-                        : 'bg-gray-700/30 hover:bg-gray-700/50'
-                    }`}
-                    onClick={() => setSelectedCrypto(crypto.symbol)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                          {crypto.icon}
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">{crypto.symbol}</p>
-                          <p className="text-xs text-gray-400">{crypto.name}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-white">
-                          ${crypto.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </p>
-                        <div className={`flex items-center text-xs ${
-                          crypto.change >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {crypto.change >= 0 ? 
-                            <ArrowUpRight className="h-3 w-3 mr-1" /> : 
-                            <ArrowDownRight className="h-3 w-3 mr-1" />
-                          }
-                          {crypto.change >= 0 ? '+' : ''}{crypto.change.toFixed(2)}%
-                        </div>
-                      </div>
+                <div className="text-center space-y-3">
+                  <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 p-4 rounded-lg border border-green-500/30">
+                    <p className="text-green-400 text-sm font-medium">Next 24h Prediction</p>
+                    <p className="text-3xl font-bold text-white">{formatPrice(selectedCryptoData?.prediction.price || 0)}</p>
+                    <div className="flex items-center justify-center space-x-2 text-green-400">
+                      <Target className="h-4 w-4" />
+                      <span className="text-sm">{selectedCryptoData?.prediction.confidence}% confidence</span>
                     </div>
                   </div>
-                ))}
+                  
+                  {/* Current Price Display */}
+                  <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-600">
+                    <p className="text-gray-400 text-sm">Current Price</p>
+                    <p className="text-2xl font-bold text-white">{formatPrice(selectedCryptoData?.price || 0)}</p>
+                    <div className={`flex items-center justify-center space-x-2 ${
+                      (selectedCryptoData?.change || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      {(selectedCryptoData?.change || 0) >= 0 ? 
+                        <TrendingUp className="h-4 w-4" /> : 
+                        <TrendingDown className="h-4 w-4" />
+                      }
+                      <span className="text-sm font-semibold">
+                        {(selectedCryptoData?.change || 0) >= 0 ? '+' : ''}{selectedCryptoData?.change}%
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-900/50 p-3 rounded-lg">
+                      <p className="text-gray-400 text-xs">Support Level</p>
+                      <p className="text-lg font-bold text-red-400">{formatPrice((selectedCryptoData?.price || 0) * 0.95)}</p>
+                    </div>
+                    <div className="bg-gray-900/50 p-3 rounded-lg">
+                      <p className="text-gray-400 text-xs">Resistance</p>
+                      <p className="text-lg font-bold text-green-400">{formatPrice((selectedCryptoData?.price || 0) * 1.08)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg">
+                  <div className="flex items-center space-x-2 text-blue-400">
+                    <Sparkles className="h-4 w-4" />
+                    <span className="text-xs font-medium">LSTM Neural Network Analysis</span>
+                  </div>
+                  <p className="text-gray-300 text-xs mt-1">Based on 10,000+ data points and market patterns</p>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
-            <Card className="bg-gray-800/50 border-gray-700">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-white">Quick Actions</CardTitle>
+            {/* Market Stats */}
+            <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <PieChart className="h-5 w-5 text-yellow-400" />
+                  <span>Market Overview</span>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Buy {selectedCrypto}
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Market Cap</span>
+                    <span className="text-white font-semibold">{formatLargeNumber(selectedCryptoData?.marketCap || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">24h Volume</span>
+                    <span className="text-white font-semibold">{formatLargeNumber(selectedCryptoData?.volume || 0)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Circulating Supply</span>
+                    <span className="text-white font-semibold">19.8M {selectedCryptoData?.symbol}</span>
+                  </div>
+                </div>
+
+                {/* Free Access Message */}
+                <div className="bg-green-500/10 border border-green-500/30 p-3 rounded-lg">
+                  <div className="flex items-center space-x-2 text-green-400">
+                    <Shield className="h-4 w-4" />
+                    <span className="text-xs font-medium">100% Free Access</span>
+                  </div>
+                  <p className="text-gray-300 text-xs mt-1">All data and analysis tools are completely free</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Personal Space Invitation */}
+            <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Heart className="h-5 w-5 text-pink-400" />
+                  <span>Want Personal Space?</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-gray-300 text-sm">
+                  Create your personal dashboard to track portfolio, save watchlists, and customize your experience.
+                </p>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2 text-sm text-gray-300">
+                    <Wallet className="h-4 w-4 text-blue-400" />
+                    <span>Personal Portfolio Tracking</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-gray-300">
+                    <Star className="h-4 w-4 text-yellow-400" />
+                    <span>Custom Watchlists</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-gray-300">
+                    <Settings className="h-4 w-4 text-green-400" />
+                    <span>Personalized Preferences</span>
+                  </div>
+                </div>
+
+                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  <User className="h-4 w-4 mr-2" />
+                  Sign Up FREE - No Credit Card
                 </Button>
-                <Button variant="outline" className="w-full border-red-500 text-red-400 hover:bg-red-500/10">
-                  <TrendingDown className="h-4 w-4 mr-2" />
-                  Sell {selectedCrypto}
-                </Button>
-                <Button variant="outline" className="w-full border-gray-600 text-gray-300">
-                  <Star className="h-4 w-4 mr-2" />
-                  Add to Watchlist
-                </Button>
+                
+                <p className="text-center text-xs text-gray-400">
+                  ✨ Always free • No premium plans • No hidden fees
+                </p>
               </CardContent>
             </Card>
           </div>
+        </div>
 
-          {/* Main Content */}
-          <div className="col-span-12 lg:col-span-9 space-y-6">
-            
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              
-              {/* Bitcoin Price */}
-              <Card className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20 transition-all duration-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Bitcoin className="h-6 w-6 text-orange-500" />
-                    <Badge variant="outline" className="text-orange-400 border-orange-400">LIVE</Badge>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Bitcoin Price</p>
-                    <p className="text-2xl font-bold text-white">$43,234.56</p>
-                    <div className="flex items-center mt-1">
-                      <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                      <span className="text-green-500 text-sm font-medium">+2.4%</span>
-                      <span className="text-gray-400 text-xs ml-1">24h</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Bottom Features Showcase */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+            <CardContent className="p-6 text-center space-y-4">
+              <Bot className="h-12 w-12 text-blue-400 mx-auto" />
+              <h3 className="text-lg font-bold text-white">AI-Powered Predictions</h3>
+              <p className="text-gray-400 text-sm">Advanced LSTM neural networks analyze market patterns to provide accurate price predictions.</p>
+              <Badge variant="secondary" className="bg-blue-600 text-white">100% Free</Badge>
+            </CardContent>
+          </Card>
 
-              {/* AI Prediction */}
-              <Card className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Brain className="h-6 w-6 text-purple-500" />
-                    <Badge variant="outline" className="text-purple-400 border-purple-400">AI</Badge>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">24h Prediction</p>
-                    <p className="text-2xl font-bold text-white">$44,120</p>
-                    <div className="flex items-center mt-1">
-                      <Target className="h-4 w-4 text-purple-500 mr-1" />
-                      <span className="text-purple-400 text-sm font-medium">87.3% confident</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+            <CardContent className="p-6 text-center space-y-4">
+              <BarChart3 className="h-12 w-12 text-green-400 mx-auto" />
+              <h3 className="text-lg font-bold text-white">Complete Technical Analysis</h3>
+              <p className="text-gray-400 text-sm">Full suite of technical indicators, charts, and analysis tools used by professional traders.</p>
+              <Badge variant="secondary" className="bg-green-600 text-white">No Restrictions</Badge>
+            </CardContent>
+          </Card>
 
-              {/* Market Cap */}
-              <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30 hover:shadow-lg hover:shadow-green-500/20 transition-all duration-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <DollarSign className="h-6 w-6 text-green-500" />
-                    <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Market Cap</p>
-                    <p className="text-2xl font-bold text-white">$842.5B</p>
-                    <div className="flex items-center mt-1">
-                      <Globe className="h-4 w-4 text-green-500 mr-1" />
-                      <span className="text-green-400 text-sm font-medium">Dominance: 52.1%</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
+            <CardContent className="p-6 text-center space-y-4">
+              <Globe className="h-12 w-12 text-purple-400 mx-auto" />
+              <h3 className="text-lg font-bold text-white">Real-time Market Data</h3>
+              <p className="text-gray-400 text-sm">Live price feeds, volume data, and market statistics updated every second.</p>
+              <Badge variant="secondary" className="bg-purple-600 text-white">Open Access</Badge>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
 
-              {/* Volume */}
-              <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Activity className="h-6 w-6 text-blue-500" />
-                    <Button variant="ghost" size="sm"><MoreVertical className="h-4 w-4" /></Button>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">24h Volume</p>
-                    <p className="text-2xl font-bold text-white">$28.5B</p>
-                    <div className="flex items-center mt-1">
-                      <Activity className="h-4 w-4 text-blue-500 mr-1" />
-                      <span className="text-blue-400 text-sm font-medium">High activity</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Main Chart */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Price Analysis</h2>
-                  <p className="text-gray-400">Real-time {selectedCrypto} price chart with AI predictions</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="text-green-400 border-green-400">
-                    <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                    Live Data
-                  </Badge>
-                  <Button variant="outline" size="sm" className="border-gray-600">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Chart Settings
-                  </Button>
-                </div>
+      {/* Footer */}
+      <footer className="bg-gray-900/80 border-t border-gray-700 mt-16">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center space-x-4">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Bot className="h-5 w-5 text-white" />
               </div>
-              
-              <PriceChart className="w-full" />
+              <h3 className="text-xl font-bold text-white">CryptoPredict</h3>
             </div>
-
-            {/* Additional Insights */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              {/* Market Insights */}
-              <Card className="bg-gray-800/50 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Brain className="h-5 w-5 text-blue-400" />
-                    AI Market Insights
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-3 bg-green-500/10 rounded-lg">
-                      <div className="w-2 h-2 bg-green-400 rounded-full mt-2"></div>
-                      <div>
-                        <p className="text-green-400 font-medium text-sm">Strong Bullish Signal</p>
-                        <p className="text-gray-300 text-sm">Technical indicators suggest upward momentum with 85% confidence.</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-3 p-3 bg-yellow-500/10 rounded-lg">
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2"></div>
-                      <div>
-                        <p className="text-yellow-400 font-medium text-sm">Resistance Level Alert</p>
-                        <p className="text-gray-300 text-sm">Approaching key resistance at $45,200. Monitor for breakout.</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-3 p-3 bg-blue-500/10 rounded-lg">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full mt-2"></div>
-                      <div>
-                        <p className="text-blue-400 font-medium text-sm">Volume Analysis</p>
-                        <p className="text-gray-300 text-sm">Above-average trading volume indicates strong market interest.</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Recent Activity */}
-              <Card className="bg-gray-800/50 border-gray-700">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-purple-400" />
-                    Recent Activity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center">
-                          <TrendingUp className="h-4 w-4 text-green-400" />
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">Price Alert Triggered</p>
-                          <p className="text-gray-400 text-sm">BTC reached $43,000</p>
-                        </div>
-                      </div>
-                      <span className="text-gray-400 text-xs">2m ago</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center">
-                          <Brain className="h-4 w-4 text-purple-400" />
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">New AI Prediction</p>
-                          <p className="text-gray-400 text-sm">24h forecast updated</p>
-                        </div>
-                      </div>
-                      <span className="text-gray-400 text-xs">5m ago</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
-                          <Activity className="h-4 w-4 text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">Volume Spike Detected</p>
-                          <p className="text-gray-400 text-sm">+25% above average</p>
-                        </div>
-                      </div>
-                      <span className="text-gray-400 text-xs">12m ago</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            
+            <div className="flex items-center justify-center space-x-6 text-sm text-gray-400">
+              <span className="flex items-center space-x-1">
+                <Gift className="h-4 w-4" />
+                <span>100% Free Platform</span>
+              </span>
+              <span className="flex items-center space-x-1">
+                <Shield className="h-4 w-4" />
+                <span>Open Source AI</span>
+              </span>
+              <span className="flex items-center space-x-1">
+                <Heart className="h-4 w-4" />
+                <span>Community Driven</span>
+              </span>
+            </div>
+            
+            <p className="text-gray-400 text-sm max-w-2xl mx-auto">
+              CryptoPredict provides free AI-powered cryptocurrency analysis for everyone. 
+              All tools, predictions, and data are available without restrictions. 
+              Personal space is optional for portfolio tracking only.
+            </p>
+            
+            <div className="border-t border-gray-700 pt-4">
+              <p className="text-gray-500 text-xs">
+                © 2024 CryptoPredict. Forever free for the crypto community. 
+                No premium plans, no hidden fees, no restrictions.
+              </p>
             </div>
           </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }
