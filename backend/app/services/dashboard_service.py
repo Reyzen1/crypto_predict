@@ -489,6 +489,37 @@ class SuperOptimizedDashboardService:
         
         return {"warmed_symbols": warmed, "timestamp": datetime.now(timezone.utc).isoformat()}
 
+    async def get_crypto_details(
+        self, 
+        db: Session, 
+        symbol: str, 
+        days_history: int = 30,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get detailed crypto information with history"""
+        
+        # Get basic crypto data
+        crypto_data = await self.get_dashboard_summary(
+            db=db, 
+            symbols=[symbol], 
+            user_id=user_id
+        )
+        
+        if not crypto_data["cryptocurrencies"]:
+            raise ValueError(f"Cryptocurrency {symbol} not found")
+        
+        crypto = crypto_data["cryptocurrencies"][0]
+        
+        # Get historical data (you'll need to implement this)
+        # price_history = await self.get_price_history(db, symbol, days_history)
+        # prediction_history = await self.get_prediction_history(db, symbol, days_history)
+        
+        return {
+            **crypto,
+            "price_history": [], # Implement when ready
+            "prediction_history": [], # Implement when ready  
+            "technical_indicators": {} # Implement when ready
+        }
 
 # Create global instance with new optimized service
 dashboard_service = SuperOptimizedDashboardService()
