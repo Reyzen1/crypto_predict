@@ -21,7 +21,7 @@ from app.models import User
 router = APIRouter()
 
 
-@router.get("/", response_model=PaginatedResponse[CryptocurrencyResponse])
+@router.get("/list", response_model=PaginatedResponse[CryptocurrencyResponse])
 def list_cryptocurrencies(
     pagination: PaginationParams = Depends(),
     search: str = Query(None, description="Search by symbol or name"),
