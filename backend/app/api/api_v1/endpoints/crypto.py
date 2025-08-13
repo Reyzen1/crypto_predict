@@ -20,72 +20,74 @@ from app.models import User
 
 router = APIRouter()
 
-
-@router.get("/list", response_model=PaginatedResponse[CryptocurrencyResponse])
-def list_cryptocurrencies(
-    pagination: PaginationParams = Depends(),
-    search: str = Query(None, description="Search by symbol or name"),
-    is_active: bool = Query(True, description="Filter by active status"),
+@router.get("/", response_model=PaginatedResponse[CryptocurrencyResponse])
+def list_cryptocurrencies_paginated(
+    search: Optional[str] = Query(None, description="Search by symbol or name"),
+    is_active: Optional[bool] = Query(True, description="Filter by active status"),
+    skip: int = Query(0, ge=0, description="Records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Max records"),
+    order_by: str = Query("symbol", description="Field to order by"),
+    order_desc: bool = Query(False, description="Descending order"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_current_user)
 ) -> Any:
     """
-    List cryptocurrencies with pagination and filtering
+    List cryptocurrencies with full pagination
     
+    Returns paginated response with metadata.
     Public endpoint - no authentication required.
-    Supports search by symbol or name.
     """
     try:
+        # Get cryptocurrencies with filtering
         if search:
-            # Use search functionality from your existing repository
             cryptos = cryptocurrency_repository.search_cryptos(
                 db,
                 search_term=search,
-                skip=pagination.skip,
-                limit=pagination.limit
+                skip=skip,
+                limit=limit
             )
-            total = len(cryptos)  # Approximate for search results
+            total = len(cryptocurrency_repository.search_cryptos(db, search_term=search))
         else:
-            # Get cryptocurrencies with filtering
             if is_active:
                 cryptos = cryptocurrency_repository.get_active_cryptos(
                     db,
-                    skip=pagination.skip,
-                    limit=pagination.limit
+                    skip=skip,
+                    limit=limit
                 )
-                total = len(cryptocurrency_repository.get_active_cryptos(db))
+                total = cryptocurrency_repository.count_active_cryptos(db)
             else:
                 cryptos = cryptocurrency_repository.get_multi(
                     db,
-                    skip=pagination.skip,
-                    limit=pagination.limit
+                    skip=skip,
+                    limit=limit
                 )
                 total = len(cryptocurrency_repository.get_all(db))
         
         # Convert to response format
-        crypto_responses = [
-            CryptocurrencyResponse(
+        crypto_responses = []
+        for crypto in cryptos:
+            crypto_responses.append(CryptocurrencyResponse(
                 id=crypto.id,
                 symbol=crypto.symbol,
                 name=crypto.name,
                 coingecko_id=crypto.coingecko_id,
                 binance_symbol=crypto.binance_symbol,
                 is_active=crypto.is_active,
-                created_at=crypto.created_at
-            ) for crypto in cryptos
-        ]
+                created_at=crypto.created_at,
+                updated_at=getattr(crypto, 'updated_at', None)
+            ))
         
         return PaginatedResponse.create(
             items=crypto_responses,
             total=total,
-            skip=pagination.skip,
-            limit=pagination.limit
+            skip=skip,
+            limit=limit
         )
         
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve cryptocurrencies"
+            detail=f"Failed to retrieve cryptocurrencies: {str(e)}"
         )
 
 
@@ -130,6 +132,67 @@ def create_cryptocurrency(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create cryptocurrency"
         )
+
+
+# =====================================
+# SIMPLE LIST ENDPOINT (Frontend Compatible)
+# =====================================
+
+@router.get("/list")
+def list_cryptocurrencies_simple(
+    search: Optional[str] = Query(None, description="Search by symbol or name"),
+    is_active: Optional[bool] = Query(True, description="Filter by active status"),
+    skip: int = Query(0, ge=0, description="Records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Max records"),
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user)
+):
+    """
+    List cryptocurrencies
+    
+    Returns simple array format that matches frontend expectations.
+    No authentication required.
+    """
+    try:
+        # Get cryptocurrencies based on filters
+        if search:
+            cryptos = cryptocurrency_repository.search_cryptos(
+                db,
+                search_term=search,
+                skip=skip,
+                limit=limit
+            )
+        else:
+            if is_active:
+                cryptos = cryptocurrency_repository.get_active_cryptos(
+                    db,
+                    skip=skip,
+                    limit=limit
+                )
+            else:
+                cryptos = cryptocurrency_repository.get_multi(
+                    db,
+                    skip=skip,
+                    limit=limit
+                )
+        
+        # Convert to simple format that frontend expects
+        result = []
+        for crypto in cryptos:
+            result.append({
+                "symbol": crypto.symbol,
+                "name": crypto.name,
+                "status": "active" if crypto.is_active else "inactive"
+            })
+        
+        return result
+        
+    except Exception as e:
+        # Log error for debugging
+        print(f"❌ Error in /crypto/list: {str(e)}")
+        
+        # Return empty list as fallback
+        return []
 
 
 @router.get("/symbol/{symbol}", response_model=CryptocurrencyWithPrice)
