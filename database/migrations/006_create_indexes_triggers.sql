@@ -206,6 +206,11 @@ CREATE INDEX IF NOT EXISTS idx_predictions_model_performance ON predictions(mode
 CREATE INDEX IF NOT EXISTS idx_predictions_horizon ON predictions(prediction_horizon, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_predictions_evaluation ON predictions(is_realized, is_accurate, evaluated_at DESC);
 
+CREATE INDEX IF NOT EXISTS idx_predictions_prediction_type ON predictions(prediction_type);
+CREATE INDEX IF NOT EXISTS idx_predictions_layer_type ON predictions(layer_source, prediction_type);
+CREATE INDEX IF NOT EXISTS idx_predictions_crypto_type ON predictions(crypto_id, prediction_type);
+CREATE INDEX IF NOT EXISTS idx_predictions_type_time ON predictions(prediction_type, created_at DESC);
+
 -- Cryptocurrencies enhanced indexes
 CREATE INDEX IF NOT EXISTS idx_cryptocurrencies_market_cap ON cryptocurrencies(market_cap DESC NULLS LAST) WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_cryptocurrencies_volume ON cryptocurrencies(total_volume DESC NULLS LAST) WHERE is_active = true;

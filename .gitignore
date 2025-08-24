@@ -73,6 +73,3 @@ logs/
 *.bak
 *.dir
 *.dat
-
-# Ignore backend models folder
-models/

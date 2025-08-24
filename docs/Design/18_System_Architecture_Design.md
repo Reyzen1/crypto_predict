@@ -206,11 +206,38 @@ app/
 │   ├── database.py      # Database connections
 │   ├── security.py      # JWT & security
 │   └── dependencies.py  # DI container
-├── models/              # SQLAlchemy models
-│   ├── layer1.py       # Macro models
-│   ├── layer2.py       # Sector models
-│   ├── layer3.py       # Asset models
-│   └── layer4.py       # Timing models
+├── models/
+│   ├── core/                    # اجزای اساسی و مشترک
+│   │   ├── user.py             # users, user_activities  
+│   │   ├── cryptocurrency.py    # cryptocurrencies, price_data
+│   │   └── prediction.py       # predictions (unified)
+│   │
+│   ├── market/                  # تحلیل‌های بازار
+│   │   ├── regime.py           # market_regime_analysis
+│   │   ├── sentiment.py        # market_sentiment_data
+│   │   ├── dominance.py        # dominance_data
+│   │   └── indicators.py       # macro_indicators
+│   │
+│   ├── sectors/                 # تحلیل بخش‌ها
+│   │   ├── sector.py           # crypto_sectors, crypto_sector_mapping
+│   │   ├── performance.py      # sector_performance  
+│   │   └── rotation.py         # sector_rotation_analysis
+│   │
+│   ├── trading/                 # معاملات و سیگنال‌ها
+│   │   ├── signal.py           # trading_signals
+│   │   ├── execution.py        # signal_executions
+│   │   └── risk.py             # risk_management
+│   │
+│   ├── watchlist/               # مدیریت watchlist
+│   │   ├── watchlist.py        # watchlists, watchlist_items
+│   │   ├── suggestion.py       # ai_suggestions
+│   │   └── review.py           # suggestion_reviews
+│   │
+│   └── system/                  # مدیریت سیستم
+│       ├── ai_model.py         # ai_models
+│       ├── health.py           # system_health  
+│       ├── notification.py     # notifications
+│       └── info.py             # system_info
 ├── schemas/             # Pydantic schemas
 ├── services/            # Business logic layer
 │   ├── layer1_service.py

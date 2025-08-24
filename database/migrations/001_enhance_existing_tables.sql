@@ -49,13 +49,15 @@ CREATE INDEX IF NOT EXISTS idx_price_data_timestamp_desc ON price_data(timestamp
 COMMENT ON COLUMN price_data.technical_indicators IS 'JSONB field storing calculated technical indicators (RSI, MACD, etc.)';
 
 -- 4. ENHANCE EXISTING PREDICTIONS TABLE (UNIFIED APPROACH)
--- Add new Phase 2 fields to existing predictions table
+-- Add new Phase 4 fields to existing predictions table
 -- This preserves existing data while adding new capabilities
 
--- Add new Phase 2 columns
+-- Add new Phase 4 columns
 ALTER TABLE predictions 
 ADD COLUMN IF NOT EXISTS layer_source VARCHAR(10) CHECK (layer_source IN ('layer1', 'layer2', 'layer3', 'layer4')),
-ADD COLUMN IF NOT EXISTS macro_context JSONB DEFAULT '{}';
+ADD COLUMN IF NOT EXISTS macro_context JSONB DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS prediction_type VARCHAR(20) DEFAULT 'price'
+ADD COLUMN IF NOT EXISTS predicted_value JSONB DEFAULT '{}';
 
 -- Helper function for safe JSON conversion
 CREATE OR REPLACE FUNCTION safe_to_jsonb(input_text TEXT)
@@ -131,10 +133,16 @@ CREATE INDEX IF NOT EXISTS idx_predictions_crypto_layer ON predictions(crypto_id
 CREATE INDEX IF NOT EXISTS idx_predictions_layer_source ON predictions(layer_source, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_predictions_macro_context ON predictions USING GIN (macro_context);
 
+CREATE INDEX IF NOT EXISTS idx_predictions_prediction_type ON predictions(prediction_type);
+CREATE INDEX IF NOT EXISTS idx_predictions_layer_type ON predictions(layer_source, prediction_type);
+CREATE INDEX IF NOT EXISTS idx_predictions_crypto_type ON predictions(crypto_id, prediction_type);
+CREATE INDEX IF NOT EXISTS idx_predictions_type_time ON predictions(prediction_type, created_at DESC);
+
 -- Add comments for documentation
 COMMENT ON TABLE predictions IS 'Unified predictions table for Phase 1 & Phase 2 - Enhanced 4-Layer AI System';
 COMMENT ON COLUMN predictions.layer_source IS 'Source layer for prediction: layer1=macro, layer2=sector, layer3=asset, layer4=timing';
 COMMENT ON COLUMN predictions.macro_context IS 'Macro market context from Layer 1 analysis stored as JSONB';
+COMMENT ON COLUMN predictions.prediction_type IS 'price, regime, sector_rotation, signal_classification, probability';
 
 -- Drop helper function after use
 DROP FUNCTION IF EXISTS safe_to_jsonb(TEXT);

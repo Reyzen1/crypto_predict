@@ -23,8 +23,8 @@ predictions (id, crypto_id, user_id, model_name, model_version, predicted_price,
 - **users**: افزودن `role` field برای admin management
 - **cryptocurrencies**: افزودن `watchlist_tier`, `sector_id` 
 - **price_data**: افزودن technical indicators
-- **predictions**: افزودن `layer_source`, `macro_context` و بهبود فیلدهای موجود
-
+- **predictions**: افزودن `layer_source`, `prediction_type`, `predicted_value`, `macro_context` و بهبود فیلدهای موجود
+- **prediction_type values**: 'price': Traditional price forecasting; 'regime': Market regime (Bull/Bear/Neutral); 'sector_rotation': Sector leadership changes; 'signal': Trading signals (Buy/Sell/Hold); 'probability': Success probability predictions
 ### **🎯 New Requirements from UI Design Analysis**
 
 #### **از طراحی UI، نیاز به جداول جدید:**
@@ -339,6 +339,10 @@ erDiagram
         timestamp created_at
         timestamp updated_at
         timestamp evaluated_at
+        layer_source
+        macro_context
+        prediction_type
+        predicted_value
     }
 
     %% System Management
@@ -653,6 +657,8 @@ CREATE TABLE IF NOT EXISTS risk_management (
 ALTER TABLE predictions 
 ADD COLUMN IF NOT EXISTS layer_source VARCHAR(10) CHECK (layer_source IN ('layer1', 'layer2', 'layer3', 'layer4')),
 ADD COLUMN IF NOT EXISTS macro_context JSONB DEFAULT '{}';
+ADD COLUMN IF NOT EXISTS prediction_type VARCHAR(20) DEFAULT 'price'
+ADD COLUMN IF NOT EXISTS predicted_value JSONB DEFAULT '{}';
 
 -- Ensure existing fields are optimized for Phase 2
 -- Update data types if needed (preserving existing data)
@@ -786,9 +792,13 @@ CREATE INDEX IF NOT EXISTS idx_signal_executions_signal ON signal_executions(sig
 
 -- Enhanced predictions indexes
 CREATE INDEX IF NOT EXISTS idx_predictions_crypto_layer ON predictions(crypto_id, layer_source, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_predictions_user_created ON predictions(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_predictions_target_time ON predictions(target_datetime);
-CREATE INDEX IF NOT EXISTS idx_predictions_realized ON predictions(is_realized, is_accurate);
+CREATE INDEX IF NOT EXISTS idx_predictions_layer_source ON predictions(layer_source, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_predictions_macro_context ON predictions USING GIN (macro_context);
+
+CREATE INDEX IF NOT EXISTS idx_predictions_prediction_type ON predictions(prediction_type);
+CREATE INDEX IF NOT EXISTS idx_predictions_layer_type ON predictions(layer_source, prediction_type);
+CREATE INDEX IF NOT EXISTS idx_predictions_crypto_type ON predictions(crypto_id, prediction_type);
+CREATE INDEX IF NOT EXISTS idx_predictions_type_time ON predictions(prediction_type, created_at DESC);
 
 -- System indexes
 CREATE INDEX IF NOT EXISTS idx_ai_models_type_status ON ai_models(model_type, status);
