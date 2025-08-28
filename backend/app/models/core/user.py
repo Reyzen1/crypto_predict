@@ -5,6 +5,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, JSON, F
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import INET
+from sqlalchemy_utils import IPAddressType
 
 from app.core.database import Base
 from sqlalchemy import DECIMAL
@@ -36,7 +37,7 @@ class User(Base):
     is_superuser = Column(Boolean, nullable=False, default=False)
     
     # User preferences (TEXT for compatibility)
-    preferences = Column(Text)
+    preferences = Column(JSON, default=dict)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -72,7 +73,7 @@ class UserActivity(Base):
     # Activity details
     activity_type = Column(String(50), nullable=False, index=True)
     activity_category = Column(String(30), default='general')
-    activity_data = Column(JSON, default={})
+    activity_data = Column(JSON, default=dict)
     
     # Request information
     request_path = Column(String(500))
@@ -82,7 +83,7 @@ class UserActivity(Base):
     
     # Session information
     session_id = Column(String(100))
-    ip_address = Column(INET)
+    ip_address = Column(IPAddressType, nullable=True)  # ✅ cross-database
     user_agent = Column(Text)
     
     # Device information
@@ -93,7 +94,7 @@ class UserActivity(Base):
     # Execution status
     success = Column(Boolean, default=True)
     error_message = Column(Text)
-    additional_data = Column(JSON, default={})
+    additional_data = Column(JSON, default=dict)
     
     # Timestamp
     activity_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)

@@ -39,7 +39,7 @@ class SectorPerformance(Base):
     worst_performer_id = Column(Integer, ForeignKey("cryptocurrencies.id"))
     
     # Analysis metrics
-    performance_metrics = Column(JSON, default={})
+    performance_metrics = Column(JSON, default=dict)
     momentum_score = Column(DECIMAL(5, 4))    # -1 to 1
     relative_strength = Column(DECIMAL(5, 4)) # vs overall market
     

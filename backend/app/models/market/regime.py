@@ -26,9 +26,9 @@ class MarketRegimeAnalysis(Base):
     recommended_exposure = Column(DECIMAL(5, 4))
     
     # Analysis data from database
-    indicators = Column(JSON, default={})
-    analysis_data = Column(JSON, default={})
-    market_context = Column(JSON, default={})
+    indicators = Column(JSON, default=dict)
+    analysis_data = Column(JSON, default=dict)
+    market_context = Column(JSON, default=dict)
     
     # Timestamps
     analysis_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)

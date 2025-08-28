@@ -29,14 +29,14 @@ class AISuggestion(Base):
     priority_score = Column(DECIMAL(5, 2), default=50, index=True)  # 0-100
     
     # AI analysis
-    reasoning = Column(JSON, default={})          # AI reasoning and explanation
-    analysis_data = Column(JSON, default={})     # Supporting analysis
-    supporting_metrics = Column(JSON, default={})
-    risk_assessment = Column(JSON, default={})
+    reasoning = Column(JSON, default=dict)          # AI reasoning and explanation
+    analysis_data = Column(JSON, default=dict)     # Supporting analysis
+    supporting_metrics = Column(JSON, default=dict)
+    risk_assessment = Column(JSON, default=dict)
     
     # Model information
-    model_version = Column(String(50))
-    data_sources = Column(JSON, default={})
+    model_version = Column(String(20), nullable=False, default='1.0')
+    data_sources = Column(JSON, default=dict)
     
     # Review status
     status = Column(String(20), default='pending', index=True)  # pending, approved, rejected, expired
@@ -61,4 +61,4 @@ class AISuggestion(Base):
 Index('idx_ai_suggestions_status', AISuggestion.status, AISuggestion.priority_score.desc(), AISuggestion.suggested_at.desc())
 Index('idx_ai_suggestions_crypto', AISuggestion.crypto_id, AISuggestion.status)
 Index('idx_ai_suggestions_type', AISuggestion.suggestion_type, AISuggestion.confidence_score.desc())
-Index('idx_ai_suggestions_expires', AISuggestion.expires_at).where(AISuggestion.status == 'pending')
+Index('idx_ai_suggestions_expires', AISuggestion.expires_at)

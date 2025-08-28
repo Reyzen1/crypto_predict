@@ -27,8 +27,8 @@ class Watchlist(Base):
     max_items = Column(Integer, default=50)
     is_active = Column(Boolean, default=True, index=True)
     is_public = Column(Boolean, default=False)
-    settings = Column(JSON, default={})
-    performance_metrics = Column(JSON, default={})
+    settings = Column(JSON, default=dict)
+    performance_metrics = Column(JSON, default=dict)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -59,10 +59,10 @@ class WatchlistItem(Base):
     status = Column(String(20), default='active')  # active, paused, removed
     
     # Analysis data
-    selection_criteria = Column(JSON, default={})  # Criteria used for selection
-    performance_metrics = Column(JSON, default={})
-    risk_metrics = Column(JSON, default={})
-    ai_analysis = Column(JSON, default={})
+    selection_criteria = Column(JSON, default=dict)  # Criteria used for selection
+    performance_metrics = Column(JSON, default=dict)
+    risk_metrics = Column(JSON, default=dict)
+    ai_analysis = Column(JSON, default=dict)
     
     # Management info
     added_by_user_id = Column(Integer, ForeignKey("users.id"))

@@ -17,7 +17,7 @@ class SystemInfo(Base):
     # Key-value storage
     key = Column(String(100), unique=True, nullable=False, index=True)
     value = Column(Text, nullable=False)
-    metadata = Column(JSON, default={})
+    meta_data = Column(JSON, default=dict)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

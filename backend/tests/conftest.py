@@ -26,7 +26,7 @@ from app.repositories import (
     price_data_repository,
     prediction_repository
 )
-from app.schemas.user import UserCreate
+from app.schemas.user import UserRegister
 from app.schemas.cryptocurrency import CryptocurrencyCreate
 from app.schemas.price_data import PriceDataCreate
 from app.ml.config.ml_config import ml_config
@@ -34,7 +34,8 @@ from app.core.security import get_password_hash
 
 
 # Test database configuration
-TEST_DATABASE_URL = "sqlite:///./tests/test.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./backend/tests/test.db"
+TEST_DATABASE_URL = "sqlite:///./backend/tests/test.db"
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -58,7 +59,7 @@ def create_test_database():
     
     # Clean up test database file
     try:
-        os.remove("./tests/test.db")
+        os.remove("./backend/tests/test.db")
     except FileNotFoundError:
         pass
 
@@ -95,9 +96,9 @@ def client(db_session) -> Generator:
 @pytest.fixture
 def test_user(db_session) -> User:
     """Create a test user"""
-    user_create = UserCreate(
+    user_create = UserRegister(
         email="test@cryptopredict.com",
-        password="testpassword123"
+        password="TestPassword123"
     )
     
     user = user_repository.create(db_session, obj_in=user_create)
@@ -107,7 +108,7 @@ def test_user(db_session) -> User:
 @pytest.fixture
 def test_admin_user(db_session) -> User:
     """Create a test admin user"""
-    user_create = UserCreate(
+    user_create = UserRegister(
         email="admin@cryptopredict.com",
         password="adminpassword123"
     )
@@ -273,7 +274,7 @@ def auth_headers(client, test_user) -> Dict[str, str]:
     """Get authentication headers for API requests"""
     login_response = client.post("/api/v1/auth/login", json={
         "email": test_user.email,
-        "password": "testpassword123"
+        "password": "TestPassword123"
     })
     
     if login_response.status_code == 200:
@@ -333,7 +334,7 @@ def test_config():
     return {
         "crypto_symbol": "TESTBTC",
         "test_user_email": "test@cryptopredict.com",
-        "test_user_password": "testpassword123",
+        "test_user_password": "TestPassword123",
         "api_timeout": 30,
         "min_price_data_points": 100,
         "training_epochs": 2,  # Small for testing
@@ -538,8 +539,8 @@ def pytest_collection_modifyitems(config, items):
 def cleanup_test_environment():
     """Clean up test environment"""
     # Clean up test database
-    if os.path.exists("./tests/test.db"):
-        os.remove("./tests/test.db")
+    if os.path.exists("./backend/tests/test.db"):
+        os.remove("./backend/tests/test.db")
     
     # Clean up test model files
     import glob

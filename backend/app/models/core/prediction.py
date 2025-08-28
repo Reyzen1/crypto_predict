@@ -25,51 +25,51 @@ class Prediction(Base):
     layer_source = Column(String(10), index=True)  # layer1, layer2, layer3, layer4
     
     # Model information
-    model_name = Column(String(50), nullable=False, index=True)
-    model_version = Column(String(20), nullable=False)
+    model_name = Column(String(50), nullable=False, index=True)           # LSTM, ARIMA, etc.
+    model_version = Column(String(20), nullable=False, default="1.0")     # Model version
     
     # Phase 2 enhancement: Multi-type prediction support
     prediction_type = Column(String(20), nullable=False, default='price', index=True)
     
     # Traditional price prediction (Phase 1 - maintained for backward compatibility)
-    predicted_price = Column(DECIMAL(15, 4), nullable=False)
+    predicted_price = Column(DECIMAL(15, 4), nullable=False)                        # Predicted price
     
     # Phase 2 enhancement: Flexible prediction value for non-price predictions
-    predicted_value = Column(JSON, default={})
+    predicted_value = Column(JSON, default=dict)
     
     # Confidence and validation
-    confidence_score = Column(DECIMAL(5, 2), nullable=False, index=True)
-    prediction_horizon = Column(Integer, nullable=False)
-    target_datetime = Column(DateTime(timezone=True), nullable=False, index=True)
+    confidence_score = Column(DECIMAL(5, 2), nullable=False, index=True)            # Confidence (0-1)
+    prediction_horizon = Column(Integer, nullable=False)                            # Hours ahead (1, 24, 168, etc.)
+    target_datetime = Column(DateTime(timezone=True), nullable=False, index=True)   # When prediction is for
     
     # Feature engineering
-    features_used = Column(JSON)
-    model_parameters = Column(JSON)
-    input_price = Column(DECIMAL(15, 4), nullable=False)
-    input_features = Column(JSON)
+    features_used = Column(JSON)                                        # Features used in prediction
+    model_parameters = Column(JSON)                                     # Model hyperparameters
+    input_price = Column(DECIMAL(15, 4))                 # Price when prediction was made
+    input_features = Column(JSON)                                       # Feature values at prediction time
     
     # Phase 2 enhancement: Macro context from upper layers
-    macro_context = Column(JSON, default={})
+    macro_context = Column(JSON, default=dict)
     
     # Evaluation results
-    actual_price = Column(DECIMAL(20, 8))
-    accuracy_percentage = Column(DECIMAL(5, 2))
-    absolute_error = Column(DECIMAL(20, 8))
-    squared_error = Column(DECIMAL(30, 8))
-    is_realized = Column(Boolean, nullable=False, default=False, index=True)
-    is_accurate = Column(Boolean, index=True)
-    accuracy_threshold = Column(DECIMAL(5, 2))
-    
+    actual_price = Column(DECIMAL(20, 8))                # Actual price (when available)
+    accuracy_percentage = Column(DECIMAL(5, 2))          # Prediction accuracy
+    absolute_error = Column(DECIMAL(20, 8))              # |actual - predicted|
+    squared_error = Column(DECIMAL(30, 8))               # (actual - predicted)²
+    is_realized = Column(Boolean, nullable=False, default=False, index=True)    # Has target_datetime passed?
+    is_accurate = Column(Boolean, index=True)                           # Is prediction considered accurate?
+    accuracy_threshold = Column(DECIMAL(5, 2))                          # Accuracy threshold %
+
     # Model performance metadata
-    training_data_end = Column(DateTime(timezone=True), index=True)
-    market_conditions = Column(String(20), index=True)
-    volatility_level = Column(String(10), index=True)
-    model_training_time = Column(DECIMAL(10, 2))
-    prediction_time = Column(DECIMAL(10, 6))
-    
+    training_data_end = Column(DateTime(timezone=True), index=True)   # Last training data point
+    market_conditions = Column(String(20), index=True)           # bull, bear, sideways
+    volatility_level = Column(String(10), index=True)            # low, medium, high
+    model_training_time = Column(DECIMAL(10, 2))                 # Training time in seconds
+    prediction_time = Column(DECIMAL(10, 6))                     # Prediction time in seconds
+
     # Additional information
-    notes = Column(Text)
-    debug_info = Column(JSON)
+    notes = Column(Text)                                  # Additional notes
+    debug_info = Column(JSON)                             # Debug information
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)

@@ -21,10 +21,10 @@ class MarketSentimentData(Base):
     composite_sentiment = Column(DECIMAL(5, 4))  # -1 to 1
     
     # Data sources and analysis
-    sentiment_sources = Column(JSON, default={})
-    funding_rates = Column(JSON, default={})
-    options_data = Column(JSON, default={})
-    analysis_metrics = Column(JSON, default={})
+    sentiment_sources = Column(JSON, default=dict)
+    funding_rates = Column(JSON, default=dict)
+    options_data = Column(JSON, default=dict)
+    analysis_metrics = Column(JSON, default=dict)
     
     # Timestamp
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)

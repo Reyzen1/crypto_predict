@@ -37,18 +37,18 @@ class TradingSignal(Base):
     position_size_percent = Column(DECIMAL(5, 2), default=2.0)
     
     # Analysis context
-    ai_analysis = Column(JSON, default={})
-    market_context = Column(JSON, default={})
-    technical_indicators = Column(JSON, default={})
-    layer1_context = Column(JSON, default={})
-    layer2_context = Column(JSON, default={})
-    layer3_context = Column(JSON, default={})
+    ai_analysis = Column(JSON, default=dict)
+    market_context = Column(JSON, default=dict)
+    technical_indicators = Column(JSON, default=dict)
+    layer1_context = Column(JSON, default=dict)
+    layer2_context = Column(JSON, default=dict)
+    layer3_context = Column(JSON, default=dict)
     
     # Model and generation info
     model_name = Column(String(50), nullable=False, default='timing_model_v1')
     model_version = Column(String(20), nullable=False, default='1.0')
     generation_method = Column(String(50), default='ai_analysis')
-    data_sources = Column(JSON, default={})
+    data_sources = Column(JSON, default=dict)
     
     # Status and priority
     status = Column(String(20), default='active')  # active, expired, executed
@@ -70,5 +70,5 @@ class TradingSignal(Base):
 # Performance indexes matching database
 Index('idx_signals_crypto_status', TradingSignal.crypto_id, TradingSignal.status, TradingSignal.generated_at.desc())
 Index('idx_signals_confidence', TradingSignal.confidence_score.desc(), TradingSignal.risk_level, TradingSignal.generated_at.desc())
-Index('idx_signals_expires', TradingSignal.expires_at).where(TradingSignal.status == 'active')
+Index('idx_signals_expires', TradingSignal.expires_at)
 Index('idx_signals_type', TradingSignal.signal_type, TradingSignal.status, TradingSignal.generated_at.desc())

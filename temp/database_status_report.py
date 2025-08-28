@@ -12,9 +12,9 @@ sys.path.insert(0, str(backend_dir))
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
-from app.models.user import User
-from app.models.cryptocurrency import Cryptocurrency
-from app.models.prediction import Prediction
+from app.models.core.user import User
+from app.models.core.crypto import Cryptocurrency
+from app.models.core.prediction import Prediction
 
 def get_table_info(engine, table_name):
     """Get detailed table information"""

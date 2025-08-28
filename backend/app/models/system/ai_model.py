@@ -1,7 +1,7 @@
 # File: backend\app\models\system\ai_model.py
 # SQLAlchemy model for ai model data
 
-from sqlalchemy import Column, Integer, String, DateTime, DECIMAL, JSON, Boolean, ForeignKey, Index, Text
+from sqlalchemy import Column, Integer, String, DateTime, Date, DECIMAL, JSON, Boolean, ForeignKey, Index, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from datetime import date
@@ -25,26 +25,26 @@ class AIModel(Base):
     status = Column(String(20), default='inactive')  # active, inactive, training, error
     
     # Configuration and parameters
-    configuration = Column(JSON, default={})
-    hyperparameters = Column(JSON, default={})
-    training_config = Column(JSON, default={})
+    configuration = Column(JSON, default=dict)
+    hyperparameters = Column(JSON, default=dict)
+    training_config = Column(JSON, default=dict)
     
     # Performance metrics
-    performance_metrics = Column(JSON, default={})
-    accuracy_metrics = Column(JSON, default={})
-    backtesting_results = Column(JSON, default={})
+    performance_metrics = Column(JSON, default=dict)
+    accuracy_metrics = Column(JSON, default=dict)
+    backtesting_results = Column(JSON, default=dict)
     
     # Training data
-    training_data_from = Column(date)
-    training_data_to = Column(date)
-    
+    training_data_from = Column(Date)
+    training_data_to = Column(Date, nullable=True)
+
     # Timestamps
     last_trained = Column(DateTime(timezone=True))
     last_prediction = Column(DateTime(timezone=True))
     next_retrain_due = Column(DateTime(timezone=True))
     
     # Health and monitoring
-    health_status = Column(JSON, default={})
+    health_status = Column(JSON, default=dict)
     error_logs = Column(JSON, default=[])
     
     # Usage statistics
@@ -69,5 +69,5 @@ class AIModel(Base):
 
 # Performance indexes
 Index('idx_ai_models_type_status', AIModel.model_type, AIModel.status)
-Index('idx_ai_models_performance', AIModel.model_type, AIModel.success_rate.desc().nulls_last())
+Index('idx_ai_models_performance', AIModel.model_type, AIModel.success_rate.desc())
 Index('idx_ai_models_training', AIModel.last_trained.desc())

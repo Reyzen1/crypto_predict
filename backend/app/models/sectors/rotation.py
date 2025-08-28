@@ -25,8 +25,8 @@ class SectorRotationAnalysis(Base):
     flow_direction = Column(String(10))                        # inflow/outflow/neutral
     
     # Analysis data
-    rotation_indicators = Column(JSON, default={})
-    market_context = Column(JSON, default={})
+    rotation_indicators = Column(JSON, default=dict)
+    market_context = Column(JSON, default=dict)
     detection_method = Column(String(50), default='volume_price_analysis')
     
     # Timestamps

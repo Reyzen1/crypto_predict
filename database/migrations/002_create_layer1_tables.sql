@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS macro_indicators (
     normalized_value NUMERIC(5,4), -- Normalized to 0-1 or -1 to 1 range
     timeframe VARCHAR(20) NOT NULL DEFAULT '1d',
     data_source VARCHAR(50) NOT NULL,
-    metadata JSONB DEFAULT '{}',
+    meta_data JSONB DEFAULT '{}',
     quality_score NUMERIC(3,2) DEFAULT 1.0 CHECK (quality_score >= 0 AND quality_score <= 1),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS macro_indicators (
 CREATE INDEX IF NOT EXISTS idx_macro_indicators_name_time ON macro_indicators(indicator_name, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_macro_indicators_category ON macro_indicators(indicator_category, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_macro_indicators_source ON macro_indicators(data_source, timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_macro_indicators_metadata ON macro_indicators USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_macro_indicators_meta_data ON macro_indicators USING GIN (meta_data);
 
 -- Add comments
 COMMENT ON TABLE macro_indicators IS 'Layer 1: Various macro economic indicators affecting crypto markets';
@@ -191,7 +191,7 @@ WHERE timestamp >= NOW() - INTERVAL '7 days';
 -- =============================================
 
 -- Insert default macro indicators categories
-INSERT INTO macro_indicators (indicator_name, indicator_category, value, data_source, metadata, timestamp) VALUES
+INSERT INTO macro_indicators (indicator_name, indicator_category, value, data_source, meta_data, timestamp) VALUES
 ('DXY', 'traditional_markets', 103.5, 'federal_reserve', '{"description": "US Dollar Index"}', NOW()),
 ('VIX', 'traditional_markets', 18.2, 'cboe', '{"description": "Volatility Index"}', NOW()),
 ('SPY', 'traditional_markets', 4200.0, 'yahoo_finance', '{"description": "S&P 500 ETF"}', NOW()),

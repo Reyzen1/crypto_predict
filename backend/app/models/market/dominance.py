@@ -25,9 +25,9 @@ class DominanceData(Base):
     total_volume_24h = Column(DECIMAL(20, 2))
     
     # Analysis data
-    trend_analysis = Column(JSON, default={})
-    dominance_changes = Column(JSON, default={})
-    rotation_signals = Column(JSON, default={})
+    trend_analysis = Column(JSON, default=dict)
+    dominance_changes = Column(JSON, default=dict)
+    rotation_signals = Column(JSON, default=dict)
     
     # Timestamp
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)

@@ -65,6 +65,6 @@ class Cryptocurrency(Base):
 # Performance indexes matching database
 Index('idx_cryptocurrencies_sector', Cryptocurrency.sector_id, Cryptocurrency.is_active)
 Index('idx_cryptocurrencies_tier', Cryptocurrency.watchlist_tier, Cryptocurrency.is_active)
-Index('idx_cryptocurrencies_market_cap', Cryptocurrency.market_cap.desc().nulls_last()).where(Cryptocurrency.is_active == True)
-Index('idx_cryptocurrencies_volume', Cryptocurrency.total_volume.desc().nulls_last()).where(Cryptocurrency.is_active == True)
+Index('idx_cryptocurrencies_market_cap', Cryptocurrency.market_cap.desc())
+Index('idx_cryptocurrencies_volume', Cryptocurrency.total_volume.desc())
 Index('idx_cryptocurrencies_price_change', Cryptocurrency.current_price, Cryptocurrency.updated_at.desc())

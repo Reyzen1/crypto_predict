@@ -82,8 +82,8 @@ sys.path.insert(0, str(backend_dir))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.core.config import get_settings
-from app.models.user import User
-from app.models.cryptocurrency import Cryptocurrency
+from app.models.core.user import User
+from app.models.core.crypto import Cryptocurrency
 from passlib.context import CryptContext
 
 def create_seed_data():

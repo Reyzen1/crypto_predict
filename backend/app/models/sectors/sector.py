@@ -21,7 +21,7 @@ class CryptoSector(Base):
     description = Column(Text)
     
     # Sector characteristics
-    characteristics = Column(JSON, default={})
+    characteristics = Column(JSON, default=dict)
     sector_type = Column(String(20), default='general')
     maturity_level = Column(String(10), default='medium')
     risk_category = Column(String(10), default='medium')

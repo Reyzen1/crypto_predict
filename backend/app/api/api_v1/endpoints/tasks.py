@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import asyncio
 
 from app.core.deps import get_current_active_user
-from app.models.user import User
+from app.models.core.user import User
 
 # Import data collection tasks
 from app.tasks.price_collector import (

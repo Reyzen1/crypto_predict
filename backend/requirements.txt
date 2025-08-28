@@ -12,6 +12,7 @@ python-multipart==0.0.6       # File upload support
 # DATABASE & ORM
 # ================================
 sqlalchemy==2.0.23            # SQL toolkit and ORM
+sqlalchemy-utils
 psycopg2-binary==2.9.9        # PostgreSQL adapter
 alembic==1.12.1               # Database migrations
 

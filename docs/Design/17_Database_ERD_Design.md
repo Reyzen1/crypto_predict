@@ -160,7 +160,7 @@ erDiagram
         string indicator_name
         float value
         string timeframe
-        json metadata
+        json meta_data
         timestamp timestamp
         timestamp created_at
     }
@@ -499,7 +499,7 @@ CREATE TABLE IF NOT EXISTS macro_indicators (
     indicator_name VARCHAR(50) NOT NULL,
     value NUMERIC(15,8) NOT NULL,
     timeframe VARCHAR(20) NOT NULL,
-    metadata JSONB DEFAULT '{}',
+    meta_data JSONB DEFAULT '{}',
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

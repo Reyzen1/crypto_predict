@@ -18,11 +18,11 @@ class SystemHealth(Base):
     check_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     
     # Component health status
-    api_status = Column(JSON, default={})
-    database_status = Column(JSON, default={})
-    ml_models_status = Column(JSON, default={})
-    data_pipeline_status = Column(JSON, default={})
-    external_apis_status = Column(JSON, default={})
+    api_status = Column(JSON, default=dict)
+    database_status = Column(JSON, default=dict)
+    ml_models_status = Column(JSON, default=dict)
+    data_pipeline_status = Column(JSON, default=dict)
+    external_apis_status = Column(JSON, default=dict)
     
     # Overall health metrics
     overall_health_score = Column(DECIMAL(5, 2), default=100)
@@ -44,7 +44,7 @@ class SystemHealth(Base):
     error_rate_percent = Column(DECIMAL(5, 4), default=0)
     
     # Additional monitoring data
-    performance_metrics = Column(JSON, default={})
+    performance_metrics = Column(JSON, default=dict)
     error_logs = Column(JSON, default=[])
     warnings = Column(JSON, default=[])
     

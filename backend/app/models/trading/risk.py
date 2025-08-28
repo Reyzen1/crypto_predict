@@ -25,7 +25,7 @@ class RiskManagement(Base):
     max_concurrent_signals = Column(Integer, default=5)
     
     # Risk rules and settings
-    risk_rules = Column(JSON, default={})
+    risk_rules = Column(JSON, default=dict)
     position_sizing_method = Column(String(20), default='fixed_percent')
     
     # Current exposure tracking
@@ -35,9 +35,9 @@ class RiskManagement(Base):
     daily_loss_current = Column(DECIMAL(15, 2), default=0)
     
     # Analysis and metrics
-    risk_metrics = Column(JSON, default={})
-    portfolio_correlation = Column(JSON, default={})
-    exposure_by_sector = Column(JSON, default={})
+    risk_metrics = Column(JSON, default=dict)
+    portfolio_correlation = Column(JSON, default=dict)
+    exposure_by_sector = Column(JSON, default=dict)
     
     # Performance tracking
     total_trades = Column(Integer, default=0)

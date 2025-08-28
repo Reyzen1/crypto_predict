@@ -1,6 +1,8 @@
 # File: backend\app\models\__init__.py
 # SQLAlchemy model for   init   data
 
+from app.core.database import Base
+
 # Core domain imports
 from .core.user import User, UserActivity
 from .core.crypto import Cryptocurrency

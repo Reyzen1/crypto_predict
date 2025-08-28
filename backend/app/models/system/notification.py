@@ -23,7 +23,7 @@ class Notification(Base):
     notification_type = Column(String(20), nullable=False, index=True)  # signal, alert, system, educational
     title = Column(String(200), nullable=False)
     message = Column(Text, nullable=False)
-    data = Column(JSON, default={})  # Additional notification data
+    data = Column(JSON, default=dict)  # Additional notification data
     
     # Status and priority
     status = Column(String(20), default='unread', index=True)  # unread, read, dismissed, archived
@@ -55,5 +55,5 @@ class Notification(Base):
 # Performance indexes
 Index('idx_notifications_user_status', Notification.user_id, Notification.status, Notification.scheduled_for.desc())
 Index('idx_notifications_type', Notification.notification_type, Notification.priority, Notification.scheduled_for.desc())
-Index('idx_notifications_expires', Notification.expires_at).where(Notification.status != 'expired')
+Index('idx_notifications_expires', Notification.expires_at)
 Index('idx_notifications_reference', Notification.reference_type, Notification.reference_id)

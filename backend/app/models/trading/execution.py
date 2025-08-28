@@ -33,7 +33,7 @@ class SignalExecution(Base):
     status = Column(String(20), default='pending')        # pending, filled, cancelled
     
     # Execution metadata
-    execution_details = Column(JSON, default={})
+    execution_details = Column(JSON, default=dict)
     exchange = Column(String(50))
     fees_paid = Column(DECIMAL(15, 8), default=0)
     slippage_percent = Column(DECIMAL(5, 4))
@@ -43,7 +43,7 @@ class SignalExecution(Base):
     realized_pnl = Column(DECIMAL(15, 2))
     max_profit = Column(DECIMAL(15, 2))
     max_drawdown = Column(DECIMAL(15, 2))
-    risk_metrics = Column(JSON, default={})
+    risk_metrics = Column(JSON, default=dict)
     
     # Exit conditions
     stop_loss_triggered = Column(Boolean, default=False)
@@ -64,4 +64,4 @@ class SignalExecution(Base):
 # Performance indexes
 Index('idx_signal_executions_user', SignalExecution.user_id, SignalExecution.executed_at.desc())
 Index('idx_signal_executions_signal', SignalExecution.signal_id, SignalExecution.status)
-Index('idx_signal_executions_performance', SignalExecution.realized_pnl.desc(), SignalExecution.executed_at.desc()).where(SignalExecution.realized_pnl.isnot(None))
+Index('idx_signal_executions_performance', SignalExecution.realized_pnl.desc(), SignalExecution.executed_at.desc())

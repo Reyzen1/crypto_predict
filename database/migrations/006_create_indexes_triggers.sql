@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS system_info (
     id SERIAL PRIMARY KEY,
     key VARCHAR(100) NOT NULL UNIQUE,
     value TEXT NOT NULL,
-    metadata JSONB DEFAULT '{}',
+    meta_data JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -377,7 +377,7 @@ CREATE TRIGGER update_system_info_updated_at
 -- =============================================
 
 -- Insert system info records
-INSERT INTO system_info (key, value, metadata) VALUES
+INSERT INTO system_info (key, value, meta_data) VALUES
 ('system_version', '2.0.0', '{"phase": "Phase 2", "layers": 4}'::jsonb),
 ('database_version', '2.0.0', '{"migration_completed": true}'::jsonb),
 ('last_cleanup', NOW()::text, '{"auto_cleanup": true}'::jsonb),
@@ -461,7 +461,7 @@ BEGIN
 END $$;
 
 -- Record final migration completion
-INSERT INTO system_info (key, value, metadata) VALUES 
+INSERT INTO system_info (key, value, meta_data) VALUES 
 ('migrations_completed', 'all', '{"last_migration": "006", "completed_at": "' || NOW() || '", "total_migrations": 6}'::jsonb)
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
 

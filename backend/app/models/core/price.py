@@ -4,7 +4,7 @@
 from sqlalchemy import Column, Integer, DateTime, DECIMAL, ForeignKey, JSON, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import GIN
+from sqlalchemy.dialects.postgresql.psycopg2 import PGDialect_psycopg2
 
 from app.core.database import Base
 
@@ -31,7 +31,7 @@ class PriceData(Base):
     market_cap = Column(DECIMAL(30, 2))
     
     # Technical indicators (Phase 2 enhancement)
-    technical_indicators = Column(JSON, default={})
+    technical_indicators = Column(JSON, default=dict)
     
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now())

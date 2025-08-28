@@ -22,7 +22,7 @@ class SuggestionReview(Base):
     # Review decision
     action = Column(String(10), nullable=False, index=True)  # approved, rejected, modified
     review_notes = Column(Text)
-    modifications = Column(JSON, default={})
+    modifications = Column(JSON, default=dict)
     
     # Review quality metrics
     confidence_adjustment = Column(DECIMAL(5, 4))  # Admin confidence override
