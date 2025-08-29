@@ -1,664 +1,444 @@
 # docs\Design\02_User_Needs_Analysis.md
-# 📊 User Needs Analysis & Priority Matrix
-## Layer-wise Requirements & Feature Prioritization
+# 📊 User Needs Analysis - فاز دوم
+## Single UI Design Requirements & Progressive Complexity
 
 ---
 
-## 🎯 **Layer-wise Needs Mapping (2 ساعت)**
+## 🎯 **تحلیل نیازهای کاربری جدید**
 
-## 🌍 **Layer 1: Macro Market Analysis Needs**
+### **🔄 رویکرد معماری جدید:**
+- **Universal Access:** همه کاربران به تمام امکانات دسترسی دارند
+- **Progressive Disclosure:** پیچیدگی بر اساس نیاز نمایش داده می‌شود
+- **Context-Aware UI:** رابط کاربری بر اساس وضعیت کاربر تطبیق می‌یابد
+- **Just-in-Time Auth:** احراز هویت فقط هنگام نیاز به عملیات شخصی
 
-### **👨‍💼 Admin/System Manager:**
+---
+
+## 👥 **User Type Needs Matrix**
+
+## 🌐 **Guest User Requirements**
+
+### **🔓 Core Access Needs:**
 ```
-🔥 Critical Needs:
-├── Market Regime Monitoring Dashboard
-│   ├── Real-time regime status (Bull/Bear/Neutral/Volatile)
-│   ├── Confidence levels و trend strength indicators
-│   ├── Risk level alerts و exposure recommendations
-│   └── Historical regime accuracy tracking
-├── System Performance Correlation
-│   ├── Regime impact on watchlist performance
-│   ├── Auto-suggestion quality in different regimes
-│   └── User behavior patterns per regime
-└── Macro Data Quality Control
-    ├── Data source reliability monitoring
-    ├── Sentiment data validation
-    └── Missing data alerts
+📊 Information Access (Critical):
+├── ✅ تمام 4 لایه AI بدون محدودیت
+├── ✅ Real-time data و live updates
+├── ✅ Historical analysis و backtesting
+├── ✅ Technical indicators و charts
+├── ✅ Market sentiment و social analytics
+├── ✅ Admin Watchlist (15 کوین اصلی)
+└── ✅ AI predictions و confidence scores
 
-⚡ High Priority:
-├── Macro Metrics Dashboard
-│   ├── BTC.D, ETH.D, Alt.D trends
-│   ├── Fear & Greed historical analysis
-│   └── Volume و market cap flows
-└── Configuration Controls
-    ├── Regime detection sensitivity
-    ├── Alert thresholds
-    └── Data source priorities
-
-💡 Medium Priority:
-├── Reporting & Analytics
-│   ├── Weekly regime summaries
-│   └── Performance impact analysis
-└── Integration Monitoring
-    ├── API status monitoring
-    └── Data freshness tracking
+🎯 Experience Requirements:
+├── ✅ Fast loading times (<3 seconds)
+├── ✅ Responsive design (mobile-first)
+├── ✅ Intuitive navigation
+├── ✅ Clear information hierarchy
+├── ✅ No rate limiting یا restrictions
+└── ✅ Contextual help و tooltips
 ```
 
-### **💼 Professional Trader:**
+### **💡 Discovery & Evaluation Needs:**
 ```
-🔥 Critical Needs:
-├── Market Context for Trading
-│   ├── Current regime with confidence score
-│   ├── Risk-adjusted position sizing guidance
-│   ├── Macro trend strength indicators
-│   └── Regime change probability alerts
-├── Advanced Macro Analytics
-│   ├── Multi-timeframe regime analysis
-│   ├── Cross-market correlation insights
-│   ├── Volatility predictions
-│   └── Market psychology indicators
-└── Integration with Trading Strategy
-    ├── Regime-based strategy recommendations
-    ├── Risk management adjustments
-    └── Exposure optimization
+🔍 System Assessment:
+├── ✅ Accuracy demonstration (historical performance)
+├── ✅ Feature showcase (capability preview)  
+├── ✅ Use case examples (practical applications)
+├── ✅ Success stories (case studies)
+├── ✅ Comparison data (vs competitors)
+└── ✅ Free trial experience (full functionality)
 
-⚡ High Priority:
-├── Real-time Macro Alerts
-│   ├── Regime change notifications
-│   ├── Significant sentiment shifts
-│   └── Volume abnormalities
-└── Historical Pattern Analysis
-    ├── Similar regime periods
-    ├── Performance in each regime
-    └── Strategy effectiveness tracking
-
-💡 Medium Priority:
-├── Educational Content
-│   ├── Macro indicator explanations
-│   └── Regime impact on strategies
-└── Customization Options
-    ├── Alert preferences
-    └── Display customization
+📱 Accessibility Requirements:
+├── ✅ Multi-device support (phone, tablet, desktop)
+├── ✅ Offline capability (cached data)
+├── ✅ Multiple languages (پشتیبانی فارسی)
+├── ✅ Theme options (dark/light)
+├── ✅ Text scaling (accessibility)
+└── ✅ Keyboard navigation
 ```
 
-### **🌱 Casual Investor:**
+### **🚪 Conversion Facilitation:**
 ```
-🔥 Critical Needs:
-├── Simple Market Overview
-│   ├── "Good time to invest?" indicator
-│   ├── Market mood in plain language
-│   ├── Risk level with clear explanations
-│   └── Simple action recommendations
-├── Educational Guidance
-│   ├── What each indicator means
-│   ├── Why market regime matters
-│   └── How to use this information
-└── Reassurance & Confidence
-    ├── Historical performance context
-    ├── "This is normal" messaging
-    └── Stress level indicators
+🎯 Registration Motivation:
+├── ✅ Clear benefits communication
+├── ✅ Gentle encouragement (non-intrusive)
+├── ✅ Value demonstration (personal benefits)
+├── ✅ Social proof (user testimonials)
+├── ✅ Easy registration process
+└── ✅ Immediate value delivery
 
-⚡ High Priority:
-├── Visual Simplification
-│   ├── Color-coded indicators
-│   ├── Simple progress bars
-│   └── Emoji-based mood indicators
-└── Actionable Insights
-    ├── Wait/buy/sell recommendations
-    ├── Portfolio adjustment guidance
-    └── Risk level warnings
-
-💡 Medium Priority:
-├── Learning Resources
-│   ├── Beginner guides
-│   └── Market cycle education
-└── Community Features
-    ├── Similar user experiences
-    └── Success stories
+⚡ Friction Reduction:
+├── ✅ No forced registration walls
+├── ✅ Optional social login
+├── ✅ Minimal required information
+├── ✅ Skip options available
+├── ✅ Guest-to-user data migration
+└── ✅ Progressive onboarding
 ```
 
 ---
 
-## 📊 **Layer 2: Sector Analysis Needs**
+## 👤 **Regular User (Logged) Requirements**
 
-### **👨‍💼 Admin/System Manager:**
+### **🔐 Personal Experience Needs:**
 ```
-🔥 Critical Needs:
-├── Sector Performance Monitoring
-│   ├── Real-time sector rotation tracking
-│   ├── Watchlist sector balance analysis
-│   ├── Sector momentum indicators
-│   └── Cross-sector correlation monitoring
-├── Watchlist Optimization
-│   ├── Sector diversification analysis
-│   ├── Auto-rebalancing suggestions
-│   ├── Sector weight recommendations
-│   └── Missing sector opportunities
-└── Quality Control
-    ├── Sector classification accuracy
-    ├── Performance prediction validation
-    └── Rotation signal effectiveness
+📋 Personalization (High Priority):
+├── ✅ Personal Watchlist (up to 25 assets)
+├── ✅ Custom AI suggestions (personal context)
+├── ✅ Personalized risk assessment
+├── ✅ Individual performance tracking
+├── ✅ Custom notification settings
+├── ✅ Preference management
+└── ✅ Learning progress tracking
 
-⚡ High Priority:
-├── Sector Management Tools
-│   ├── Bulk sector assignment
-│   ├── Sector hierarchy management
-│   └── Custom sector definitions
-└── Analytics Dashboard
-    ├── Sector performance heatmaps
-    ├── Rotation timeline visualization
-    └── Allocation effectiveness metrics
-
-💡 Medium Priority:
-├── Historical Analysis
-│   ├── Sector cycle patterns
-│   └── Long-term performance trends
-└── Integration Features
-    ├── External sector data sources
-    └── Custom sector metrics
+💾 Data Persistence:
+├── ✅ Settings synchronization (cross-device)
+├── ✅ Watchlist backup و restore
+├── ✅ Historical decision tracking
+├── ✅ Performance analytics storage
+├── ✅ Custom alerts management
+└── ✅ Educational progress saving
 ```
 
-### **💼 Professional Trader:**
+### **🎯 Goal Achievement Support:**
 ```
-🔥 Critical Needs:
-├── Sector Rotation Strategies
-│   ├── Leading sector identification
-│   ├── Rotation timing signals
-│   ├── Momentum strength indicators
-│   └── Flow direction analysis
-├── Portfolio Allocation Guidance
-│   ├── Optimal sector weights
-│   ├── Rebalancing recommendations
-│   ├── Risk-adjusted allocations
-│   └── Dynamic adjustment signals
-└── Cross-Sector Analysis
-    ├── Relative strength analysis
-    ├── Correlation breakdowns
-    └── Leadership sustainability
+📈 Investment Success:
+├── ✅ Goal setting tools (target returns, timelines)
+├── ✅ Progress monitoring (vs benchmarks)
+├── ✅ Performance attribution (what worked)
+├── ✅ Risk management tools (stop losses, limits)
+├── ✅ Portfolio optimization suggestions
+└── ✅ Tax considerations (P&L tracking)
 
-⚡ High Priority:
-├── Advanced Analytics
-│   ├── Sector momentum oscillators
-│   ├── Relative performance metrics
-│   └── Volume flow analysis
-└── Integration with Layer 3
-    ├── Sector-filtered asset selection
-    ├── Cross-reference with watchlist
-    └── Combined scoring systems
-
-💡 Medium Priority:
-├── Backtesting Features
-│   ├── Sector rotation strategy testing
-│   └── Historical allocation performance
-└── Custom Sector Definitions
-    ├── Personal sector groupings
-    └── Custom performance tracking
+📚 Learning & Development:
+├── ✅ Skill assessment tools
+├── ✅ Personalized learning paths
+├── ✅ Interactive tutorials
+├── ✅ Knowledge verification quizzes
+├── ✅ Expert tips و best practices
+└── ✅ Community features (discussions)
 ```
 
-### **🌱 Casual Investor:**
+### **🔔 Communication & Alerts:**
 ```
-🔥 Critical Needs:
-├── Simplified Sector Overview
-│   ├── "Hot" vs "Cold" sectors visualization
-│   ├── Simple sector explanations
-│   ├── Why sectors matter education
-│   └── Investment implications
-├── Guidance & Recommendations
-│   ├── Which sectors to focus on
-│   ├── Diversification suggestions
-│   ├── Simple allocation guidance
-│   └── Risk level per sector
-└── Educational Content
-    ├── Sector basics
-    ├── Rotation cycle explanations
-    └── Investment strategy implications
+📱 Smart Notifications:
+├── ✅ Price alerts (personal watchlist)
+├── ✅ Signal notifications (Layer 4 timing)
+├── ✅ Market regime changes (Layer 1 macro)
+├── ✅ Portfolio performance updates
+├── ✅ Learning reminders
+└── ✅ System updates
 
-⚡ High Priority:
-├── Visual Learning
-│   ├── Interactive sector maps
-│   ├── Simple heatmaps
-│   └── Progress indicators
-└── Actionable Insights
-    ├── Portfolio diversification check
-    ├── Sector exposure recommendations
-    └── Simple buy/avoid guidance
-
-💡 Medium Priority:
-├── Community Learning
-│   ├── Peer sector choices
-│   └── Success story sharing
-└── Progress Tracking
-    ├── Learning milestones
-    └── Understanding verification
+⚙️ Customization Options:
+├── ✅ Notification frequency control
+├── ✅ Delivery method selection (email, push, SMS)
+├── ✅ Priority level settings
+├── ✅ Do not disturb schedules
+├── ✅ Content type filtering
+└── ✅ Emergency alert overrides
 ```
 
 ---
 
-## 💰 **Layer 3: Asset Selection Needs**
+## 👑 **Admin User Requirements**
 
-### **👨‍💼 Admin/System Manager:**
+### **🔧 Management & Control Needs:**
 ```
-🔥 Critical Needs:
-├── Watchlist Management Dashboard
-│   ├── Tier 1/Tier 2 status overview
-│   ├── Performance metrics per asset
-│   ├── Resource allocation monitoring
-│   └── Auto-suggestion queue management
-├── AI Suggestion Review System
-│   ├── Suggestion scoring و ranking
-│   ├── Approval/rejection workflow
-│   ├── Bulk action capabilities
-│   └── Historical decision tracking
-└── System Optimization Tools
-    ├── Tier promotion/demotion criteria
-    ├── Resource usage optimization
-    ├── Performance impact analysis
-    └── Quality control metrics
+🎛️ System Administration (Critical):
+├── ✅ Default Watchlist management (15 core assets)
+├── ✅ User watchlist oversight (view/edit all)
+├── ✅ System performance monitoring (KPIs)
+├── ✅ AI model parameter control
+├── ✅ User account management
+├── ✅ Access control و permissions
+└── ✅ Audit trail و logging
 
-⚡ High Priority:
-├── Advanced Management Features
-│   ├── Drag-and-drop tier management
-│   ├── Batch operations interface
-│   ├── Search و filter capabilities
-│   └── Custom sorting options
-└── Analytics & Reporting
-    ├── Tier performance comparison
-    ├── Suggestion accuracy tracking
-    └── Resource efficiency metrics
-
-💡 Medium Priority:
-├── Integration Tools
-│   ├── External data source management
-│   ├── API rate limiting controls
-│   └── Data quality monitoring
-└── Backup & Recovery
-    ├── Watchlist backup systems
-    └── Configuration export/import
+📊 Analytics & Reporting:
+├── ✅ User engagement metrics
+├── ✅ System performance analytics
+├── ✅ AI accuracy tracking
+├── ✅ Revenue و usage statistics
+├── ✅ Error monitoring و debugging
+├── ✅ A/B testing results
+└── ✅ Predictive system health
 ```
 
-### **💼 Professional Trader:**
+### **⚡ Efficiency & Automation:**
 ```
-🔥 Critical Needs:
-├── Advanced Asset Analysis
-│   ├── Tier 1 detailed analytics
-│   ├── Real-time performance tracking
-│   ├── Risk-adjusted scoring
-│   └── Comparative analysis tools
-├── Trading Opportunities
-│   ├── High-confidence recommendations
-│   ├── Entry point optimization
-│   ├── Risk/reward calculations
-│   └── Position sizing guidance
-└── Portfolio Integration
-    ├── Current holdings analysis
-    ├── Diversification optimization
-    ├── Rebalancing recommendations
-    └── Performance attribution
+🤖 Automated Operations:
+├── ✅ Bulk watchlist operations
+├── ✅ Automated user notifications
+├── ✅ System health alerts
+├── ✅ Performance degradation warnings
+├── ✅ Anomaly detection
+└── ✅ Scheduled reporting
 
-⚡ High Priority:
-├── Advanced Filtering
-│   ├── Multi-criteria screening
-│   ├── Custom score weighting
-│   ├── Technical indicator integration
-│   └── Fundamental analysis overlay
-└── Real-time Monitoring
-    ├── Watchlist alerts
-    ├── Performance notifications
-    └── Opportunity identification
-
-💡 Medium Priority:
-├── Backtesting Integration
-│   ├── Historical performance simulation
-│   └── Strategy validation tools
-└── API Integration
-    ├── Trading platform connections
-    └── Portfolio synchronization
+🎯 Decision Support Tools:
+├── ✅ Comparative analysis tools
+├── ✅ Impact assessment calculators
+├── ✅ ROI optimization recommendations
+├── ✅ Resource allocation insights
+├── ✅ User satisfaction predictors
+└── ✅ Strategic planning support
 ```
 
-### **🌱 Casual Investor:**
+### **🛡️ Security & Compliance:**
 ```
-🔥 Critical Needs:
-├── Simple Asset Recommendations
-│   ├── "Best picks" highlighted clearly
-│   ├── Easy-to-understand reasoning
-│   ├── Risk level indicators
-│   └── Investment amount suggestions
-├── Educational Support
-│   ├── Why each asset is recommended
-│   ├── Risk explanations
-│   ├── Expected timeline guidance
-│   └── Success probability indicators
-└── Confidence Building
-    ├── Track record display
-    ├── Similar investor experiences
-    ├── Conservative options emphasis
-    └── Success stories
+🔒 Administrative Security:
+├── ✅ Multi-factor authentication (required)
+├── ✅ IP restriction capabilities
+├── ✅ Session management
+├── ✅ Activity logging (complete)
+├── ✅ Data access controls
+└── ✅ Emergency access procedures
 
-⚡ High Priority:
-├── Simplified Interface
-│   ├── Card-based asset display
-│   ├── Clear action buttons
-│   ├── Visual risk indicators
-│   └── Progress tracking
-└── Guided Decision Making
-    ├── Step-by-step recommendations
-    ├── Risk tolerance matching
-    └── Goal-based suggestions
-
-💡 Medium Priority:
-├── Learning Resources
-│   ├── Asset education library
-│   └── Investment strategy guides
-└── Community Features
-    ├── Popular choices display
-    └── Peer learning opportunities
+📋 Compliance Management:
+├── ✅ Data privacy controls (GDPR)
+├── ✅ User consent management
+├── ✅ Data retention policies
+├── ✅ Export/import capabilities
+├── ✅ Audit report generation
+└── ✅ Regulatory reporting tools
 ```
 
 ---
 
-## ⚡ **Layer 4: Micro Timing Needs**
+## 🎨 **Single UI Design Requirements**
 
-### **👨‍💼 Admin/System Manager:**
+### **🔄 Progressive Complexity Handling:**
 ```
-🔥 Critical Needs:
-├── Signal Quality Monitoring
-│   ├── Signal accuracy tracking
-│   ├── False positive rate monitoring
-│   ├── User action correlation analysis
-│   └── Performance degradation alerts
-├── System Performance Dashboard
-│   ├── Signal generation speed
-│   ├── Resource usage monitoring
-│   ├── User engagement metrics
-│   └── System reliability tracking
-└── Configuration Management
-    ├── Signal sensitivity controls
-    ├── Risk parameter adjustments
-    ├── Alert threshold management
-    └── Performance optimization settings
+🌟 Adaptive Interface:
+├── ✅ Context-sensitive menus
+├── ✅ Progressive feature disclosure
+├── ✅ Skill-based content filtering
+├── ✅ Usage-based UI optimization
+├── ✅ Learning curve accommodation
+└── ✅ Expert mode shortcuts
 
-⚡ High Priority:
-├── Analytics & Insights
-│   ├── Signal effectiveness analysis
-│   ├── User behavior tracking
-│   └── Market condition correlation
-└── Quality Assurance
-    ├── Signal validation tools
-    ├── Anomaly detection
-    └── Performance benchmarking
-
-💡 Medium Priority:
-├── Advanced Configuration
-│   ├── Custom signal parameters
-│   └── A/B testing capabilities
-└── Integration Monitoring
-    ├── External API performance
-    └── Data feed reliability
+💡 Contextual Guidance:
+├── ✅ Inline help system
+├── ✅ Interactive tutorials
+├── ✅ Smart tooltips
+├── ✅ Onboarding flows
+├── ✅ Feature discovery prompts
+└── ✅ Best practice suggestions
 ```
 
-### **💼 Professional Trader:**
+### **🎯 Universal Accessibility:**
 ```
-🔥 Critical Needs:
-├── Precision Trading Signals
-│   ├── Exact entry/exit points
-│   ├── Stop-loss/take-profit levels
-│   ├── Position sizing recommendations
-│   └── Risk/reward ratio calculations
-├── Real-time Execution Support
-│   ├── Instant signal delivery
-│   ├── Market condition warnings
-│   ├── Slippage predictions
-│   └── Execution timing optimization
-└── Performance Tracking
-    ├── Signal success rate monitoring
-    ├── P&L attribution analysis
-    ├── Strategy effectiveness tracking
-    └── Risk management evaluation
+♿ Inclusive Design:
+├── ✅ WCAG 2.1 AA compliance
+├── ✅ Screen reader compatibility
+├── ✅ High contrast modes
+├── ✅ Keyboard navigation
+├── ✅ Voice control support
+└── ✅ Motor accessibility features
 
-⚡ High Priority:
-├── Advanced Signal Features
-│   ├── Multi-timeframe analysis
-│   ├── Confluence indicators
-│   ├── Market regime integration
-│   └── Volatility-adjusted sizing
-└── Integration Capabilities
-    ├── Trading platform APIs
-    ├── Portfolio management systems
-    └── Risk management tools
-
-💡 Medium Priority:
-├── Customization Options
-│   ├── Personal risk preferences
-│   ├── Trading style adaptation
-│   └── Signal filtering options
-└── Educational Resources
-    ├── Signal interpretation guides
-    └── Risk management education
-```
-
-### **🌱 Casual Investor:**
-```
-🔥 Critical Needs:
-├── Simple Buy/Sell Guidance
-│   ├── Clear "good time to buy/sell" indicators
-│   ├── Plain language explanations
-│   ├── Risk level warnings
-│   └── Expected outcome guidance
-├── Educational Support
-│   ├── Why timing matters
-│   ├── How signals work
-│   ├── Risk management basics
-│   └── Long-term perspective guidance
-└── Confidence Building
-    ├── Success probability indicators
-    ├── Historical accuracy display
-    ├── Conservative approach emphasis
-    └── Stress reduction messaging
-
-⚡ High Priority:
-├── Simplified Interface
-│   ├── Traffic light indicators
-│   ├── Simple action recommendations
-│   ├── Clear risk warnings
-│   └── Easy-to-follow guidance
-└── Long-term Focus
-    ├── DCA timing suggestions
-    ├── Patience encouragement
-    └── Goal-based timing
-
-💡 Medium Priority:
-├── Learning Path
-│   ├── Timing education modules
-│   └── Gradual complexity increase
-└── Community Support
-    ├── Peer experiences
-    └── Success story sharing
+🌍 Multi-Language Support:
+├── ✅ RTL language support (Arabic, Hebrew)
+├── ✅ Persian/Farsi localization
+├── ✅ Dynamic language switching
+├── ✅ Cultural adaptation
+├── ✅ Number format localization
+└── ✅ Date/time localization
 ```
 
 ---
 
-## 🎯 **Priority Matrix (1 ساعت)**
+## 🚀 **Technical Infrastructure Needs**
 
-## 🔥 **Critical Priority Features (MVP)**
-
-### **📊 Must-Have for All Personas:**
+### **⚡ Performance Requirements:**
 ```
-1. Main Dashboard (4-Layer Overview)
-   ├── Macro market status indicator
-   ├── Top sector performance summary
-   ├── Tier 1 asset recommendations
-   └── Recent signal summary
+🎯 Core Performance Metrics:
+├── ✅ Page Load Time: <2 seconds (first contentful paint)
+├── ✅ Time to Interactive: <3 seconds
+├── ✅ API Response Time: <500ms (95th percentile)
+├── ✅ Real-time Data Latency: <1 second
+├── ✅ Mobile Performance Score: 90+
+└── ✅ Uptime: 99.9% availability
 
-2. Layer 3 Asset Selection Interface
-   ├── Watchlist display (Admin)
-   ├── Detailed asset analysis (Professional)
-   └── Simple recommendations (Casual)
-
-3. Basic Performance Tracking
-   ├── Prediction accuracy display
-   ├── Historical performance
-   └── Success rate indicators
-
-4. Mobile Responsive Design
-   ├── Touch-optimized interface
-   ├── Essential features on mobile
-   └── Offline capability for basic data
+📊 Scalability Requirements:
+├── ✅ Concurrent Users: 10,000+ simultaneous
+├── ✅ Data Throughput: 1M+ API calls/hour
+├── ✅ Storage Growth: 1TB+ monthly capacity
+├── ✅ Geographic Distribution: Multi-region support
+├── ✅ Auto-scaling: Traffic-based resource adjustment
+└── ✅ Caching Strategy: Multi-level caching
 ```
 
-### **⚡ High Priority Features (Phase 1)**
+### **🔐 Security & Privacy:**
 ```
-1. Admin Watchlist Management
-   ├── Tier management interface
-   ├── Auto-suggestion review
-   └── Performance monitoring
+🛡️ Security Standards:
+├── ✅ Data Encryption: AES-256 at rest, TLS 1.3 in transit
+├── ✅ Authentication: JWT + refresh tokens
+├── ✅ Authorization: Role-based access control
+├── ✅ Input Validation: Comprehensive sanitization
+├── ✅ Rate Limiting: DDoS protection
+└── ✅ Security Headers: OWASP best practices
 
-2. Layer 1 Macro Analysis
-   ├── Market regime display
-   ├── Risk level indicators
-   └── Sentiment analysis
-
-3. Educational Content System
-   ├── Feature explanations
-   ├── Beginner guides
-   └── Contextual help
-
-4. Real-time Data Updates
-   ├── Live price feeds
-   ├── Signal notifications
-   └── Status updates
-```
-
-### **💡 Medium Priority Features (Phase 2)**
-```
-1. Layer 2 Sector Analysis
-   ├── Sector rotation heatmap
-   ├── Performance comparison
-   └── Allocation recommendations
-
-2. Layer 4 Timing Signals
-   ├── Entry/exit points
-   ├── Risk management
-   └── Performance tracking
-
-3. Advanced Customization
-   ├── Dashboard personalization
-   ├── Alert preferences
-   └── Display options
-
-4. Integration Features
-   ├── API connections
-   ├── External data sources
-   └── Portfolio sync
+🔒 Privacy Protection:
+├── ✅ Data Minimization: Only necessary data collection
+├── ✅ Consent Management: Granular permissions
+├── ✅ Right to Deletion: Complete data removal
+├── ✅ Data Portability: Export capabilities
+├── ✅ Anonymization: Personal data protection
+└── ✅ Audit Logging: Complete access tracking
 ```
 
 ---
 
-## 📋 **User Interview Questions (1 ساعت)**
+## 📱 **4-Layer System Universal Needs**
 
-## 👨‍💼 **Admin/System Manager Interview Questions:**
+### **🌍 Layer 1 (Macro Market) - همه کاربران:**
+```
+📊 Market Analysis Requirements:
+├── ✅ Global market sentiment (Fear & Greed Index)
+├── ✅ Dominance metrics (BTC.D, ETH.D, Alt.D)
+├── ✅ DeFi ecosystem analysis
+├── ✅ Social sentiment aggregation
+├── ✅ News impact assessment
+├── ✅ Volatility predictions
+└── ✅ Market regime classification
 
-### **🎯 Current Workflow:**
-1. چطور در حال حاضر watchlist خود را مدیریت می‌کنید؟
-2. چه مدت زمان صرف بررسی suggestions می‌کنید؟
-3. بیشترین challenge در مدیریت سیستم چیست؟
-4. چه KPIs برای شما مهم است؟
+🎯 Accessibility: Full access for Guest/Logged/Admin
+⚡ Update Frequency: Real-time (every 5 minutes)
+📱 Mobile Optimization: Essential for all user types
+```
 
-### **💡 Feature Preferences:**
-5. کدام dashboard metrics برای تصمیم‌گیری critical هستند؟
-6. چه bulk actions بیشتر نیاز دارید؟
-7. چطور ترجیح می‌دهید AI explanations نمایش داده شود؟
-8. کدام alerts برای شما مهم است؟
+### **📊 Layer 2 (Sector Analysis) - همه کاربران:**
+```
+🏗️ Sector Intelligence:
+├── ✅ Sector rotation analysis
+├── ✅ Performance comparison matrices
+├── ✅ Flow direction tracking
+├── ✅ Sector dominance trends  
+├── ✅ Cross-sector correlations
+├── ✅ Narrative tracking
+└── ✅ Momentum indicators
 
-### **🎨 Interface Preferences:**
-9. ترجیح شما information density یا simplicity است؟
-10. چه سطح از customization نیاز دارید؟
+🎯 Accessibility: Full access for Guest/Logged/Admin
+⚡ Update Frequency: Hourly updates
+📊 Visualization: Interactive sector maps
+```
 
-## 💼 **Professional Trader Interview Questions:**
+### **💰 Layer 3 (Asset Selection) - Context-Based:**
+```
+🤖 Intelligent Asset Selection:
+├── ✅ Dual-tier analysis (Watchlist vs Universe)
+├── ✅ Auto-suggestion engine
+├── ✅ Risk assessment matrix
+├── ✅ Performance predictions
+├── ✅ Correlation analysis
+├── ✅ Liquidity considerations
+└── ✅ Entry/exit recommendations
 
-### **📈 Trading Workflow:**
-1. روتین روزانه‌تان برای market analysis چیست؟
-2. از چه منابع برای decision making استفاده می‌کنید؟
-3. معمولاً چه مدت برای signal evaluation وقت می‌گذارید؟
-4. بیشترین pain point در فرآیند trading چیست؟
+🎯 Context Logic:
+├── Guest: Admin Watchlist context
+├── Logged (no personal): Admin Watchlist context  
+├── Logged (personal): Personal Watchlist context
+└── Admin: Configurable context (any watchlist)
+```
 
-### **⚡ Signal Requirements:**
-5. چه timing برای signal delivery acceptable است؟
-6. کدام risk metrics برای شما critical هستند؟
-7. چطور macro context را در strategies خود integrate می‌کنید؟
-8. چه سطح از detail در explanations نیاز دارید؟
+### **⚡ Layer 4 (Micro Timing) - Context-Based:**
+```
+⏰ Precision Timing Signals:
+├── ✅ Entry/exit point optimization
+├── ✅ Risk-adjusted position sizing
+├── ✅ Stop-loss recommendations
+├── ✅ Take-profit levels
+├── ✅ Market microstructure analysis
+├── ✅ Execution cost optimization
+└── ✅ Timing confidence scores
 
-### **🔧 Tool Integration:**
-9. از چه trading platforms استفاده می‌کنید؟
-10. چه API integrations مفید خواهد بود؟
-
-## 🌱 **Casual Investor Interview Questions:**
-
-### **💰 Investment Approach:**
-1. چطور تصمیمات سرمایه‌گذری خود را می‌گیرید؟
-2. چه منابع برای crypto learning استفاده می‌کنید؟
-3. بیشترین ترس شما در crypto investing چیست؟
-4. چه مدت زمان روی investment decisions فکر می‌کنید؟
-
-### **📚 Learning Needs:**
-5. کدام crypto concepts برای شما confusing هستند؟
-6. چه نوع explanations بیشتر کمک می‌کند؟
-7. ترجیح می‌دهید چقدر detail ببینید؟
-8. چه visual aids learning شما را تسهیل می‌کند؟
-
-### **📱 Usage Patterns:**
-9. بیشتر از mobile یا desktop استفاده می‌کنید؟
-10. چه frequency برای checking investments مناسب است؟
-
----
-
-## 📊 **Feature Impact Assessment**
-
-### **📈 High Impact / Low Effort:**
-- ✅ Main Dashboard layout
-- ✅ Basic asset recommendations
-- ✅ Simple macro indicators
-- ✅ Mobile responsive design
-
-### **📈 High Impact / High Effort:**
-- ⚡ Advanced admin management
-- ⚡ Real-time signal system
-- ⚡ Comprehensive analytics
-- ⚡ AI explanation system
-
-### **📉 Low Impact / Low Effort:**
-- 💡 Visual theme options
-- 💡 Basic customization
-- 💡 Simple alerts
-- 💡 Basic help content
-
-### **📉 Low Impact / High Effort:**
-- ❌ Advanced API integrations
-- ❌ Complex automation
-- ❌ White-label features
-- ❌ Advanced backtesting
+🎯 Context Logic: Same as Layer 3
+⚡ Update Frequency: Real-time (every minute)
+📊 Delivery: Push notifications for logged users
+```
 
 ---
 
-## 🎯 **Design Implications Summary**
+## 📊 **Success Metrics & KPIs**
 
-### **🎨 Interface Design:**
-- **Adaptive Complexity:** Different information density based on user type
-- **Progressive Disclosure:** Start simple, add complexity gradually
-- **Context-Aware Help:** Explanations when needed, hidden when not
-- **Visual Hierarchy:** Most important information prominently displayed
+### **🎯 User Satisfaction Metrics:**
+```
+😊 Experience Quality:
+├── User Satisfaction Score: 8.5+/10 target
+├── Task Completion Rate: 95%+ target
+├── Error Rate: <5% user errors
+├── Support Ticket Volume: <2% users/month
+├── Feature Discovery: 80%+ find major features
+└── Learning Curve: 70%+ comfortable within 1 week
 
-### **🔧 Feature Architecture:**
-- **Role-Based Views:** Different dashboard layouts per persona
-- **Modular Components:** Reusable across different user types
-- **Scalable Complexity:** Easy to add advanced features later
-- **Mobile-First:** Essential features work well on mobile
+⚡ Performance Satisfaction:
+├── Load Time Satisfaction: 90%+ users satisfied
+├── Mobile Experience: 85%+ mobile users satisfied
+├── Accessibility Score: 95%+ compliance
+├── Cross-Device Consistency: 90%+ consistent experience
+└── Offline Capability: 60%+ use offline features
+```
 
-### **📊 Data Presentation:**
-- **Multi-Level Detail:** Summary → Detail → Deep Analysis
-- **Visual Indicators:** Colors, icons, progress bars for quick understanding
-- **Contextual Information:** Background info available on demand
-- **Performance Tracking:** Clear success metrics for all user types
+### **📈 Business Impact Metrics:**
+```
+💰 Conversion & Retention:
+├── Guest-to-Registered: 25%+ conversion rate
+├── Daily Active Users: 40%+ of registered users
+├── Weekly Retention: 70%+ return within 7 days
+├── Monthly Retention: 60%+ active after 30 days
+├── Annual Retention: 40%+ active after 1 year
+└── Referral Rate: 20%+ users refer others
+
+🎯 Feature Adoption:
+├── Personal Watchlist Creation: 70%+ within 30 days
+├── AI Suggestion Usage: 80%+ regularly use
+├── Mobile App Usage: 60%+ use mobile regularly
+├── Advanced Features: 40%+ use Layer 3/4 features
+├── Admin Tools Efficiency: 50%+ improvement
+└── Educational Content: 30%+ complete tutorials
+```
 
 ---
 
-**📤 Next Phase:** User Journey Mapping (روز 2) - تعریف detailed workflows برای هر persona
+## 🔄 **Continuous Improvement Requirements**
+
+### **📊 Analytics & Feedback:**
+```
+🔍 User Behavior Tracking:
+├── ✅ Page view analytics
+├── ✅ Feature usage patterns
+├── ✅ User journey mapping
+├── ✅ Drop-off point identification
+├── ✅ Search query analysis
+└── ✅ Error pattern detection
+
+💬 Feedback Collection:
+├── ✅ In-app feedback widgets
+├── ✅ User survey system
+├── ✅ A/B testing framework
+├── ✅ User interview scheduling
+├── ✅ Community feedback channels
+└── ✅ Support ticket analysis
+```
+
+### **🚀 Iterative Enhancement:**
+```
+🔄 Development Priorities:
+├── ✅ User-requested features (priority queue)
+├── ✅ Performance optimization (continuous)
+├── ✅ Security updates (regular)
+├── ✅ Accessibility improvements (ongoing)
+├── ✅ Mobile experience enhancement
+└── ✅ AI model accuracy improvements
+
+📈 Success Tracking:
+├── ✅ Weekly performance reviews
+├── ✅ Monthly user satisfaction surveys
+├── ✅ Quarterly business impact assessment
+├── ✅ Semi-annual major feature releases
+├── ✅ Annual strategic planning
+└── ✅ Continuous competitive analysis
+```
+
+---
+
+**📅 آخرین بروزرسانی:** نسخه 2.0 - بر اساس معماری کاربری جدید فاز دوم
+**🎯 هدف:** Universal Access with Progressive Complexity & Context-Aware Experience

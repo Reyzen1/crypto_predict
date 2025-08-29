@@ -1,610 +1,482 @@
 # docs\Design\05_Information_Architecture.md
 # 🏗️ Information Architecture - CryptoPredict فاز دوم
-## Navigation Structure & Content Hierarchy Design
+## Single UI Navigation Structure & Universal Content Hierarchy
 
 ---
 
-## 🗺️ **Site Architecture Design (1.5 ساعت)**
+## 🗺️ **Site Architecture Design - New Architecture**
+
+### **🎯 Single UI Navigation Philosophy:**
+- **Universal Navigation:** یک منو برای همه سطوح کاربری
+- **Progressive Disclosure:** قابلیت‌ها بر اساس نیاز نمایش داده می‌شود
+- **Context-Aware Adaptation:** منو بر اساس وضعیت کاربر تطبیق می‌یابد
+- **Just-in-Time Controls:** کنترل‌های admin فقط هنگام نیاز نمایش
+
+---
 
 ## 📐 **Primary Navigation Structure**
 
-### **🎛️ Main Navigation Menu (Horizontal/Top Bar)**
+### **🎛️ Main Navigation Menu (Universal Header)**
 ```
-CryptoPredict Navigation:
+CryptoPredict Universal Navigation:
 
-🏠 Dashboard        🌍 Macro (L1)      📊 Sector (L2)     💰 Assets (L3)     ⚡ Timing (L4)     👨‍💼 Admin         ⚙️ Settings
-    │                   │                  │                   │                  │                  │               │
-    ├─ Overview         ├─ Market Regime   ├─ Sector Rotation  ├─ Watchlist       ├─ Entry Signals   ├─ Watchlist Mgmt ├─ Profile
-    ├─ Quick Actions    ├─ Dominance       ├─ Performance      ├─ Recommendations ├─ Exit Signals    ├─ Suggestions    ├─ Preferences
-    ├─ Alerts           ├─ Sentiment       ├─ Allocation       ├─ Opportunities   ├─ Risk Management ├─ Analytics      ├─ Security
-    └─ Performance      ├─ Volatility      ├─ Flow Analysis    ├─ Portfolio       ├─ Performance     ├─ Users          ├─ Help
-                        └─ Trends          └─ Leadership       └─ Research        └─ History         └─ System         └─ Support
-```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ [Logo] [Nav Menu...] [Search] [Theme] [Admin Panel?] [Login/User ▼]       │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-### **🔍 Navigation Hierarchy & User Access**
-```
-📱 Role-Based Navigation Access:
+Navigation Menu Items (All User Types):
+🏠 Dashboard     🌍 Macro (L1)    📊 Sector (L2)    💰 Assets (L3)    ⚡ Timing (L4)
 
-👨‍💼 Admin (Full Access):
-├── 🏠 Dashboard (System Overview + Management KPIs)
-├── 🌍 Macro Analysis (Market Context + System Impact)
-├── 📊 Sector Analysis (Balance Monitoring + Optimization)
-├── 💰 Asset Management (Full Watchlist Control + Bulk Actions)
-├── ⚡ Timing Signals (Quality Monitoring + Performance)
-├── 👨‍💼 Admin Panel (Complete Management Suite)
-└── ⚙️ Settings (System Configuration + User Management)
-
-💼 Professional Trader (Analysis Focused):
-├── 🏠 Dashboard (Trading Overview + Key Metrics)
-├── 🌍 Macro Analysis (Strategy Context + Risk Assessment)
-├── 📊 Sector Analysis (Rotation Opportunities + Allocation)
-├── 💰 Asset Selection (Research Tools + Opportunities)
-├── ⚡ Timing Signals (Active Trading + Risk Management)
-├── 🚫 Admin Panel (Access Denied)
-└── ⚙️ Settings (Personal Preferences + Trading Config)
-
-🌱 Casual Investor (Simplified Access):
-├── 🏠 Dashboard (Simple Overview + Clear Guidance)
-├── 🌍 Market Overview (Basic Context + Education)
-├── 📊 Sector Guide (Simple Allocation + Learning)
-├── 💰 Investment Options (Guided Selection + Explanations)
-├── ⚡ Buy/Sell Guidance (Simple Timing + Risk Warnings)
-├── 🚫 Admin Panel (Access Denied)
-└── ⚙️ Settings (Basic Preferences + Learning Progress)
+Additional Header Elements (Context-Based):
+├── 🔍 Search: Universal search for all content
+├── 🌙 Theme Toggle: Dark/Light mode for all users
+├── 👑 Admin Panel: Only visible for Admin users
+└── 🔐 Login/User: Guest→Login button, Logged→User dropdown, Admin→Extended menu
 ```
 
-### **📱 Secondary Navigation Systems**
-
-### **📱 Secondary Navigation Systems**
-
-#### **🔄 Contextual Navigation (Sidebar/Breadcrumb)**
+### **🔍 Navigation Context Adaptation**
 ```
-Contextual Menu Structure:
+🌐 Guest User Navigation:
+Header: [Logo] [Dashboard] [Macro] [Sector] [Assets] [Timing] [🔍] [🌙] [Login]
 
-🏠 Dashboard Context:
-├── 📊 Layer Performance Summary (Bull/Bear performance)
-├── 🎯 Today's Focus Areas (Long/Short opportunities)
-├── 🚨 Active Alerts (Market regime warnings)
-├── 📈 Quick Performance Metrics (Long/Short combined)
-├── ⚡ Recent Actions (Buy/Sell/Hold decisions)
-└── 🛡️ Bear Market Preparation (If probability >10%)
+👤 Logged User Navigation:
+Header: [Logo] [Dashboard] [Macro] [Sector] [Assets] [Timing] [🔍] [🌙] [User ▼]
 
-🌍 Macro Context:
-├── 📊 Current Regime Status (Bull/Bear/Neutral)
-├── 📈 Key Dominance Metrics (BTC.D trends)
-├── 😰 Sentiment Indicators (Fear/Greed + Safe haven flows)
-├── 📰 News Impact (Market moving events)
-├── 📉 Volatility Analysis (Risk levels)
-├── 🔄 Historical Comparison (Similar periods)
-├── 🔴 Bear Market Probability (Early warning system)
-└── 🛡️ Safe Haven Monitoring (Defensive asset flows)
+👑 Admin User Navigation:
+Header: [Logo] [Dashboard] [Macro] [Sector] [Assets] [Timing] [🔍] [🌙] [Admin Panel] [User ▼]
 
-📊 Sector Context:
-├── 🔥 Hot Sectors (Risk-on leaders)
-├── ❄️ Cold Sectors (Risk-off/Defensive)
-├── 🔄 Rotation Signals (Risk flow direction)
-├── 💰 Allocation Recommendations (Long/Short appropriate)
-├── 📊 Performance Heatmap (Bull/Bear comparison)
-├── 🎯 Flow Analysis (Money movements)
-├── 🛡️ Defensive Sectors (Bear market preparation)
-└── ⚠️ Sector Risk Warnings (Overextension alerts)
-
-💰 Asset Context:
-├── 🏆 Tier 1 Watchlist (Premium long opportunities)
-├── 📋 Tier 2 Monitor List (Potential additions)
-├── 🤖 Auto Suggestions (Add/Remove/Tier changes)
-├── 🎯 Long Opportunities (Buy recommendations)
-├── 🔴 Short Opportunities (Sell/Short candidates)
-├── 📊 Performance Ranking (Long/Short performance)
-├── 🔍 Research Tools (Fundamental analysis)
-├── 🛡️ Defensive Assets (Bear market protection)
-└── ⚖️ Portfolio Balance (Long/Short/Cash allocation)
-
-⚡ Timing Context:
-├── 🟢 Long Entry Signals (Buy opportunities)
-├── 🔴 Short Entry Signals (Sell/Short opportunities)
-├── 🟡 Exit Signals (Close position recommendations)
-├── ⚖️ Risk Management (Position sizing, stops)
-├── 📊 Signal Performance (Long/Short tracking)
-├── 🎯 Active Positions (Current holdings)
-├── 📈 Execution History (Trade log)
-├── 🛡️ Hedging Opportunities (Portfolio protection)
-└── ⚠️ Risk Warnings (Market condition alerts)
+🔄 State Transitions:
+├── Guest → Logged: [Login] button becomes [User ▼] dropdown
+├── Logged → Admin: [Admin Panel] link appears
+├── Admin → Logged: [Admin Panel] link disappears (if role changed)
+└── Universal: Core navigation always consistent
 ```
 
-#### **🔍 Quick Actions Menu (Floating/Sticky)**
+### **🎛️ Admin Panel Access Integration**
 ```
-Quick Actions by User Type:
+👑 Admin Panel Navigation (Separate Interface):
 
-👨‍💼 Admin Quick Actions:
-├── ✅ Approve Suggestions (Bulk - Add/Remove)
-├── 🔄 Rebalance Watchlist (Long/Short/Defensive)
-├── 📊 Generate Report (Performance/Risk)
-├── 🚨 Review Alerts (Market regime changes)
-├── 👥 Check User Activity (Trading patterns)
-├── ⚙️ System Health Check (All systems)
-├── 🛡️ Bear Market Prep (Defensive positioning)
-└── ⚠️ Risk Assessment (Portfolio exposure)
+Access Method: "Admin Panel" link in main header (admin users only)
 
-💼 Professional Quick Actions:
-├── 📊 Add to Watchlist (Long/Short candidates)
-├── ⚡ Execute Signal (Buy/Sell/Short)
-├── 📈 Open Chart Analysis (Technical view)
-├── 🎯 Set Alert (Price/Volume/News)
-├── 💰 Calculate Position Size (Long/Short)
-├── 📝 Add Trading Note (Strategy tracking)
-├── 🔄 Portfolio Rebalance (Risk adjustment)
-├── 🛡️ Add Hedge Position (Risk management)
-└── 📉 Short Opportunity Scan (Bear preparation)
-
-🌱 Casual Quick Actions:
-├── 💰 Check Portfolio (Overall health)
-├── 🎯 Get Recommendation (Buy/Hold/Sell guidance)
-├── 📚 Start Learning (Market cycles)
-├── ✅ Follow Guidance (Recommended actions)
-├── 📞 Get Help (Support access)
-├── 📊 View Progress (Learning journey)
-├── 🛡️ Bear Market Guide (Protection strategies)
-└── ⚠️ Risk Check (Portfolio assessment)
-```
-
-## 📋 **Content Hierarchy Design (1.5 ساعت)**
-
-## 🎯 **Content Priority Framework**
-
-### **📊 Information Hierarchy Principles**
-```
-Content Priority Levels:
-
-🔥 Priority 1 (Critical - Always Visible):
-├── Current system status/health
-├── Active alerts requiring attention
-├── Key performance indicators
-├── Primary action recommendations
-└── Navigation essentials
-
-⚡ Priority 2 (Important - Prominent Display):
-├── Recent performance data
-├── Trending information
-├── Secondary recommendations
-├── Relevant context information
-└── Popular features access
-
-💡 Priority 3 (Useful - On-Demand):
-├── Historical data
-├── Detailed analytics
-├── Advanced settings
-├── Educational content
-└── Support information
-
-📚 Priority 4 (Archive - Deep Access):
-├── Comprehensive reports
-├── Historical archives
-├── Advanced configurations
-├── Developer tools
-└── System logs
-```
-
-### **🏠 Dashboard Content Hierarchy**
-
-#### **👨‍💼 Admin Dashboard Hierarchy**
-```
-Admin Dashboard Layout (Information Density: High):
-
-🔥 Header Section (Priority 1):
-├── 🚨 Critical System Alerts (Red/Yellow indicators)
-├── 📊 System Health Status (Green/Yellow/Red)
-├── 👥 Active Users Count (Real-time)
-├── 💻 Resource Usage (CPU/Memory/API calls)
-├── ⚠️ Bear Market Probability (If >5%)
-└── 🕐 Last Update Timestamp
-
-⚡ Primary Grid (Priority 1-2):
-┌─────────────────┬─────────────────┬─────────────────┐
-│ 🤖 Suggestions │ 📊 Performance │ 🎯 Watchlist   │
-│ Queue           │ Metrics         │ Health          │
-│ ├─ Add: 8       │ ├─ Accuracy 84% │ ├─ Tier 1 (15) │
-│ ├─ Remove: 3    │ ├─ User Sat 4.2 │ ├─ Tier 2 (127)│
-│ ├─ Tier Ch: 2   │ ├─ Long Win: 86%│ ├─ Long: 87%   │
-│ └─ Bear Prep: 1 │ └─ Short Win:75%│ └─ Short: 3%   │
-├─────────────────┼─────────────────┼─────────────────┤
-│ 🌍 Market       │ 📈 Layer        │ ⚙️ Quick        │
-│ Context         │ Performance     │ Actions         │
-│ ├─ Regime: Bull │ ├─ L1: 89%      │ ├─ Bulk Approve │
-│ ├─ Risk: Medium │ ├─ L2: 76%      │ ├─ Rebalance    │
-│ ├─ Bear Risk: 8%│ ├─ L3: 82%      │ ├─ Bear Prep    │
-│ └─ Confidence:85│ └─ L4: 71%      │ └─ Generate     │
-│                 │                 │   Report        │
-└─────────────────┴─────────────────┴─────────────────┘
-
-💡 Secondary Sections (Priority 2-3):
-├── 📊 Two-Sided Performance Analytics (Long/Short tracking)
-├── 🔄 Recent System Changes (Configuration updates)
-├── 📈 Market Regime Performance (Bull/Bear effectiveness)
-├── 🎯 Optimization Recommendations (Strategy improvements)
-├── 📋 Scheduled Tasks Status (Automated processes)
-├── 🛡️ Risk Management Overview (Portfolio exposure)
-└── ⚠️ Bear Market Preparation Status (Defensive readiness)
-
-📚 Detail Panels (Priority 3-4):
-├── 📝 Detailed Logs Access (System activity)
-├── 🛠️ Advanced Configuration (Two-sided settings)
-├── 📊 Comprehensive Reports (Long/Short/Combined)
-├── 👥 User Management Tools (Access control)
-├── 🔧 System Maintenance (Health monitoring)
-├── 🔄 Strategy Performance (Bull/Bear comparison)
-└── 📈 Predictive Analytics (Market regime forecasting)
-```
-
-#### **💼 Professional Dashboard Hierarchy**
-```
-Professional Dashboard Layout (Information Density: Medium-High):
-
-🔥 Header Section (Priority 1):
-├── 🌍 Market Regime Indicator (Bull/Bear/Neutral + Bear probability)
-├── ⚖️ Current Risk Level (Low/Medium/High + Risk-off signals)
-├── 💰 Portfolio Value (Real-time + Long/Short breakdown)
-├── 📊 Today's P&L (Green/Red + Long/Short attribution)
-├── ⚡ Active Signals Count (Long/Short/Exit signals)
-└── 🛡️ Portfolio Hedge Ratio (Risk management indicator)
-
-⚡ Primary Analysis Grid (Priority 1-2):
-┌─────────────────┬─────────────────┬─────────────────┐
-│ 🎯 Long          │ 🔴 Short        │ ⚡ Active       │
-│ Opportunities   │ Opportunities   │ Signals         │
-│ ├─ BTC (Buy)    │ ├─ DOGE (Short) │ ├─ ETH Long     │
-│ ├─ ETH (Strong) │ ├─ ADA (Weak)   │ ├─ DOGE Short   │
-│ └─ SOL (Hold)   │ └─ SHIB (Bear)  │ └─ BTC Exit 50% │
-├─────────────────┼─────────────────┼─────────────────┤
-│ 📊 Sector       │ 💰 Portfolio    │ 📈 Performance  │
-│ Momentum        │ Allocation      │ Tracking        │
-│ ├─ DeFi ↑ 12%  │ ├─ Long: 87%    │ ├─ Long Win:84% │
-│ ├─ Gaming ↑ 8% │ ├─ Short: 3%    │ ├─ Short Win:75%│
-│ └─ Meme ↓ 5%   │ └─ Cash: 10%    │ └─ Sharpe: 1.4  │
-└─────────────────┴─────────────────┴─────────────────┘
-
-🌍 Macro Context Panel (Priority 1-2):
+Admin Panel Structure:
 ┌─────────────────────────────────────────────────────────┐
-│ 🌍 Market Context (Current: Bull Market)               │
-│ ├─ Sentiment: 75 (Greed zone - Take profits)           │
-│ ├─ BTC.D: 52% (Normal range)                          │
-│ ├─ Bear Risk: 8% (Low but monitored)                  │
-│ ├─ Volatility: Medium (Good for trading)              │
-│ ├─ Safe Havens: Normal flows (No stress)              │
-│ └─ Strategy: Cautious bull (Long bias + selective)     │
+│ 🎛️ CryptoPredict Admin Panel                          │
+│                                                         │
+│ [Dashboard] [Watchlist Mgmt] [Users] [Analytics] [System] [Back to App] │
 └─────────────────────────────────────────────────────────┘
 
-💡 Layer Navigation Tabs (Priority 2):
-├── 🌍 [Macro Analysis] - Market regime & Bear warnings
-├── 📊 [Sector Rotation] - Risk-on/Risk-off flows
-├── 💰 [Asset Research] - Long/Short opportunities
-└── ⚡ [Timing Signals] - Entry/Exit/Hedge signals
-
-📚 Tools Sidebar (Priority 3):
-├── 📊 Chart Analysis Tools (Long/Short marking)
-├── 🎯 Watchlist Manager (Multi-strategy lists)
-├── 📝 Trading Journal (Strategy performance)
-├── 🔔 Alert Manager (Long/Short/Risk alerts)
-├── 📈 Performance Analytics (Two-sided tracking)
-├── 🛡️ Risk Management (Portfolio hedging)
-├── 📉 Short Opportunity Scanner (Bear preparation)
-└── 🔄 Portfolio Rebalancer (Risk adjustment)
+Admin Panel Navigation:
+├── 🏠 Admin Dashboard: System overview & KPIs
+├── 📋 Watchlist Management: Default & user watchlists
+├── 👥 User Management: User accounts & permissions
+├── 📊 Analytics & Reports: System performance & insights
+├── ⚙️ System Settings: Configuration & maintenance
+└── 🔙 Back to Main App: Return to regular interface
 ```
 
-#### **🌱 Casual Dashboard Hierarchy**
+## 📊 **4-Layer Content Structure (Universal)**
+
+### **🌍 Layer 1 (Macro) - All Users**
 ```
-Casual Dashboard Layout (Information Density: Low-Medium):
+Navigation Path: /macro
 
-🔥 Hero Section (Priority 1):
-├── 😊 Investment Health: "Looking Good!" (Green)
-├── 💰 Portfolio Value: $12,450 (+$234 this week)
-├── 🎯 Today's Advice: "Good time to add more ETH"
-└── 📊 Simple Progress Bar: 70% to goal
+Content Access (Universal):
+├── 🔓 Market Regime Detection: Bull/Bear/Neutral/Volatile
+├── 🔓 Dominance Analysis: BTC.D, ETH.D, Alt.D tracking
+├── 🔓 Sentiment Analysis: Fear & Greed + social sentiment
+├── 🔓 DeFi Metrics: DeFi dominance & ecosystem health
+├── 🔓 Volatility Forecasting: VIX-style crypto volatility
+└── 🔓 Correlation Analysis: Cross-market relationships
 
-⚡ Action Cards (Priority 1-2):
-┌─────────────────────────────────────────────────────┐
-│ 🎯 What Should I Do Today?                         │
-│ ┌─────────────────┬─────────────────┬─────────────┐ │
-│ │ 💰 Consider     │ ⏳ Wait for     │ 📚 Learn   │ │
-│ │ Buying More     │ Better Timing   │ Something   │ │
-│ │ ├─ ETH (Low Risk)│ ├─ BTC (High Vol)│ ├─ DeFi    │ │
-│ │ ├─ Reason: Dip  │ ├─ Better entry │ ├─ 5 min   │ │
-│ │ └─ Amount: $200 │ └─ Expected: 2d │ └─ Video   │ │
-│ └─────────────────┴─────────────────┴─────────────┘ │
-└─────────────────────────────────────────────────────┘
-
-💡 Simple Information (Priority 2):
-├── 🌍 Market Mood: "Optimistic but careful"
-├── 📊 My Top Assets: BTC (50%), ETH (30%), Others (20%)
-├── 📈 This Week: +$234 (Good progress!)
-└── 🎓 Learning Progress: 3/10 modules completed
-
-📚 Support Access (Priority 3):
-├── 📞 Get Help
-├── 📚 Learning Center
-├── 👥 Community
-└── ⚙️ Simple Settings
+User Experience Adaptation:
+├── 🌐 Guest: Full access + educational tooltips
+├── 👤 Logged: Full access + personal context notes
+└── 👑 Admin: Full access + system impact indicators
 ```
 
-## 🔗 **URL Structure Design (1 ساعت)**
-
-## 🌐 **Logical Path Architecture**
-
-### **🏗️ URL Hierarchy Framework**
+### **📊 Layer 2 (Sector) - All Users**
 ```
-Base URL Structure:
-https://cryptopredict.app
+Navigation Path: /sector
 
-📁 Main Route Categories:
-├── / (Dashboard - Role-based default)
-├── /macro (Layer 1 - Macro Analysis)
-├── /sector (Layer 2 - Sector Analysis)
-├── /assets (Layer 3 - Asset Selection)
-├── /timing (Layer 4 - Timing Signals)
-├── /admin (Admin Panel - Role restricted)
-├── /settings (User Preferences)
-├── /help (Support & Learning)
-└── /api (API Documentation)
+Content Access (Universal):
+├── 🔓 Sector Rotation Analysis: Flow between sectors
+├── 🔓 Performance Comparison: Sector-by-sector metrics
+├── 🔓 Money Flow Tracking: Capital allocation patterns
+├── 🔓 Leadership Identification: Leading & lagging sectors
+├── 🔓 Allocation Recommendations: Sector balance suggestions
+└── 🔓 Narrative Analysis: Sector theme & trend tracking
+
+User Experience Adaptation:
+├── 🌐 Guest: Full analysis + sector education
+├── 👤 Logged: Full analysis + personal sector preferences
+└── 👑 Admin: Full analysis + system optimization insights
 ```
 
-### **📋 Detailed URL Structure**
+### **💰 Layer 3 (Asset Selection) - Context-Based**
+```
+Navigation Path: /assets
 
-#### **🏠 Dashboard Routes**
-```
-Dashboard Paths:
-├── / 
-│   ├── ?view=admin (Admin dashboard)
-│   ├── ?view=pro (Professional dashboard)
-│   └── ?view=casual (Casual dashboard)
-├── /overview (General overview page)
-├── /alerts (Active alerts summary)
-└── /quick-start (First-time user onboarding)
-```
+Content Access Strategy:
+├── 🌐 Guest Users: Admin Watchlist context (15 assets)
+├── 👤 Logged Users (No Personal): Admin Watchlist context
+├── 👤 Logged Users (Personal): Personal Watchlist context
+├── 👑 Admin (Default View): Admin Watchlist context
+├── 👑 Admin (Personal View): Personal Watchlist context
+└── 👑 Admin (User View): Selected User Watchlist context
 
-#### **🌍 Layer 1 (Macro) Routes**
-```
-Macro Analysis Paths:
-├── /macro
-│   ├── /regime (Current market regime)
-│   ├── /dominance (BTC.D, ETH.D analysis)
-│   ├── /sentiment (Fear & Greed, social sentiment)
-│   ├── /volatility (Market volatility analysis)
-│   ├── /trends (Long-term trend analysis)
-│   └── /correlation (Cross-market correlations)
-├── /macro/regime/[regime-type] (Bull/Bear/Neutral detail)
-├── /macro/sentiment/[source] (Specific sentiment source)
-└── /macro/history/[timeframe] (Historical analysis)
-```
+Watchlist Toggle Interface (Admin Only):
+┌─────────────────────────────────────────────────────────┐
+│ 📋 Viewing: [Select Watchlist ▼]                      │
+│ ├── ○ Default Watchlist (15 assets) [Edit]            │
+│ ├── ○ My Personal (8 assets) [Edit]                   │
+│ ├── ○ User: john@example.com (12 assets) [View/Edit]   │
+│ └── ○ User: sarah@example.com (6 assets) [View/Edit]   │
+└─────────────────────────────────────────────────────────┘
 
-#### **📊 Layer 2 (Sector) Routes**
-```
-Sector Analysis Paths:
-├── /sector
-│   ├── /rotation (Sector rotation analysis)
-│   ├── /performance (Sector performance comparison)
-│   ├── /allocation (Recommended allocations)
-│   ├── /flow (Money flow analysis)
-│   └── /leadership (Leading sector identification)
-├── /sector/[sector-name] (Individual sector deep dive)
-│   ├── /overview (Sector overview)
-│   ├── /assets (Assets in sector)
-│   ├── /trends (Sector trends)
-│   └── /analysis (Detailed analysis)
-└── /sector/compare/[sector1]/[sector2] (Sector comparison)
+Content Features:
+├── 🔓 Asset Analysis: Technical & fundamental analysis
+├── 🔓 AI Recommendations: Context-based suggestions
+├── 🔓 Performance Tracking: Historical & predictive metrics
+├── 🔓 Research Tools: Comprehensive analysis suite
+├── 🔒 Personal Actions: Add/remove from watchlist (login required)
+└── 👑 Admin Actions: Manage any watchlist (admin only)
 ```
 
-#### **💰 Layer 3 (Asset) Routes**
+### **⚡ Layer 4 (Timing Signals) - Context-Based**
 ```
-Asset Selection Paths:
-├── /assets
-│   ├── /watchlist (Current watchlist view)
-│   │   ├── /tier1 (Tier 1 assets)
-│   │   └── /tier2 (Tier 2 assets)
-│   ├── /recommendations (AI recommendations)
-│   ├── /opportunities (New opportunities)
-│   ├── /portfolio (Portfolio analysis)
-│   └── /research (Research tools)
-├── /assets/[asset-symbol] (Individual asset analysis)
-│   ├── /overview (Asset overview)
-│   ├── /analysis (Technical & fundamental)
-│   ├── /signals (Related signals)
-│   ├── /news (Asset-specific news)
-│   └── /compare (Compare with others)
-├── /assets/suggestions (Auto-suggestions queue)
-└── /assets/screening (Asset screening tools)
+Navigation Path: /timing
+
+Content Access Strategy:
+├── Same context logic as Layer 3
+├── Signals based on active watchlist context
+├── Entry/exit recommendations for context assets
+└── Risk management for context portfolio
+
+Signal Types (All Users):
+├── 🔓 Entry Signals: Buy/Long opportunities
+├── 🔓 Exit Signals: Sell/Short/Hold recommendations
+├── 🔓 Risk Signals: Portfolio protection alerts
+├── 🔓 Performance Tracking: Signal accuracy & results
+├── 🔒 Personal Alerts: Custom notifications (login required)
+└── 👑 Admin Monitoring: System-wide signal performance
 ```
 
-#### **⚡ Layer 4 (Timing) Routes**
+## 🔐 **Authentication & State Management**
+
+### **🚪 Login/Logout State Integration**
 ```
-Timing Signals Paths:
-├── /timing
-│   ├── /signals (Active signals)
-│   │   ├── /long (Long entry signals)
-│   │   ├── /short (Short entry signals)  
-│   │   ├── /exit (Exit signals - close positions)
-│   │   └── /all (Combined view)
-│   ├── /opportunities
-│   │   ├── /buy (Buy opportunities)
-│   │   ├── /sell (Sell opportunities)
-│   │   └── /hedge (Hedging opportunities)
-│   ├── /risk (Risk management)
-│   │   ├── /position-sizing (Long/Short position calculator)
-│   │   ├── /portfolio-balance (Long/Short/Cash allocation)
-│   │   └── /hedging (Portfolio protection)
-│   ├── /performance (Signal performance)
-│   │   ├── /long (Long signal tracking)
-│   │   ├── /short (Short signal tracking)
-│   │   └── /combined (Overall performance)
-│   └── /history (Signal history)
-│       ├── /long (Long signal history)
-│       ├── /short (Short signal history)
-│       └── /all (Complete history)
-├── /timing/[asset-symbol] (Asset-specific timing)
-│   ├── /long (Long opportunities)
-│   ├── /short (Short opportunities)
-│   ├── /analysis (Complete timing analysis)
-│   └── /backtest (Historical performance)
-├── /timing/alerts (Signal alerts configuration)
-│   ├── /long-alerts (Long signal alerts)
-│   ├── /short-alerts (Short signal alerts)
-│   └── /risk-alerts (Risk management alerts)
-└── /timing/strategies (Strategy management)
-    ├── /bull-market (Bull market strategies)
-    ├── /bear-market (Bear market strategies)
-    └── /neutral-market (Neutral market strategies)
+Authentication States in Navigation:
+
+🌐 Guest State:
+├── Header: [Login] button (right side)
+├── No personal menu options
+├── Access to all content with educational prompts
+├── Gentle encouragement for personal features
+└── "Create Account" call-to-actions in appropriate contexts
+
+👤 Logged State:
+├── Header: [User ▼] dropdown replaces [Login] button
+├── User Dropdown Menu:
+│   ├── 👤 Profile & Settings
+│   ├── 📋 My Watchlist
+│   ├── 📊 My Performance
+│   ├── 🔔 Notifications
+│   ├── 📚 Learning Progress
+│   └── 🚪 Logout
+├── Personal features accessible throughout app
+└── Context-aware AI suggestions
+
+👑 Admin State:
+├── Header: [Admin Panel] link + [User ▼] dropdown
+├── Admin-specific dropdown additions:
+│   ├── 🎛️ Admin Dashboard (shortcut)
+│   ├── 👥 User Management (shortcut)
+│   ├── 📊 System Analytics (shortcut)
+│   └── 🔧 System Settings (shortcut)
+├── Extended permissions throughout app
+└── Watchlist toggle capabilities
 ```
 
-#### **👨‍💼 Admin Routes**
+### **🔄 Seamless State Transitions**
 ```
-Admin Panel Paths:
-├── /admin (Admin dashboard)
-│   ├── /watchlist (Watchlist management)
-│   │   ├── /manage (Add/remove/tier management)
-│   │   ├── /bulk (Bulk operations)
-│   │   ├── /analytics (Performance analytics)
-│   │   ├── /long-focus (Long opportunity management)
-│   │   ├── /short-candidates (Short opportunity management)
-│   │   └── /balance (Long/Short/Cash allocation)
-│   ├── /suggestions (Auto-suggestion review)
-│   │   ├── /queue (Pending suggestions)
-│   │   ├── /add-suggestions (Add to watchlist queue)
-│   │   ├── /remove-suggestions (Remove from watchlist queue)
-│   │   ├── /tier-changes (Tier change suggestions)
-│   │   ├── /approved (Approved suggestions)
-│   │   ├── /rejected (Rejected suggestions)
-│   │   └── /bear-prep (Bear market preparation suggestions)
-│   ├── /users (User management)
-│   │   ├── /active (Active users)
-│   │   ├── /permissions (Role management)
-│   │   ├── /analytics (User analytics)
-│   │   └── /trading-patterns (Long/Short usage patterns)
-│   ├── /system (System management)
-│   │   ├── /health (System health)
-│   │   ├── /performance (Performance metrics)
-│   │   ├── /logs (System logs)
-│   │   ├── /config (Configuration)
-│   │   └── /market-regime (Market regime settings)
-│   ├── /reports (Report generation)
-│   │   ├── /daily (Daily reports)
-│   │   ├── /weekly (Weekly reports)
-│   │   ├── /custom (Custom reports)
-│   │   ├── /long-performance (Long strategy performance)
-│   │   ├── /short-performance (Short strategy performance)
-│   │   └── /market-regime (Regime-based performance)
-│   └── /risk-management (Risk oversight)
-│       ├── /portfolio-exposure (System-wide exposure)
-│       ├── /bear-preparation (Bear market readiness)
-│       ├── /user-risk (User risk monitoring)
-│       └── /system-limits (Risk limits management)
-└── /admin/api (Admin API access)
-    ├── /long-signals (Long signal management)
-    ├── /short-signals (Short signal management)
-    └── /risk-controls (Risk control APIs)
+State Change Animations:
+├── Guest → Logged: Smooth header transformation
+├── Login → Redirect: Preserve navigation context
+├── Feature Unlock: Progressive disclosure animation
+└── Admin Toggle: Contextual controls slide in/out
+
+Context Preservation:
+├── Maintain current page during login
+├── Preserve analysis state across authentication
+├── Keep filters & preferences during transitions
+└── Seamless watchlist context switching
 ```
 
-#### **⚙️ Settings & Support Routes**
-```
-Settings & Support Paths:
-├── /settings
-│   ├── /profile (User profile)
-│   ├── /preferences (User preferences)
-│   ├── /notifications (Notification settings)
-│   ├── /security (Security settings)
-│   └── /api (API key management)
-├── /help
-│   ├── /docs (Documentation)
-│   ├── /tutorials (Tutorial videos)
-│   ├── /faq (Frequently asked questions)
-│   ├── /support (Contact support)
-│   └── /learning (Learning center)
-│   │   ├── /beginner (Beginner guides)
-│   │   ├── /intermediate (Intermediate content)
-│   │   ├── /advanced (Advanced topics)
-│   │   └── /progress (Learning progress)
-└── /api-docs (API documentation)
-```
+---
 
-### **🔍 URL Parameters & Query Strings**
-```
-Common Parameters:
-├── ?timeframe=[1h|4h|1d|1w|1m] (Time period)
-├── ?view=[admin|pro|casual] (User view type)
-├── ?filter=[tier1|tier2|all] (Asset filtering)
-├── ?sort=[confidence|performance|alphabetical] (Sorting)
-├── ?page=[number] (Pagination)
-├── ?limit=[number] (Results per page)
-└── ?search=[query] (Search functionality)
+## 🗂️ **URL Structure Design**
 
-Specific Examples:
-├── /assets?tier=tier1&sort=performance&timeframe=1w
-├── /timing/signals?filter=entry&confidence=high
-├── /admin/suggestions?status=pending&sort=confidence
-└── /macro/sentiment?source=reddit&timeframe=1d
+### **🌐 Universal URL Architecture**
 ```
+Base Structure: https://cryptopredict.app
 
-### **📱 Mobile-Specific Routes**
-```
-Mobile Optimized Paths:
-├── /m/ (Mobile-specific routing prefix)
-├── /m/dashboard (Mobile dashboard)
-├── /m/quick (Quick actions)
-├── /m/alerts (Mobile alerts)
-└── /m/learn (Mobile learning)
+Core Routes (All Users):
+├── / (Dashboard - context-aware default)
+├── /macro (Layer 1 - Universal access)
+├── /sector (Layer 2 - Universal access)
+├── /assets (Layer 3 - Context-based content)
+├── /timing (Layer 4 - Context-based signals)
+├── /settings (User preferences)
+├── /help (Support & learning)
+└── /about (Company information)
 
-Progressive Web App Routes:
-├── /offline (Offline functionality)
-├── /install (PWA installation guide)
-└── /notifications (Push notification settings)
-```
-
-### **🔐 Authentication & Error Routes**
-```
-Auth & Error Handling:
-├── /login (User login)
-├── /register (User registration)
+Authentication Routes:
+├── /login (Login page)
+├── /register (Registration page)
 ├── /forgot-password (Password recovery)
-├── /verify-email (Email verification)
-├── /logout (User logout)
-├── /unauthorized (403 error)
-├── /not-found (404 error)
-├── /server-error (500 error)
-└── /maintenance (Maintenance mode)
+└── /logout (Logout redirect)
+
+Admin-Only Routes:
+├── /admin (Admin panel gateway)
+├── /admin/dashboard (Admin overview)
+├── /admin/watchlists (Watchlist management)
+├── /admin/users (User management)
+├── /admin/analytics (System analytics)
+└── /admin/settings (System configuration)
+```
+
+### **📱 Mobile & API Routes**
+```
+Mobile-Optimized Routes:
+├── /m/* (Mobile-specific layouts)
+├── /pwa (Progressive Web App resources)
+└── /offline (Offline functionality)
+
+API Routes:
+├── /api/v1/auth/* (Authentication endpoints)
+├── /api/v1/layers/* (4-Layer AI endpoints)
+├── /api/v1/watchlists/* (Watchlist management)
+├── /api/v1/admin/* (Admin-only endpoints)
+└── /api/v1/public/* (Public data endpoints)
 ```
 
 ---
 
-## 📋 **Content Organization Principles**
+## 📋 **Content Hierarchy & Prioritization**
 
-### **🎯 Information Architecture Best Practices**
+### **🎯 Universal Content Priority Framework**
 ```
-✅ Structure Principles:
-├── 🧠 Mental Model Alignment: Match user expectations
+Priority Level 1 (Critical - Always Visible):
+├── Navigation menu & user status
+├── System health & performance indicators
+├── Active alerts & notifications
+├── Primary action recommendations
+└── Core dashboard metrics
+
+Priority Level 2 (Important - Prominent):
+├── AI insights & predictions
+├── Performance summaries
+├── Market context information
+├── Trending opportunities
+└── Recent activity summaries
+
+Priority Level 3 (Useful - On-Demand):
+├── Detailed analytics & charts
+├── Historical data & comparisons
+├── Advanced settings & configurations
+├── Educational content & tutorials
+└── Support & help resources
+
+Priority Level 4 (Archive - Deep Access):
+├── Complete historical records
+├── Advanced system configurations
+├── Developer tools & APIs
+├── Comprehensive reports
+└── Audit logs & system data
+```
+
+### **🌐 Guest User Content Strategy**
+```
+Guest Content Prioritization:
+├── 🔥 Immediate Value Demonstration (Priority 1)
+├── ⚡ Feature Discovery & Exploration (Priority 2)
+├── 💡 Educational Content & Guidance (Priority 2)
+├── 📊 Historical Performance Evidence (Priority 3)
+├── 🎯 Conversion Encouragement (Contextual)
+└── 📚 Learning Resources (Priority 3)
+
+Content Adaptation:
+├── Simplified language & explanations
+├── Interactive tooltips & help
+├── Clear value propositions
+├── Social proof & testimonials
+└── Easy conversion paths
+```
+
+### **👤 Logged User Content Strategy**
+```
+Logged Content Prioritization:
+├── 🔥 Personal Performance & Portfolio (Priority 1)
+├── ⚡ Personalized AI Recommendations (Priority 1)
+├── 📊 Context-Based Analysis (Priority 1)
+├── 💡 Learning Progress & Achievements (Priority 2)
+├── 🔔 Custom Alerts & Notifications (Priority 2)
+└── ⚙️ Personalization & Settings (Priority 3)
+
+Content Adaptation:
+├── Personalized insights & recommendations
+├── Historical performance tracking
+├── Custom notification preferences
+├── Learning path continuation
+└── Advanced feature access
+```
+
+### **👑 Admin Content Strategy**
+```
+Admin Content Prioritization:
+├── 🔥 System Health & Performance (Priority 1)
+├── ⚡ Critical Issues & Alerts (Priority 1)
+├── 📊 User Activity & Engagement (Priority 1)
+├── 💡 Optimization Opportunities (Priority 2)
+├── 🛠️ Management Tools & Controls (Priority 2)
+└── 📈 Strategic Analytics & Reports (Priority 3)
+
+Content Adaptation:
+├── Data-rich dashboards & metrics
+├── Bulk operation capabilities
+├── System oversight & control panels
+├── User management interfaces
+└── Strategic planning tools
+```
+
+---
+
+## 📱 **Mobile Navigation Patterns**
+
+### **📲 Mobile-First Navigation Design**
+```
+Mobile Navigation Strategy:
+├── 🍔 Hamburger Menu: Primary navigation
+├── 🎯 Bottom Tab Bar: Quick access to 4 layers
+├── 🔍 Search: Persistent search functionality
+├── 👤 Profile: User status & quick actions
+└── 🚀 Floating Action Button: Primary actions
+
+Mobile Header (Responsive):
+┌─────────────────────────────────┐
+│ [☰] CryptoPredict [🔍] [👤] │
+└─────────────────────────────────┘
+
+Bottom Tab Bar (4-Layer Access):
+┌─────────────────────────────────┐
+│ [🏠] [🌍] [📊] [💰] [⚡]     │
+│ Dash Macro Sector Assets Timing │
+└─────────────────────────────────┘
+```
+
+### **📱 Mobile Context Adaptation**
+```
+Mobile Guest Experience:
+├── Simplified navigation with exploration hints
+├── Swipe tutorials for feature discovery
+├── Touch-friendly educational overlays
+└── Easy access to login/registration
+
+Mobile Logged Experience:
+├── Personal shortcuts in navigation
+├── Quick action gestures
+├── Push notification integration
+└── Cross-device synchronization
+
+Mobile Admin Experience:
+├── Essential admin controls accessible
+├── Touch-optimized management interfaces
+├── Mobile-friendly bulk operations
+└── Emergency system controls
+```
+
+---
+
+## 🔍 **Search & Filtering Architecture**
+
+### **🔍 Universal Search System**
+```
+Search Functionality (All Users):
+├── 🔍 Global Search: Assets, analysis, features
+├── 🎯 Contextual Search: Within current section
+├── 📊 Smart Suggestions: AI-powered recommendations
+├── 📱 Voice Search: Mobile voice input
+└── 🔄 Search History: Recent searches (logged users)
+
+Search Categories:
+├── 💰 Assets: Cryptocurrencies & tokens
+├── 📊 Analysis: Reports & insights
+├── 🎓 Learning: Educational content
+├── ⚙️ Settings: Configuration options
+└── 👑 Admin: System management (admin only)
+```
+
+### **🎛️ Filtering & Customization**
+```
+Filter Options (Context-Aware):
+├── ⏰ Time Range: 1h, 4h, 1d, 1w, 1m, all time
+├── 📊 Performance: Top performers, underperformers
+├── 🎯 Confidence: High, medium, low AI confidence
+├── 💰 Market Cap: Large, mid, small cap
+├── 📈 Trends: Trending up, down, sideways
+└── 👤 Personalized: Based on user preferences (logged users)
+
+Advanced Filters (Progressive Disclosure):
+├── Technical Indicators: RSI, MACD, Bollinger Bands
+├── Fundamental Metrics: Volume, market cap, supply
+├── Sentiment Filters: Bullish, bearish, neutral
+├── Sector Filters: DeFi, Gaming, Infrastructure, etc.
+└── Custom Filters: User-defined criteria (logged users)
+```
+
+---
+
+## 📊 **Content Organization Best Practices**
+
+### **🎯 Information Architecture Principles**
+```
+✅ Universal Design Principles:
+├── 🧠 Cognitive Load Management: Progressive complexity
 ├── 📱 Mobile-First: Essential content prioritized
-├── 🔍 Findability: Clear navigation paths
-├── ⚡ Speed: Fast access to critical information
-├── 🎯 Task-Oriented: Support user goals
-├── 📊 Progressive Disclosure: Simple to complex
-└── 🔄 Consistency: Predictable patterns
+├── 🔍 Discoverability: Clear navigation paths
+├── ⚡ Performance: Fast access to critical info
+├── 🎯 Task-Oriented: Support user goals efficiently
+├── 📊 Visual Hierarchy: Clear importance indicators
+└── 🔄 Consistency: Predictable interaction patterns
 
-✅ Content Strategy:
-├── 🎨 Visual Hierarchy: Size, color, position
-├── 📝 Clear Labeling: Descriptive, action-oriented
-├── 🔗 Logical Grouping: Related content together
-├── 📱 Responsive Design: Multi-device optimization
-├── 🔍 Search Integration: Findable content
-└── 📊 Performance Metrics: Measurable success
+✅ Accessibility & Inclusion:
+├── ♿ WCAG 2.1 AA Compliance: Screen reader friendly
+├── ⌨️ Keyboard Navigation: Full keyboard accessibility
+├── 🎨 High Contrast: Visual accessibility options
+├── 📝 Clear Language: Plain language principles
+├── 🌍 Internationalization: Multi-language support
+└── 📱 Touch Accessibility: Large touch targets
 ```
 
-### **🔄 Cross-Persona Considerations**
+### **🔄 Adaptive Content Strategy**
 ```
-🎭 Adaptive Content Strategy:
-├── 👨‍💼 Admin: Information-dense, control-focused
-├── 💼 Professional: Analysis-rich, action-oriented
-├── 🌱 Casual: Simplified, guidance-focused
-├── 🤝 Shared: Consistent core patterns
-└── 📱 Universal: Mobile accessibility for all
+Content Adaptation Framework:
+├── 🌐 Guest Focus: Discovery & value demonstration
+├── 👤 Logged Focus: Personalization & progress tracking
+├── 👑 Admin Focus: System oversight & optimization
+├── 📱 Mobile Focus: Touch-friendly & simplified
+├── 🌙 Theme Focus: Dark/light mode optimization
+└── 🎯 Context Focus: Situational content relevance
+
+Cross-User Consistency:
+├── 🎨 Visual Design Language: Consistent across all users
+├── 🔄 Interaction Patterns: Predictable behaviors
+├── 📊 Data Presentation: Standardized formats
+├── 🎯 Navigation Logic: Intuitive path structures
+└── 💡 Help System: Contextual assistance available
 ```
 
 ---
 
-**📤 Output:** Complete Information Architecture 
+**📅 آخرین بروزرسانی:** نسخه 2.0 - بر اساس معماری کاربری جدید فاز دوم
+**🎯 هدف:** Single UI Navigation with Universal Access & Progressive Enhancement
