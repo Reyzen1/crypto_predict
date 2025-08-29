@@ -20,7 +20,7 @@ class Watchlist(Base):
     
     # Watchlist identification
     name = Column(String(100), nullable=False)
-    type = Column(String(20), nullable=False, index=True)  # admin_tier1, admin_tier2, user_custom
+    type = Column(String(20), nullable=False, index=True)  # 'default', 'personal'
     description = Column(Text)
     
     # Watchlist settings

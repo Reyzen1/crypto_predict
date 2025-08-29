@@ -29,7 +29,7 @@ class User(Base):
     last_name = Column(String(50))
     
     # Role-based access control (Enhanced for Phase 2)
-    role = Column(String(20), nullable=False, default='casual')  # admin, professional, casual
+    role = Column(String(20), nullable=False, default='public')  # admin, public
     
     # Status flags
     is_active = Column(Boolean, nullable=False, default=True)
