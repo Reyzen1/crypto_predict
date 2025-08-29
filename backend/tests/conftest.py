@@ -59,7 +59,7 @@ def create_test_database():
     
     # Clean up test database file
     try:
-        os.remove("./backend/tests/test.db")
+        os.remove("./tests/test.db")
     except FileNotFoundError:
         pass
 
@@ -80,18 +80,26 @@ def db_session() -> Generator:
 
 @pytest.fixture
 def client(db_session) -> Generator:
-    """Create a test client"""
+    """Create a test client - Fixed version"""
     def override_get_db():
         try:
             yield db_session
         finally:
             pass
-    
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
 
+    app.dependency_overrides.clear()
+    app.dependency_overrides[get_db] = override_get_db
+    
+    try:
+        test_client = TestClient(app, backend="asyncio")
+        yield test_client
+    except Exception:
+        # Fallback
+        test_client = TestClient(app)
+        yield test_client
+    finally:
+        app.dependency_overrides.clear()
+        
 
 @pytest.fixture
 def test_user(db_session) -> User:
@@ -385,121 +393,6 @@ class TestDataGenerator:
         
         return price_data
     
-    @staticmethod
-    def generate_test_predictions(
-        crypto_id: int,
-        count: int = 10,
-        realized: bool = False
-    ) -> List[Dict]:
-        """Generate test predictions"""
-        import random
-        
-        predictions = []
-        base_time = datetime.now(timezone.utc) - timedelta(days=count)
-        
-        for i in range(count):
-            predicted_price = Decimal(str(random.uniform(40000, 50000)))
-            actual_price = None
-            
-            if realized:
-                # Add some error to make it realistic
-                error = random.uniform(-0.1, 0.1)  # ±10% error
-                actual_price = predicted_price * (1 + Decimal(str(error)))
-            
-            predictions.append({
-                "crypto_id": crypto_id,
-                "predicted_price": predicted_price,
-                "actual_price": actual_price,
-                "confidence_score": Decimal(str(random.uniform(0.6, 0.9))),
-                "model_name": "test_model",
-                "model_version": "1.0",
-                "timeframe": "24h",
-                "prediction_timestamp": base_time + timedelta(days=i),
-                "is_realized": realized
-            })
-        
-        return predictions
-
-
-class TestAssertions:
-    """Custom assertions for testing"""
-    
-    @staticmethod
-    def assert_price_reasonable(price: float, min_price: float = 1000, max_price: float = 200000):
-        """Assert that a price is within reasonable bounds"""
-        assert min_price <= price <= max_price, f"Price {price} not in reasonable range [{min_price}, {max_price}]"
-    
-    @staticmethod
-    def assert_confidence_valid(confidence: float):
-        """Assert that confidence score is valid"""
-        assert 0 <= confidence <= 1, f"Confidence {confidence} not in valid range [0, 1]"
-    
-    @staticmethod
-    def assert_response_time_acceptable(response_time_ms: float, max_time_ms: float = 5000):
-        """Assert that response time is acceptable"""
-        assert response_time_ms <= max_time_ms, f"Response time {response_time_ms}ms exceeds limit {max_time_ms}ms"
-    
-    @staticmethod
-    def assert_memory_usage_reasonable(memory_mb: float, max_memory_mb: float = 1000):
-        """Assert that memory usage is reasonable"""
-        assert memory_mb <= max_memory_mb, f"Memory usage {memory_mb}MB exceeds limit {max_memory_mb}MB"
-    
-    @staticmethod
-    def assert_prediction_result_valid(prediction_result: Dict):
-        """Assert that a prediction result is valid"""
-        required_fields = ["predicted_price", "confidence_score", "current_price"]
-        for field in required_fields:
-            assert field in prediction_result, f"Missing required field: {field}"
-        
-        TestAssertions.assert_price_reasonable(float(prediction_result["predicted_price"]))
-        TestAssertions.assert_price_reasonable(float(prediction_result["current_price"]))
-        TestAssertions.assert_confidence_valid(prediction_result["confidence_score"])
-    
-    @staticmethod
-    def assert_training_result_valid(training_result: Dict):
-        """Assert that a training result is valid"""
-        assert training_result.get("success", False) is True, f"Training failed: {training_result.get('error')}"
-        assert "model_id" in training_result, "Missing model_id in training result"
-        assert "model_path" in training_result, "Missing model_path in training result"
-
-
-# Performance monitoring utilities
-class PerformanceMonitor:
-    """Monitor performance during tests"""
-    
-    def __init__(self):
-        self.start_time = None
-        self.end_time = None
-        self.start_memory = None
-        self.end_memory = None
-    
-    def start(self):
-        """Start monitoring"""
-        import psutil
-        self.start_time = datetime.now()
-        process = psutil.Process()
-        self.start_memory = process.memory_info().rss / 1024 / 1024
-    
-    def stop(self):
-        """Stop monitoring"""
-        import psutil
-        self.end_time = datetime.now()
-        process = psutil.Process()
-        self.end_memory = process.memory_info().rss / 1024 / 1024
-    
-    def get_duration_ms(self) -> float:
-        """Get duration in milliseconds"""
-        if self.start_time and self.end_time:
-            delta = self.end_time - self.start_time
-            return delta.total_seconds() * 1000
-        return 0.0
-    
-    def get_memory_increase_mb(self) -> float:
-        """Get memory increase in MB"""
-        if self.start_memory and self.end_memory:
-            return self.end_memory - self.start_memory
-        return 0.0
-
 
 # Test markers configuration
 def pytest_configure(config):
@@ -539,8 +432,8 @@ def pytest_collection_modifyitems(config, items):
 def cleanup_test_environment():
     """Clean up test environment"""
     # Clean up test database
-    if os.path.exists("./backend/tests/test.db"):
-        os.remove("./backend/tests/test.db")
+    if os.path.exists("./tests/test.db"):
+        os.remove("./tests/test.db")
     
     # Clean up test model files
     import glob
