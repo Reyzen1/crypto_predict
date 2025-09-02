@@ -1,0 +1,542 @@
+# docs\Design\17_Database_ERD_Design.md  
+# 🗄️ Database ERD Design - CryptoPredict فاز دوم
+## Enhanced Database Schema with New User Architecture
+
+## 🗂️ **Enhanced Entity Relationship Diagram**
+
+### **👥 Core User Management Tables:**
+
+```sql
+-- ===== USERS TABLE (Enhanced) =====
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    role VARCHAR(20) NOT NULL DEFAULT 'public', -- 'admin' or 'public'
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    is_verified BOOLEAN NOT NULL DEFAULT false,
+    is_premium BOOLEAN NOT NULL DEFAULT false, -- For future premium features
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_login TIMESTAMP WITH TIME ZONE,
+    login_count INTEGER DEFAULT 0,
+    preferences JSONB DEFAULT '{}', -- Store user preferences as JSON
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    language VARCHAR(10) DEFAULT 'en',
+    
+    -- Indexes for performance
+    INDEX idx_users_email (email),
+    INDEX idx_users_role (role),
+    INDEX idx_users_active (is_active),
+    INDEX idx_users_created_at (created_at)
+);
+
+-- ===== USER SESSIONS TABLE (New) =====
+CREATE TABLE user_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_token VARCHAR(255) NOT NULL UNIQUE,
+    refresh_token VARCHAR(255),
+    device_info JSONB, -- Store device/browser info
+    ip_address INET,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_used_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    INDEX idx_sessions_user_id (user_id),
+    INDEX idx_sessions_token (session_token),
+    INDEX idx_sessions_active (is_active, expires_at)
+);
+```
+
+### **📋 Watchlist Management Tables:**
+
+```sql
+-- ===== WATCHLISTS TABLE (Enhanced) =====
+CREATE TABLE watchlists (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(20) NOT NULL DEFAULT 'personal', -- 'default' or 'personal'
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    is_public BOOLEAN NOT NULL DEFAULT false, -- For future sharing features
+    max_assets INTEGER DEFAULT 25, -- Limit assets per watchlist
+    sort_order INTEGER DEFAULT 0, -- For ordering multiple watchlists
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Constraints
+    CONSTRAINT check_watchlist_type CHECK (type IN ('default', 'personal')),
+    CONSTRAINT check_default_watchlist_user CHECK (
+        (type = 'default' AND user_id IS NULL) OR 
+        (type = 'personal' AND user_id IS NOT NULL)
+    ),
+    
+    -- Indexes
+    INDEX idx_watchlists_user_id (user_id),
+    INDEX idx_watchlists_type (type),
+    INDEX idx_watchlists_active (is_active),
+    UNIQUE INDEX idx_watchlists_default (type) WHERE type = 'default'
+);
+
+-- ===== WATCHLIST ASSETS TABLE (Enhanced) =====
+CREATE TABLE watchlist_assets (
+    id SERIAL PRIMARY KEY,
+    watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
+    crypto_id INTEGER NOT NULL REFERENCES cryptocurrencies(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 1, -- Order within watchlist
+    weight DECIMAL(5,4) DEFAULT 0.0, -- Portfolio weight (0-1)
+    target_allocation DECIMAL(5,4), -- Target allocation percentage
+    notes TEXT, -- User/admin notes about this asset
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    added_by INTEGER REFERENCES users(id), -- Track who added the asset
+    last_modified_by INTEGER REFERENCES users(id), -- Track who last modified
+    
+    -- Constraints
+    UNIQUE(watchlist_id, crypto_id), -- Prevent duplicate assets in same watchlist
+    UNIQUE(watchlist_id, position), -- Prevent duplicate positions
+    
+    -- Indexes
+    INDEX idx_watchlist_assets_watchlist_id (watchlist_id),
+    INDEX idx_watchlist_assets_crypto_id (crypto_id),
+    INDEX idx_watchlist_assets_position (watchlist_id, position),
+    INDEX idx_watchlist_assets_active (is_active)
+);
+```
+
+### **🤖 AI & Analytics Tables:**
+
+```sql
+-- ===== AI SUGGESTIONS TABLE (Enhanced) =====
+CREATE TABLE ai_suggestions (
+    id SERIAL PRIMARY KEY,
+    watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
+    crypto_id INTEGER NOT NULL REFERENCES cryptocurrencies(id),
+    suggestion_type VARCHAR(50) NOT NULL, -- 'add', 'remove', 'rebalance', 'tier_change'
+    ai_layer INTEGER NOT NULL, -- 1, 2, 3, or 4 (which AI layer generated this)
+    confidence_score DECIMAL(5,4) NOT NULL, -- 0.0000 to 1.0000
+    reasoning JSONB NOT NULL, -- AI reasoning in structured format
+    context_data JSONB, -- Context data used for suggestion
+    target_position INTEGER, -- Suggested position in watchlist
+    target_weight DECIMAL(5,4), -- Suggested portfolio weight
+    expected_return DECIMAL(8,4), -- Expected return percentage
+    risk_score DECIMAL(5,4), -- Risk assessment (0-1)
+    
+    -- Status tracking
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'implemented'
+    reviewed_by INTEGER REFERENCES users(id), -- Admin who reviewed
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    implemented_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Performance tracking
+    actual_return DECIMAL(8,4), -- Actual return after implementation
+    success_score DECIMAL(5,4), -- Success rating of suggestion
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE, -- When suggestion expires
+    
+    -- Constraints
+    CONSTRAINT check_suggestion_type CHECK (suggestion_type IN ('add', 'remove', 'rebalance', 'tier_change')),
+    CONSTRAINT check_status CHECK (status IN ('pending', 'approved', 'rejected', 'implemented', 'expired')),
+    CONSTRAINT check_ai_layer CHECK (ai_layer BETWEEN 1 AND 4),
+    
+    -- Indexes
+    INDEX idx_ai_suggestions_watchlist_id (watchlist_id),
+    INDEX idx_ai_suggestions_crypto_id (crypto_id),
+    INDEX idx_ai_suggestions_status (status),
+    INDEX idx_ai_suggestions_layer (ai_layer),
+    INDEX idx_ai_suggestions_confidence (confidence_score DESC),
+    INDEX idx_ai_suggestions_created_at (created_at DESC)
+);
+
+-- ===== USER ACTIVITY LOG TABLE (New) =====
+CREATE TABLE user_activity_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    activity_type VARCHAR(50) NOT NULL, -- 'login', 'watchlist_update', 'ai_interaction', etc.
+    entity_type VARCHAR(50), -- 'watchlist', 'asset', 'suggestion', etc.
+    entity_id INTEGER, -- ID of the entity being acted upon
+    action VARCHAR(50) NOT NULL, -- 'create', 'update', 'delete', 'view', etc.
+    details JSONB, -- Additional activity details
+    ip_address INET,
+    user_agent TEXT,
+    session_id VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Indexes
+    INDEX idx_activity_log_user_id (user_id),
+    INDEX idx_activity_log_type (activity_type),
+    INDEX idx_activity_log_created_at (created_at DESC),
+    INDEX idx_activity_log_entity (entity_type, entity_id)
+);
+```
+
+### **📊 Market Data & Performance Tables (Unchanged):**
+
+```sql
+-- ===== CRYPTOCURRENCIES TABLE (Existing - No Changes) =====
+CREATE TABLE cryptocurrencies (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(10) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    coingecko_id VARCHAR(50) UNIQUE,
+    market_cap_rank INTEGER,
+    current_price NUMERIC(20, 8),
+    market_cap NUMERIC(30, 2),
+    total_volume NUMERIC(30, 2),
+    circulating_supply NUMERIC(30, 2),
+    total_supply NUMERIC(30, 2),
+    max_supply NUMERIC(30, 2),
+    price_change_percentage_24h NUMERIC(10, 4),
+    price_change_percentage_7d NUMERIC(10, 4),
+    price_change_percentage_30d NUMERIC(10, 4),
+    description TEXT,
+    website_url VARCHAR(255),
+    blockchain_site VARCHAR(255),
+    whitepaper_url VARCHAR(255),
+    twitter_username VARCHAR(100),
+    telegram_channel VARCHAR(100),
+    subreddit_url VARCHAR(255),
+    github_repos JSONB, -- Array of GitHub repository URLs
+    categories JSONB, -- Array of categories (DeFi, Gaming, etc.)
+    contract_address VARCHAR(100), -- Smart contract address
+    decimals INTEGER, -- Token decimals
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    is_supported BOOLEAN NOT NULL DEFAULT true,
+    tier INTEGER DEFAULT 2, -- 1 for priority analysis, 2 for standard
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_data_update TIMESTAMP WITH TIME ZONE
+);
+
+-- ===== PRICE DATA TABLE (Existing - No Changes) =====
+CREATE TABLE price_data (
+    id SERIAL PRIMARY KEY,
+    crypto_id INTEGER NOT NULL REFERENCES cryptocurrencies(id) ON DELETE CASCADE,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    open_price NUMERIC(20, 8) NOT NULL,
+    high_price NUMERIC(20, 8) NOT NULL,
+    low_price NUMERIC(20, 8) NOT NULL,
+    close_price NUMERIC(20, 8) NOT NULL,
+    volume NUMERIC(30, 8),
+    market_cap NUMERIC(30, 2),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Constraints for data integrity
+    CONSTRAINT unique_crypto_timestamp UNIQUE(crypto_id, timestamp),
+    
+    -- Indexes for fast queries
+    INDEX idx_price_data_crypto_id (crypto_id),
+    INDEX idx_price_data_timestamp (timestamp DESC),
+    INDEX idx_price_data_crypto_timestamp (crypto_id, timestamp DESC)
+);
+
+-- ===== PREDICTIONS TABLE (Existing - Enhanced) =====
+CREATE TABLE predictions (
+    id SERIAL PRIMARY KEY,
+    crypto_id INTEGER NOT NULL REFERENCES cryptocurrencies(id) ON DELETE CASCADE,
+    watchlist_id INTEGER REFERENCES watchlists(id) ON DELETE SET NULL, -- Context tracking
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    model_name VARCHAR(50) NOT NULL,
+    model_version VARCHAR(20) NOT NULL,
+    ai_layer INTEGER DEFAULT 3, -- Which AI layer generated this prediction
+    predicted_price NUMERIC(20, 8) NOT NULL,
+    confidence_score NUMERIC(5, 4) NOT NULL,
+    prediction_horizon INTEGER NOT NULL, -- Hours ahead
+    target_datetime TIMESTAMP WITH TIME ZONE NOT NULL,
+    features_used JSONB,
+    model_parameters JSONB,
+    input_price NUMERIC(20, 8) NOT NULL,
+    input_features JSONB,
+    context_data JSONB, -- Market context at prediction time
+    
+    -- Results tracking
+    actual_price NUMERIC(20, 8),
+    accuracy_percentage NUMERIC(5, 2),
+    absolute_error NUMERIC(20, 8),
+    squared_error NUMERIC(30, 8),
+    is_realized BOOLEAN NOT NULL DEFAULT false,
+    is_accurate BOOLEAN,
+    accuracy_threshold NUMERIC(5, 2) DEFAULT 5.0,
+    
+    -- Metadata
+    training_data_end TIMESTAMP WITH TIME ZONE,
+    market_conditions VARCHAR(20),
+    volatility_level VARCHAR(10),
+    model_training_time NUMERIC(10, 2),
+    prediction_time NUMERIC(10, 6),
+    notes TEXT,
+    debug_info JSONB,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    evaluated_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+---
+
+## 🎛️ **Admin Management Views & Functions**
+
+### **📊 Admin Dashboard Views:**
+
+```sql
+-- ===== ADMIN USER OVERVIEW VIEW =====
+CREATE VIEW admin_user_overview AS
+SELECT 
+    u.id,
+    u.email,
+    u.first_name,
+    u.last_name,
+    u.role,
+    u.is_active,
+    u.is_premium,
+    u.created_at,
+    u.last_login,
+    u.login_count,
+    COUNT(w.id) as personal_watchlists_count,
+    COUNT(wa.id) as total_assets_count,
+    AVG(CASE WHEN p.is_realized THEN p.accuracy_percentage END) as avg_prediction_accuracy
+FROM users u
+LEFT JOIN watchlists w ON u.id = w.user_id AND w.type = 'personal'
+LEFT JOIN watchlist_assets wa ON w.id = wa.watchlist_id AND wa.is_active = true
+LEFT JOIN predictions p ON u.id = p.user_id
+WHERE u.role = 'public'
+GROUP BY u.id, u.email, u.first_name, u.last_name, u.role, u.is_active, u.is_premium, u.created_at, u.last_login, u.login_count;
+
+-- ===== ADMIN WATCHLIST MANAGEMENT VIEW =====
+CREATE VIEW admin_watchlist_overview AS
+SELECT 
+    w.id,
+    w.name,
+    w.type,
+    w.user_id,
+    u.email as user_email,
+    COUNT(wa.id) as asset_count,
+    w.created_at,
+    w.updated_at,
+    AVG(wa.weight) as avg_asset_weight,
+    STRING_AGG(c.symbol, ', ' ORDER BY wa.position) as asset_symbols
+FROM watchlists w
+LEFT JOIN users u ON w.user_id = u.id
+LEFT JOIN watchlist_assets wa ON w.id = wa.watchlist_id AND wa.is_active = true
+LEFT JOIN cryptocurrencies c ON wa.crypto_id = c.id
+GROUP BY w.id, w.name, w.type, w.user_id, u.email, w.created_at, w.updated_at;
+
+-- ===== AI PERFORMANCE SUMMARY VIEW =====
+CREATE VIEW ai_performance_summary AS
+SELECT 
+    ai_layer,
+    COUNT(*) as total_suggestions,
+    COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
+    COUNT(CASE WHEN status = 'implemented' THEN 1 END) as implemented_count,
+    AVG(confidence_score) as avg_confidence,
+    AVG(CASE WHEN actual_return IS NOT NULL THEN actual_return END) as avg_actual_return,
+    AVG(success_score) as avg_success_score,
+    COUNT(CASE WHEN success_score > 0.7 THEN 1 END) as high_success_count
+FROM ai_suggestions
+WHERE created_at >= NOW() - INTERVAL '30 days'
+GROUP BY ai_layer
+ORDER BY ai_layer;
+```
+
+### **🔧 Admin Management Functions:**
+
+```sql
+-- ===== FUNCTION: Create Default Watchlist =====
+CREATE OR REPLACE FUNCTION create_default_watchlist(
+    p_name VARCHAR(100),
+    p_description TEXT DEFAULT NULL
+) RETURNS INTEGER AS $$
+DECLARE
+    watchlist_id INTEGER;
+BEGIN
+    -- Create the default watchlist
+    INSERT INTO watchlists (name, description, type, user_id)
+    VALUES (p_name, p_description, 'default', NULL)
+    RETURNING id INTO watchlist_id;
+    
+    -- Log the activity
+    INSERT INTO user_activity_log (activity_type, entity_type, entity_id, action, details)
+    VALUES ('admin_action', 'watchlist', watchlist_id, 'create', 
+            jsonb_build_object('type', 'default', 'name', p_name));
+    
+    RETURN watchlist_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ===== FUNCTION: Bulk Update Watchlist Assets =====
+CREATE OR REPLACE FUNCTION bulk_update_watchlist_assets(
+    p_watchlist_id INTEGER,
+    p_asset_updates JSONB, -- Array of {crypto_id, position, weight}
+    p_admin_user_id INTEGER
+) RETURNS VOID AS $$
+DECLARE
+    asset_record RECORD;
+BEGIN
+    -- Update each asset
+    FOR asset_record IN 
+        SELECT 
+            (value->>'crypto_id')::INTEGER as crypto_id,
+            (value->>'position')::INTEGER as position,
+            (value->>'weight')::DECIMAL as weight
+        FROM jsonb_array_elements(p_asset_updates)
+    LOOP
+        -- Update or insert asset
+        INSERT INTO watchlist_assets (watchlist_id, crypto_id, position, weight, last_modified_by)
+        VALUES (p_watchlist_id, asset_record.crypto_id, asset_record.position, asset_record.weight, p_admin_user_id)
+        ON CONFLICT (watchlist_id, crypto_id) 
+        DO UPDATE SET 
+            position = EXCLUDED.position,
+            weight = EXCLUDED.weight,
+            last_modified_by = EXCLUDED.last_modified_by;
+    END LOOP;
+    
+    -- Update watchlist timestamp
+    UPDATE watchlists SET updated_at = NOW() WHERE id = p_watchlist_id;
+    
+    -- Log the bulk update
+    INSERT INTO user_activity_log (user_id, activity_type, entity_type, entity_id, action, details)
+    VALUES (p_admin_user_id, 'admin_action', 'watchlist', p_watchlist_id, 'bulk_update',
+            jsonb_build_object('asset_count', jsonb_array_length(p_asset_updates)));
+END;
+$$ LANGUAGE plpgsql;
+
+-- ===== FUNCTION: Get User Context for AI =====
+CREATE OR REPLACE FUNCTION get_user_ai_context(p_user_id INTEGER)
+RETURNS TABLE(
+    watchlist_id INTEGER,
+    watchlist_type VARCHAR(20),
+    asset_count INTEGER,
+    assets JSONB
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        w.id as watchlist_id,
+        w.type as watchlist_type,
+        COUNT(wa.id)::INTEGER as asset_count,
+        jsonb_agg(
+            jsonb_build_object(
+                'crypto_id', wa.crypto_id,
+                'symbol', c.symbol,
+                'position', wa.position,
+                'weight', wa.weight
+            ) ORDER BY wa.position
+        ) as assets
+    FROM watchlists w
+    LEFT JOIN watchlist_assets wa ON w.id = wa.watchlist_id AND wa.is_active = true
+    LEFT JOIN cryptocurrencies c ON wa.crypto_id = c.id
+    WHERE 
+        (w.user_id = p_user_id AND w.type = 'personal') OR
+        (w.type = 'default' AND NOT EXISTS (
+            SELECT 1 FROM watchlists WHERE user_id = p_user_id AND type = 'personal'
+        ))
+    GROUP BY w.id, w.type;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## 🔐 **Security & Permissions**
+
+### **🛡️ Row Level Security Policies:**
+
+```sql
+-- ===== Enable RLS on sensitive tables =====
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE watchlists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_activity_log ENABLE ROW LEVEL SECURITY;
+
+-- ===== Users table RLS =====
+-- Users can see their own data, admins can see all
+CREATE POLICY user_self_access ON users
+    FOR ALL USING (
+        auth.uid()::text = id::text OR 
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
+
+-- ===== Watchlists table RLS =====
+-- Users can see default watchlist and their own personal watchlists
+-- Admins can see all watchlists
+CREATE POLICY watchlist_access ON watchlists
+    FOR ALL USING (
+        type = 'default' OR 
+        user_id = auth.uid() OR
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
+
+-- ===== Activity log RLS =====  
+-- Users can see their own activity, admins can see all
+CREATE POLICY activity_log_access ON user_activity_log
+    FOR ALL USING (
+        user_id = auth.uid() OR
+        EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+    );
+```
+
+---
+
+## 📊 **Performance Optimization**
+
+### **⚡ Indexing Strategy:**
+
+```sql
+-- ===== Additional Performance Indexes =====
+
+-- Composite indexes for common queries
+CREATE INDEX idx_watchlist_assets_composite ON watchlist_assets (watchlist_id, is_active, position);
+CREATE INDEX idx_ai_suggestions_composite ON ai_suggestions (status, ai_layer, confidence_score DESC);
+CREATE INDEX idx_predictions_composite ON predictions (crypto_id, is_realized, created_at DESC);
+
+-- Partial indexes for active records only
+CREATE INDEX idx_users_active_premium ON users (id, created_at) WHERE is_active = true AND is_premium = true;
+CREATE INDEX idx_watchlists_active ON watchlists (id, updated_at) WHERE is_active = true;
+
+-- Covering indexes for admin queries
+CREATE INDEX idx_users_admin_overview ON users (id, email, role, is_active, created_at, last_login)
+    WHERE role = 'public';
+```
+
+### **🔄 Data Archival Strategy:**
+
+```sql
+-- ===== Archival Tables for Old Data =====
+
+-- Archive old activity logs (keep active logs lean)
+CREATE TABLE user_activity_log_archive (
+    LIKE user_activity_log INCLUDING ALL
+);
+
+-- Archive old AI suggestions
+CREATE TABLE ai_suggestions_archive (
+    LIKE ai_suggestions INCLUDING ALL
+);
+
+-- Function to archive old data
+CREATE OR REPLACE FUNCTION archive_old_data() RETURNS VOID AS $$
+BEGIN
+    -- Archive activity logs older than 6 months
+    INSERT INTO user_activity_log_archive 
+    SELECT * FROM user_activity_log 
+    WHERE created_at < NOW() - INTERVAL '6 months';
+    
+    DELETE FROM user_activity_log 
+    WHERE created_at < NOW() - INTERVAL '6 months';
+    
+    -- Archive implemented AI suggestions older than 3 months
+    INSERT INTO ai_suggestions_archive
+    SELECT * FROM ai_suggestions
+    WHERE status = 'implemented' AND implemented_at < NOW() - INTERVAL '3 months';
+    
+    DELETE FROM ai_suggestions
+    WHERE status = 'implemented' AND implemented_at < NOW() - INTERVAL '3 months';
+END;
+$$ LANGUAGE plpgsql;
+```
