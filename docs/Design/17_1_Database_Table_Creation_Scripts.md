@@ -67,12 +67,11 @@ CREATE TABLE IF NOT EXISTS cryptocurrencies (
     telegram_channel VARCHAR(100), -- Official Telegram channel
     subreddit_url VARCHAR(255), -- Official Reddit community
     github_repos JSONB, -- Array of GitHub repository URLs
-    sectors JSONB, -- Array of sectors this crypto belongs to (DeFi, Gaming, etc.)
     contract_address VARCHAR(100), -- Smart contract address for tokens
     decimals INTEGER, -- Token decimal places for precision calculations
     is_active BOOLEAN NOT NULL DEFAULT true, -- Whether crypto is active in our system
     is_supported BOOLEAN NOT NULL DEFAULT true, -- Whether we provide analysis for this asset
-    tier INTEGER DEFAULT 2, -- Priority tier: 1=priority analysis, 2=standard, 3=basic
+    tier INTEGER DEFAULT 2, -- 1=Admin Default Watchlist, 2=Personal Watchlists, 3=Universe (opportunity detection only)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- Record creation timestamp
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- Last data update timestamp
     last_data_update TIMESTAMP WITH TIME ZONE -- Last price/market data refresh
