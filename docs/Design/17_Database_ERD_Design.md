@@ -45,15 +45,15 @@ CREATE TABLE IF NOT EXISTS users (
     login_count INTEGER DEFAULT 0,
     preferences JSONB DEFAULT '{}', -- Store user preferences as JSON
     timezone VARCHAR(50) DEFAULT 'UTC',
-    language VARCHAR(10) DEFAULT 'en',
-    
-    -- Indexes for performance
-    INDEX idx_users_email (email),
-    INDEX idx_users_role (role),
-    INDEX idx_users_active (is_active),
-    INDEX idx_users_created_at (created_at)
+    language VARCHAR(10) DEFAULT 'en'
 );
 
+-- Indexes for users table
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_active ON users(is_active);
+CREATE INDEX idx_users_created_at ON users(created_at);
+CREATE INDEX idx_users_admin_overview ON users(id, email, role, is_active, created_at, last_login);
 
 -- 2. Crypto Currencies TABLE 
 CREATE TABLE IF NOT EXISTS cryptocurrencies (
@@ -101,17 +101,17 @@ CREATE TABLE IF NOT EXISTS price_data (
     close_price NUMERIC(20, 8) NOT NULL,
     volume NUMERIC(30, 8),
     market_cap NUMERIC(30, 2),
-    technical_indicators JSONB DEFAULT '{}'; -- technical indicators
+    technical_indicators JSONB DEFAULT '{}', -- technical indicators
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Constraints for data integrity
-    CONSTRAINT unique_crypto_timestamp UNIQUE(crypto_id, timestamp),
-    
-    -- Indexes for fast queries
-    INDEX idx_price_data_crypto_id (crypto_id),
-    INDEX idx_price_data_timestamp (timestamp DESC),
-    INDEX idx_price_data_crypto_timestamp (crypto_id, timestamp DESC)
+    CONSTRAINT unique_crypto_timestamp UNIQUE(crypto_id, timestamp)
 );
+
+-- Indexes for price_data table
+CREATE INDEX idx_price_data_crypto_id ON price_data(crypto_id);
+CREATE INDEX idx_price_data_timestamp ON price_data(timestamp DESC);
+CREATE INDEX idx_price_data_crypto_timestamp ON price_data(crypto_id, timestamp DESC);
 
 -- 4. Create Layer 1 Tables (Macro Market Analysis)
 CREATE TABLE IF NOT EXISTS market_regime_analysis (
@@ -125,6 +125,9 @@ CREATE TABLE IF NOT EXISTS market_regime_analysis (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Indexes for market_regime_analysis table
+CREATE INDEX idx_market_regime_time ON market_regime_analysis(analysis_time DESC);
+
 CREATE TABLE IF NOT EXISTS market_sentiment_data (
     id SERIAL PRIMARY KEY,
     fear_greed_index NUMERIC(5,2),
@@ -135,6 +138,9 @@ CREATE TABLE IF NOT EXISTS market_sentiment_data (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Indexes for market_sentiment_data table
+CREATE INDEX idx_sentiment_timestamp ON market_sentiment_data(timestamp DESC);
+
 CREATE TABLE IF NOT EXISTS dominance_data (
     id SERIAL PRIMARY KEY,
     btc_dominance NUMERIC(5,2) NOT NULL,
@@ -144,6 +150,9 @@ CREATE TABLE IF NOT EXISTS dominance_data (
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Indexes for dominance_data table
+CREATE INDEX idx_dominance_timestamp ON dominance_data(timestamp DESC);
 
 CREATE TABLE IF NOT EXISTS macro_indicators (
     id SERIAL PRIMARY KEY,
@@ -179,6 +188,9 @@ CREATE TABLE IF NOT EXISTS sector_performance (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Indexes for sector_performance table
+CREATE INDEX idx_sector_perf_sector_time ON sector_performance(sector_id, analysis_time DESC);
+
 CREATE TABLE IF NOT EXISTS sector_rotation_analysis (
     id SERIAL PRIMARY KEY,
     from_sector_id INTEGER REFERENCES crypto_sectors(id) ON DELETE CASCADE,
@@ -189,6 +201,9 @@ CREATE TABLE IF NOT EXISTS sector_rotation_analysis (
     analysis_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Indexes for sector_rotation_analysis table
+CREATE INDEX idx_sector_rotation_time ON sector_rotation_analysis(analysis_time DESC);
 
 CREATE TABLE IF NOT EXISTS crypto_sector_mapping (
     id SERIAL PRIMARY KEY,
@@ -201,55 +216,111 @@ CREATE TABLE IF NOT EXISTS crypto_sector_mapping (
     UNIQUE(crypto_id, sector_id)
 );
 
+-- Indexes for crypto_sector_mapping table
+CREATE INDEX idx_crypto_sector_crypto ON crypto_sector_mapping(crypto_id);
+CREATE INDEX idx_crypto_sector_sector ON crypto_sector_mapping(sector_id);
+
 -- 6. Create Layer 3 Tables (Asset Selection)
-CREATE TABLE IF NOT EXISTS watchlists (
+-- ===== WATCHLISTS TABLE (Enhanced) =====
+CREATE TABLE watchlists (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('admin_tier1', 'admin_tier2', 'user_custom')),
     description TEXT,
-    is_active BOOLEAN DEFAULT true,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(20) NOT NULL DEFAULT 'personal', -- 'default' or 'personal'
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    is_public BOOLEAN NOT NULL DEFAULT false, -- For future sharing features
+    max_assets INTEGER DEFAULT 25, -- Limit assets per watchlist
+    sort_order INTEGER DEFAULT 0, -- For ordering multiple watchlists
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Constraints
+    CONSTRAINT check_watchlist_type CHECK (type IN ('default', 'personal')),
+    CONSTRAINT check_default_watchlist_user CHECK (
+        (type = 'default' AND user_id IS NULL) OR 
+        (type = 'personal' AND user_id IS NOT NULL)
+    )
 );
 
-CREATE TABLE IF NOT EXISTS watchlist_items (
+-- Indexes for watchlists table
+CREATE INDEX idx_watchlists_user_id ON watchlists(user_id);
+CREATE INDEX idx_watchlists_type ON watchlists(type);
+CREATE INDEX idx_watchlists_active ON watchlists(is_active);
+CREATE INDEX idx_watchlist_user ON watchlists(user_id, type);
+CREATE INDEX idx_watchlists_active_updated ON watchlists(id, updated_at) WHERE is_active = true;
+CREATE UNIQUE INDEX idx_watchlists_default ON watchlists(type) WHERE type = 'default';
+
+-- ===== WATCHLIST ASSETS TABLE (Enhanced) =====
+CREATE TABLE watchlist_assets (
     id SERIAL PRIMARY KEY,
     watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
     crypto_id INTEGER NOT NULL REFERENCES cryptocurrencies(id) ON DELETE CASCADE,
-    score NUMERIC(5,2),
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'pending_review', 'removed')),
-    selection_criteria JSONB DEFAULT '{}',
-    performance_metrics JSONB DEFAULT '{}',
+    position INTEGER NOT NULL DEFAULT 1, -- Order within watchlist
+    weight DECIMAL(5,4) DEFAULT 0.0, -- Portfolio weight (0-1)
+    target_allocation DECIMAL(5,4), -- Target allocation percentage
+    notes TEXT, -- User/admin notes about this asset
+    is_active BOOLEAN NOT NULL DEFAULT true,
     added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(watchlist_id, crypto_id)
+    added_by INTEGER REFERENCES users(id), -- Track who added the asset
+    last_modified_by INTEGER REFERENCES users(id), -- Track who last modified
+    
+    -- Constraints
+    UNIQUE(watchlist_id, crypto_id), -- Prevent duplicate assets in same watchlist
+    UNIQUE(watchlist_id, position) -- Prevent duplicate positions
 );
 
-CREATE TABLE IF NOT EXISTS ai_suggestions (
+-- Indexes for watchlist_assets table
+CREATE INDEX idx_watchlist_assets_watchlist ON watchlist_assets(watchlist_id);
+CREATE INDEX idx_watchlist_assets_crypto ON watchlist_assets(crypto_id);
+CREATE INDEX idx_watchlist_assets_position ON watchlist_assets(watchlist_id, position);
+CREATE INDEX idx_watchlist_assets_active ON watchlist_assets(is_active);
+CREATE INDEX idx_watchlist_assets_composite ON watchlist_assets(watchlist_id, is_active, position);
+
+-- ===== AI SUGGESTIONS TABLE (Enhanced) =====
+CREATE TABLE ai_suggestions (
     id SERIAL PRIMARY KEY,
-    crypto_id INTEGER NOT NULL REFERENCES cryptocurrencies(id) ON DELETE CASCADE,
-    suggestion_type VARCHAR(20) NOT NULL CHECK (suggestion_type IN ('add_tier1', 'add_tier2', 'remove', 'tier_change')),
-    confidence_score NUMERIC(5,4) NOT NULL CHECK (confidence_score >= 0 AND confidence_score <= 1),
-    reasoning JSONB DEFAULT '{}',
-    analysis_data JSONB DEFAULT '{}',
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-    reviewed_by INTEGER REFERENCES users(id),
-    suggested_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
+    crypto_id INTEGER NOT NULL REFERENCES cryptocurrencies(id),
+    suggestion_type VARCHAR(50) NOT NULL, -- 'add', 'remove', 'rebalance', 'tier_change'
+    ai_layer INTEGER NOT NULL, -- 1, 2, 3, or 4 (which AI layer generated this)
+    confidence_score DECIMAL(5,4) NOT NULL, -- 0.0000 to 1.0000
+    reasoning JSONB NOT NULL, -- AI reasoning in structured format
+    context_data JSONB, -- Context data used for suggestion
+    target_position INTEGER, -- Suggested position in watchlist
+    target_weight DECIMAL(5,4), -- Suggested portfolio weight
+    expected_return DECIMAL(8,4), -- Expected return percentage
+    risk_score DECIMAL(5,4), -- Risk assessment (0-1)
+    
+    -- Status tracking
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'implemented'
+    reviewed_by INTEGER REFERENCES users(id), -- Admin who reviewed
     reviewed_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    implemented_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Performance tracking
+    actual_return DECIMAL(8,4), -- Actual return after implementation
+    success_score DECIMAL(5,4), -- Success rating of suggestion
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE, -- When suggestion expires
+    
+    -- Constraints
+    CONSTRAINT check_suggestion_type CHECK (suggestion_type IN ('add', 'remove', 'rebalance', 'tier_change')),
+    CONSTRAINT check_status CHECK (status IN ('pending', 'approved', 'rejected', 'implemented', 'expired')),
+    CONSTRAINT check_ai_layer CHECK (ai_layer BETWEEN 1 AND 4)
 );
 
-CREATE TABLE IF NOT EXISTS suggestion_reviews (
-    id SERIAL PRIMARY KEY,
-    suggestion_id INTEGER NOT NULL REFERENCES ai_suggestions(id) ON DELETE CASCADE,
-    admin_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    action VARCHAR(10) NOT NULL CHECK (action IN ('approve', 'reject', 'modify')),
-    review_notes TEXT,
-    modifications JSONB DEFAULT '{}',
-    reviewed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Indexes for ai_suggestions table
+CREATE INDEX idx_ai_suggestions_watchlist_id ON ai_suggestions(watchlist_id);
+CREATE INDEX idx_ai_suggestions_crypto_id ON ai_suggestions(crypto_id);
+CREATE INDEX idx_ai_suggestions_status ON ai_suggestions(status);
+CREATE INDEX idx_ai_suggestions_layer ON ai_suggestions(ai_layer);
+CREATE INDEX idx_ai_suggestions_confidence ON ai_suggestions(confidence_score DESC);
+CREATE INDEX idx_ai_suggestions_created_at ON ai_suggestions(created_at DESC);
+CREATE INDEX idx_ai_suggestions_status_created ON ai_suggestions(status, created_at DESC);
+CREATE INDEX idx_ai_suggestions_crypto ON ai_suggestions(crypto_id);
+CREATE INDEX idx_ai_suggestions_composite ON ai_suggestions(status, ai_layer, confidence_score DESC);
 
 -- 7. Create Layer 4 Tables (Micro Timing)
 CREATE TABLE IF NOT EXISTS trading_signals (
@@ -271,6 +342,10 @@ CREATE TABLE IF NOT EXISTS trading_signals (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Indexes for trading_signals table
+CREATE INDEX idx_trading_signals_status ON trading_signals(crypto_id, status, generated_at DESC);
+CREATE INDEX idx_trading_signals_generated ON trading_signals(generated_at DESC);
+
 CREATE TABLE IF NOT EXISTS signal_executions (
     id SERIAL PRIMARY KEY,
     signal_id INTEGER NOT NULL REFERENCES trading_signals(id) ON DELETE CASCADE,
@@ -285,6 +360,10 @@ CREATE TABLE IF NOT EXISTS signal_executions (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Indexes for signal_executions table
+CREATE INDEX idx_signal_executions_user ON signal_executions(user_id, executed_at DESC);
+CREATE INDEX idx_signal_executions_signal ON signal_executions(signal_id);
+
 CREATE TABLE IF NOT EXISTS risk_management (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
@@ -297,8 +376,7 @@ CREATE TABLE IF NOT EXISTS risk_management (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 7. predictions
-
+-- 8. predictions
 CREATE TABLE predictions (
     id SERIAL PRIMARY KEY,
     crypto_id INTEGER NOT NULL REFERENCES cryptocurrencies(id) ON DELETE CASCADE,
@@ -307,9 +385,9 @@ CREATE TABLE predictions (
     model_name VARCHAR(50) NOT NULL,
     model_version VARCHAR(20) NOT NULL,
     layer_source INTEGER DEFAULT 3, -- Which AI layer generated this prediction
-    prediction_type VARCHAR(20) DEFAULT 'price'
+    prediction_type VARCHAR(20) DEFAULT 'price', -- 'price', 'event', etc.
     predicted_price NUMERIC(20, 8) NOT NULL,
-    predicted_value JSONB DEFAULT '{}';
+    predicted_value JSONB DEFAULT '{}', -- For non-price predictions
     confidence_score NUMERIC(5, 4) NOT NULL,
     prediction_horizon INTEGER NOT NULL, -- Hours ahead
     target_datetime TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -342,6 +420,16 @@ CREATE TABLE predictions (
     evaluated_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Indexes for predictions table
+CREATE INDEX idx_predictions_crypto_layer ON predictions(crypto_id, layer_source, created_at DESC);
+CREATE INDEX idx_predictions_layer_source ON predictions(layer_source, created_at DESC);
+CREATE INDEX idx_predictions_context_data ON predictions USING GIN (context_data);
+CREATE INDEX idx_predictions_prediction_type ON predictions(prediction_type);
+CREATE INDEX idx_predictions_layer_type ON predictions(layer_source, prediction_type);
+CREATE INDEX idx_predictions_crypto_type ON predictions(crypto_id, prediction_type);
+CREATE INDEX idx_predictions_type_time ON predictions(prediction_type, created_at DESC);
+CREATE INDEX idx_predictions_composite ON predictions(crypto_id, is_realized, created_at DESC);
+
 -- =============================================
 -- SYSTEM MANAGEMENT TABLES
 -- =============================================
@@ -361,6 +449,9 @@ CREATE TABLE IF NOT EXISTS ai_models (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Indexes for ai_models table
+CREATE INDEX idx_ai_models_type_status ON ai_models(model_type, status);
+
 CREATE TABLE IF NOT EXISTS system_health (
     id SERIAL PRIMARY KEY,
     check_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -374,15 +465,46 @@ CREATE TABLE IF NOT EXISTS system_health (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS user_activities (
+-- Indexes for system_health table
+CREATE INDEX idx_system_health_time ON system_health(check_time DESC);
+
+CREATE TABLE user_sessions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    activity_type VARCHAR(50) NOT NULL,
-    activity_data JSONB DEFAULT '{}',
+    session_token VARCHAR(255) NOT NULL UNIQUE,
+    refresh_token VARCHAR(255),
+    device_info JSONB, -- Store device/browser info
+    ip_address INET,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_used_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for user_sessions table
+CREATE INDEX idx_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX idx_sessions_token ON user_sessions(session_token);
+CREATE INDEX idx_sessions_active ON user_sessions(is_active, expires_at);
+
+CREATE TABLE user_activities (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    activity_type VARCHAR(50) NOT NULL, -- 'login', 'watchlist_update', 'ai_interaction', etc.
+    entity_type VARCHAR(50), -- 'watchlist', 'asset', 'suggestion', etc.
+    entity_id INTEGER, -- ID of the entity being acted upon
+    action VARCHAR(50) NOT NULL, -- 'create', 'update', 'delete', 'view', etc.
+    details JSONB, -- Additional activity details
     ip_address INET,
     user_agent TEXT,
-    activity_time TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    session_id VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Indexes for user_activities table
+CREATE INDEX idx_activity_log_user_id ON user_activities(user_id);
+CREATE INDEX idx_activity_log_type ON user_activities(activity_type);
+CREATE INDEX idx_activity_log_created_at ON user_activities(created_at DESC);
+CREATE INDEX idx_activity_log_entity ON user_activities(entity_type, entity_id);
 
 CREATE TABLE IF NOT EXISTS notifications (
     id SERIAL PRIMARY KEY,
@@ -400,54 +522,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- =============================================
--- INDEXES FOR OPTIMAL PERFORMANCE
--- =============================================
-
--- Layer 1 indexes
-CREATE INDEX IF NOT EXISTS idx_market_regime_time ON market_regime_analysis(analysis_time DESC);
-CREATE INDEX IF NOT EXISTS idx_sentiment_timestamp ON market_sentiment_data(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_dominance_timestamp ON dominance_data(timestamp DESC);
-
--- Layer 2 indexes  
-CREATE INDEX IF NOT EXISTS idx_sector_perf_sector_time ON sector_performance(sector_id, analysis_time DESC);
-CREATE INDEX IF NOT EXISTS idx_sector_rotation_time ON sector_rotation_analysis(analysis_time DESC);
-CREATE INDEX IF NOT EXISTS idx_crypto_sector_crypto ON crypto_sector_mapping(crypto_id);
-CREATE INDEX IF NOT EXISTS idx_crypto_sector_sector ON crypto_sector_mapping(sector_id);
-
--- Layer 3 indexes
-CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlists(user_id, type);
-CREATE INDEX IF NOT EXISTS idx_watchlist_items_watchlist ON watchlist_items(watchlist_id, status);
-CREATE INDEX IF NOT EXISTS idx_watchlist_items_crypto ON watchlist_items(crypto_id);
-CREATE INDEX IF NOT EXISTS idx_ai_suggestions_status ON ai_suggestions(status, suggested_at DESC);
-CREATE INDEX IF NOT EXISTS idx_ai_suggestions_crypto ON ai_suggestions(crypto_id);
-
--- Layer 4 indexes
-CREATE INDEX IF NOT EXISTS idx_signals_crypto_status ON trading_signals(crypto_id, status, generated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_signals_generated ON trading_signals(generated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_signal_executions_user ON signal_executions(user_id, executed_at DESC);
-CREATE INDEX IF NOT EXISTS idx_signal_executions_signal ON signal_executions(signal_id);
-
--- Enhanced predictions indexes
-CREATE INDEX IF NOT EXISTS idx_predictions_crypto_layer ON predictions(crypto_id, layer_source, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_predictions_layer_source ON predictions(layer_source, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_predictions_macro_context ON predictions USING GIN (macro_context);
-
-CREATE INDEX IF NOT EXISTS idx_predictions_prediction_type ON predictions(prediction_type);
-CREATE INDEX IF NOT EXISTS idx_predictions_layer_type ON predictions(layer_source, prediction_type);
-CREATE INDEX IF NOT EXISTS idx_predictions_crypto_type ON predictions(crypto_id, prediction_type);
-CREATE INDEX IF NOT EXISTS idx_predictions_type_time ON predictions(prediction_type, created_at DESC);
-
--- System indexes
-CREATE INDEX IF NOT EXISTS idx_ai_models_type_status ON ai_models(model_type, status);
-CREATE INDEX IF NOT EXISTS idx_system_health_time ON system_health(check_time DESC);
-CREATE INDEX IF NOT EXISTS idx_user_activities_user_time ON user_activities(user_id, activity_time DESC);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_status ON notifications(user_id, status, scheduled_for DESC);
-
--- Enhanced existing table indexes
-CREATE INDEX IF NOT EXISTS idx_price_data_timestamp_desc ON price_data(timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_cryptocurrencies_tier ON cryptocurrencies(watchlist_tier, is_active);
-CREATE INDEX IF NOT EXISTS idx_cryptocurrencies_sector ON cryptocurrencies(sector_id, is_active);
+-- Indexes for notifications table
+CREATE INDEX idx_notifications_user_status ON notifications(user_id, status, scheduled_for DESC);
 
 -- =============================================
 -- TRIGGERS FOR AUTO-UPDATE TIMESTAMPS
@@ -473,7 +549,7 @@ CREATE TRIGGER update_market_regime_updated_at BEFORE UPDATE ON market_regime_an
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_watchlists_updated_at BEFORE UPDATE ON watchlists 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_watchlist_items_updated_at BEFORE UPDATE ON watchlist_items 
+CREATE TRIGGER update_watchlist_assets_updated_at BEFORE UPDATE ON watchlist_assets 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_crypto_sector_mapping_updated_at BEFORE UPDATE ON crypto_sector_mapping 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -534,14 +610,18 @@ SELECT
     w.id,
     w.name,
     w.type,
-    COUNT(wi.id) as items_count,
-    AVG(wi.score) as avg_score,
+    w.user_id,
+    u.email as user_email,
+    COUNT(wa.id) as asset_count,
     w.created_at,
-    w.updated_at
+    w.updated_at,
+    AVG(wa.weight) as avg_asset_weight,
+    STRING_AGG(c.symbol, ', ' ORDER BY wa.position) as asset_symbols
 FROM watchlists w
-LEFT JOIN watchlist_items wi ON w.id = wi.watchlist_id AND wi.status = 'active'
-WHERE w.is_active = true
-GROUP BY w.id, w.name, w.type, w.created_at, w.updated_at;
+LEFT JOIN users u ON w.user_id = u.id
+LEFT JOIN watchlist_assets wa ON w.id = wa.watchlist_id AND wa.is_active = true
+LEFT JOIN cryptocurrencies c ON wa.crypto_id = c.id
+GROUP BY w.id, w.name, w.type, w.user_id, u.email, w.created_at, w.updated_at;
 
 -- View for trading signals with crypto details
 CREATE OR REPLACE VIEW v_active_signals AS
@@ -557,7 +637,183 @@ JOIN cryptocurrencies c ON ts.crypto_id = c.id
 WHERE ts.status = 'active' AND ts.expires_at > NOW()
 ORDER BY ts.confidence_score DESC, ts.generated_at DESC;
 
-COMMENT ON DATABASE cryptopredict IS 'CryptoPredict Phase 2 - Enhanced 4-Layer AI Trading System Database';
+
+-- ===== AI PERFORMANCE SUMMARY VIEW =====
+CREATE VIEW v_ai_performance AS
+SELECT 
+    ai_layer,
+    COUNT(*) as total_suggestions,
+    COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
+    COUNT(CASE WHEN status = 'implemented' THEN 1 END) as implemented_count,
+    AVG(confidence_score) as avg_confidence,
+    AVG(CASE WHEN actual_return IS NOT NULL THEN actual_return END) as avg_actual_return,
+    AVG(success_score) as avg_success_score,
+    COUNT(CASE WHEN success_score > 0.7 THEN 1 END) as high_success_count
+FROM ai_suggestions
+WHERE created_at >= NOW() - INTERVAL '30 days'
+GROUP BY ai_layer
+ORDER BY ai_layer;
+
+
+-- ===== ADMIN USER OVERVIEW VIEW =====
+CREATE VIEW v_users_overview AS
+SELECT 
+    u.id,
+    u.email,
+    u.first_name,
+    u.last_name,
+    u.role,
+    u.is_active,
+    u.is_premium,
+    u.created_at,
+    u.last_login,
+    u.login_count,
+    COUNT(w.id) as personal_watchlists_count,
+    COUNT(wa.id) as total_assets_count,
+    AVG(CASE WHEN p.is_realized THEN p.accuracy_percentage END) as avg_prediction_accuracy
+FROM users u
+LEFT JOIN watchlists w ON u.id = w.user_id AND w.type = 'personal'
+LEFT JOIN watchlist_assets wa ON w.id = wa.watchlist_id AND wa.is_active = true
+LEFT JOIN predictions p ON u.id = p.user_id
+WHERE u.role = 'public'
+GROUP BY u.id, u.email, u.first_name, u.last_name, u.role, u.is_active, u.is_premium, u.created_at, u.last_login, u.login_count;
+
+```
+
+### **🔧 Admin Management Functions:**
+
+```sql
+-- ===== FUNCTION: Create Default Watchlist =====
+CREATE OR REPLACE FUNCTION create_default_watchlist(
+    p_name VARCHAR(100),
+    p_description TEXT DEFAULT NULL
+) RETURNS INTEGER AS $$
+DECLARE
+    watchlist_id INTEGER;
+BEGIN
+    -- Create the default watchlist
+    INSERT INTO watchlists (name, description, type, user_id)
+    VALUES (p_name, p_description, 'default', NULL)
+    RETURNING id INTO watchlist_id;
+    
+    -- Log the activity
+    INSERT INTO user_activities (activity_type, entity_type, entity_id, action, details)
+    VALUES ('admin_action', 'watchlist', watchlist_id, 'create', 
+            jsonb_build_object('type', 'default', 'name', p_name));
+    
+    RETURN watchlist_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ===== FUNCTION: Bulk Update Watchlist Assets =====
+CREATE OR REPLACE FUNCTION bulk_update_watchlist_assets(
+    p_watchlist_id INTEGER,
+    p_asset_updates JSONB, -- Array of {crypto_id, position, weight}
+    p_admin_user_id INTEGER
+) RETURNS VOID AS $$
+DECLARE
+    asset_record RECORD;
+BEGIN
+    -- Update each asset
+    FOR asset_record IN 
+        SELECT 
+            (value->>'crypto_id')::INTEGER as crypto_id,
+            (value->>'position')::INTEGER as position,
+            (value->>'weight')::DECIMAL as weight
+        FROM jsonb_array_elements(p_asset_updates)
+    LOOP
+        -- Update or insert asset
+        INSERT INTO watchlist_assets (watchlist_id, crypto_id, position, weight, last_modified_by)
+        VALUES (p_watchlist_id, asset_record.crypto_id, asset_record.position, asset_record.weight, p_admin_user_id)
+        ON CONFLICT (watchlist_id, crypto_id) 
+        DO UPDATE SET 
+            position = EXCLUDED.position,
+            weight = EXCLUDED.weight,
+            last_modified_by = EXCLUDED.last_modified_by;
+    END LOOP;
+    
+    -- Update watchlist timestamp
+    UPDATE watchlists SET updated_at = NOW() WHERE id = p_watchlist_id;
+    
+    -- Log the bulk update
+    INSERT INTO user_activities (user_id, activity_type, entity_type, entity_id, action, details)
+    VALUES (p_admin_user_id, 'admin_action', 'watchlist', p_watchlist_id, 'bulk_update',
+            jsonb_build_object('asset_count', jsonb_array_length(p_asset_updates)));
+END;
+$$ LANGUAGE plpgsql;
+
+-- ===== FUNCTION: Get User Context for AI =====
+CREATE OR REPLACE FUNCTION get_user_ai_context(p_user_id INTEGER)
+RETURNS TABLE(
+    watchlist_id INTEGER,
+    watchlist_type VARCHAR(20),
+    asset_count INTEGER,
+    assets JSONB
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        w.id as watchlist_id,
+        w.type as watchlist_type,
+        COUNT(wa.id)::INTEGER as asset_count,
+        jsonb_agg(
+            jsonb_build_object(
+                'crypto_id', wa.crypto_id,
+                'symbol', c.symbol,
+                'position', wa.position,
+                'weight', wa.weight
+            ) ORDER BY wa.position
+        ) as assets
+    FROM watchlists w
+    LEFT JOIN watchlist_assets wa ON w.id = wa.watchlist_id AND wa.is_active = true
+    LEFT JOIN cryptocurrencies c ON wa.crypto_id = c.id
+    WHERE 
+        (w.user_id = p_user_id AND w.type = 'personal') OR
+        (w.type = 'default' AND NOT EXISTS (
+            SELECT 1 FROM watchlists WHERE user_id = p_user_id AND type = 'personal'
+        ))
+    GROUP BY w.id, w.type;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## 📊 **Performance Optimization**
+
+### **🔄 Data Archival Strategy:**
+
+```sql
+-- ===== Archival Tables for Old Data =====
+
+-- Archive old activity logs (keep active logs lean)
+CREATE TABLE user_activities_archive (
+    LIKE user_activities INCLUDING ALL
+);
+
+-- Archive old AI suggestions
+CREATE TABLE ai_suggestions_archive (
+    LIKE ai_suggestions INCLUDING ALL
+);
+
+-- Function to archive old data
+CREATE OR REPLACE FUNCTION archive_old_data() RETURNS VOID AS $$
+BEGIN
+    -- Archive activity logs older than 6 months
+    INSERT INTO user_activities_archive 
+    SELECT * FROM user_activities 
+    WHERE created_at < NOW() - INTERVAL '6 months';
+    
+    DELETE FROM user_activities 
+    WHERE created_at < NOW() - INTERVAL '6 months';
+    
+    -- Archive implemented AI suggestions older than 3 months
+    INSERT INTO ai_suggestions_archive
+    SELECT * FROM ai_suggestions
+    WHERE status = 'implemented' AND implemented_at < NOW() - INTERVAL '3 months';
+    
+    DELETE FROM ai_suggestions
+    WHERE status = 'implemented' AND implemented_at < NOW() - INTERVAL '3 months';
+END;
+$$ LANGUAGE plpgsql;
 ```
 
 ---
@@ -592,10 +848,10 @@ POST /api/v1/watchlists                     # watchlists
 PUT /api/v1/watchlists/{id}                 # watchlists
 DELETE /api/v1/watchlists/{id}              # watchlists
 
-GET /api/v1/watchlists/{id}/items           # watchlist_items
-POST /api/v1/watchlists/{id}/items          # watchlist_items
-PUT /api/v1/watchlist-items/{id}            # watchlist_items
-DELETE /api/v1/watchlist-items/{id}         # watchlist_items
+GET /api/v1/watchlists/{id}/items           # watchlist_assets
+POST /api/v1/watchlists/{id}/items          # watchlist_assets
+PUT /api/v1/watchlist-items/{id}            # watchlist_assets
+DELETE /api/v1/watchlist-items/{id}         # watchlist_assets
 
 GET /api/v1/suggestions                     # ai_suggestions
 POST /api/v1/suggestions/{id}/review        # suggestion_reviews
@@ -645,7 +901,7 @@ graph TD
         H[cryptocurrencies]
         I[users]
         J[trading_signals]
-        K[watchlist_items]
+        K[watchlist_assets]
         L[ai_suggestions]
     end
     
