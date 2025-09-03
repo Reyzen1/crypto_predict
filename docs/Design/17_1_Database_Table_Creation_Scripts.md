@@ -1,4 +1,4 @@
-# docs\Design\17_Database_ERD_Design.md
+# docs\Design\17_1_Database_Table_Creation_Scripts.md
 # 🗄️ Database ERD Design - Days 15-18
 ## Complete Database Architecture for 4-Layer AI System
 

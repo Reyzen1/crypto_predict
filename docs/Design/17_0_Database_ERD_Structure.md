@@ -1,4 +1,4 @@
-# docs\Design\17_Database_ERD_Design.md
+# docs\Design\17_0_Database_ERD_Structure.md
 # 🗄️ Database ERD Design - Days 15-18
 ## Complete Database Architecture for 4-Layer AI System
 
@@ -103,15 +103,6 @@ erDiagram
         numeric market_cap "Market capitalization at this timestamp"
         jsonb technical_indicators "Calculated technical indicators (RSI, MACD, etc.)"
         timestamp created_at "Record creation timestamp"
-    }
-        numeric open_price
-        numeric high_price
-        numeric low_price
-        numeric close_price
-        numeric volume
-        numeric market_cap
-        jsonb technical_indicators
-        timestamp created_at
     }
 
     %% Layer 1: Macro Analysis
