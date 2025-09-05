@@ -112,7 +112,48 @@ User Experience Adaptation:
 └── 👑 Admin: Full analysis + system optimization insights
 ```
 
-### **💰 Layer 3 (Asset Selection) - Context-Based**
+### **💰 Layer 3 (Assets) - All Users**
+```
+Navigation Path: /assets
+
+Content Structure (Universal Access):
+├── 🔓 Admin Watchlist (15 selected cryptocurrencies)
+├── 🔓 Crypto Analysis Pages (deep dive for each asset)
+├── 👤 Personal Watchlist (logged users only)
+├── 🔓 Performance Metrics: 7d/30d/90d returns
+├── 🔓 Technical Analysis: RSI, MACD, Moving Averages
+├── 🔓 Fundamental Data: Network stats, development activity
+├── 🔓 Social Sentiment: Reddit, Twitter, News sentiment
+├── 🔓 Correlation Matrix: Asset pair relationships
+└── 🔓 Historical Patterns: Price pattern recognition
+
+Individual Crypto Analysis Structure:
+┌─────────────────────────────────────────────────────────┐
+│ 📊 BITCOIN (BTC) - Complete Analysis                   │
+├─────────────────────────────────────────────────────────┤
+│ 💰 Price & Market Data                                 │
+│ 📈 Interactive Technical Chart                         │
+│ 🤖 AI Predictions & Confidence                         │
+│ 📊 Technical Indicators                                │
+│ 📰 News & Sentiment Analysis                           │
+│ 🔍 Fundamental Analysis                                │
+│ 💼 Institutional Data                                  │
+│ 🎯 Trading Opportunities                               │
+│ ⚠️ Risk Factors                                        │
+│ 🔄 Quick Actions (Trade/Alert/Save)                    │
+└─────────────────────────────────────────────────────────┘
+
+Navigation Access:
+├── From Watchlist: Direct click on any crypto
+├── From Search: Type crypto name in search
+├── From Layer 4: Click on asset in timing signals
+├── Direct URL: /assets/[crypto-symbol]
+└── Mobile: Swipeable sections for touch navigation
+
+User Experience Adaptation:
+├── 🌐 Guest: Full analysis access + conversion CTAs
+├── 👤 Logged: Full access + personal notes + alerts
+└── 👑 Admin: Full access + system performance data
 ```
 Navigation Path: /assets
 

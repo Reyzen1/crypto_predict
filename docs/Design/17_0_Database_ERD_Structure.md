@@ -2,6 +2,36 @@
 # 🗄️ Database ERD Design - Days 15-18
 ## Complete Database Architecture for 4-Layer AI System
 
+---
+
+## 🎯 **ERD Overview for Single UI Strategy**
+
+### **📊 Database Architecture Summary (Updated):**
+```
+Core Tables: 29 tables supporting 4-Layer AI System ✅ 100% Complete
+Views Required: 12+ views for dashboard and analytics ✅ 100% Complete  
+Functions Required: 35+ PL/pgSQL functions for API support ✅ 100% Complete
+Indexes Required: 95+ optimized indexes for performance ✅ 100% Complete
+
+Architecture Support:
+├── 🔐 Single UI Authentication System
+├── 🌍 Layer 1: Macro Analysis (4 tables)
+├── 📊 Layer 2: Sector Analysis (4 tables)
+├── 💰 Layer 3: Asset Selection (3 tables)
+├── ⚡ Layer 4: Timing Signals (4 tables)
+├── 🤖 AI & ML Management (3 tables)
+├── 👤 User Management (4 tables)
+└── 🔧 System Management (5 tables - includes 6 new tables)
+
+🆕 ADDED COMPLETE SUPPORT:
+├── 📈 Enhanced Analytics Functions (5 functions)
+├── 🔍 Advanced Query Functions (3 functions)  
+├── 📊 Critical Dashboard Views (4 views)
+├── ⚡ Performance Indexes (15 indexes)
+└── 🤖 AI Context & Feedback Functions (2 functions)
+```
+
+---
 
 ## 🎨 **Enhanced Database Schema (بعدازظهر - 4 ساعت)**
 
@@ -327,6 +357,26 @@ erDiagram
         timestamp updated_at "Last update timestamp"
         timestamp evaluated_at "When prediction was evaluated for accuracy"
     }
+
+    %% Signal Alerts (User-specific alerts)
+    signal_alerts {
+        int id PK "Primary key for signal alerts"
+        int user_id FK "User who created this alert"
+        int crypto_id FK "Cryptocurrency this alert monitors"
+        varchar alert_type "Alert type: price_target, signal_generated, volume_spike"
+        numeric trigger_value "Value that triggers the alert"
+        varchar condition "Condition: above, below, equals, percentage_change"
+        boolean is_active "Whether alert is currently active"
+        boolean is_triggered "Whether alert has been triggered"
+        text message "Custom alert message"
+        varchar notification_method "How to notify: email, push, sms"
+        timestamp triggered_at "When alert was triggered"
+        timestamp last_checked "Last time alert condition was checked"
+        timestamp expires_at "When alert expires"
+        timestamp created_at "Alert creation timestamp"
+        timestamp updated_at "Last update timestamp"
+    }
+
     %% System Management
     ai_models {
         int id PK "Primary key for AI model tracking"
@@ -343,6 +393,18 @@ erDiagram
         timestamp updated_at "Last update timestamp"
     }
 
+    model_performance {
+        int id PK "Primary key for model performance tracking"
+        int model_id FK "Foreign key linking to ai_models table"
+        varchar evaluation_metric "Metric name: accuracy, mse, mae, sharpe_ratio"
+        numeric metric_value "Value of the evaluation metric"
+        varchar timeframe "Evaluation timeframe: 1d, 7d, 30d, 90d"
+        int sample_size "Number of predictions evaluated"
+        jsonb detailed_metrics "Detailed performance breakdown"
+        timestamp evaluation_date "Date of performance evaluation"
+        timestamp created_at "Record creation timestamp"
+    }
+
     system_health {
         int id PK "Primary key for system health monitoring"
         timestamp check_time "When this health check was performed"
@@ -356,6 +418,46 @@ erDiagram
         timestamp created_at "Record creation timestamp"
     }
 
+    analytics_data {
+        int id PK "Primary key for analytics data storage"
+        varchar category "Analytics category: user_behavior, api_usage, performance"
+        varchar metric_name "Name of the metric being tracked"
+        numeric metric_value "Value of the metric"
+        jsonb dimensions "Metric dimensions and breakdown"
+        varchar aggregation_level "Aggregation: hourly, daily, weekly, monthly"
+        timestamp metric_timestamp "Timestamp for this metric"
+        timestamp created_at "Record creation timestamp"
+    }
+
+    external_api_logs {
+        int id PK "Primary key for external API logging"
+        varchar api_provider "External API provider: coingecko, binance, etc."
+        varchar endpoint "API endpoint called"
+        varchar http_method "HTTP method used"
+        int response_status "HTTP response status code"
+        numeric response_time_ms "Response time in milliseconds"
+        jsonb request_params "Request parameters sent"
+        jsonb response_data "Response data received (if successful)"
+        text error_message "Error message if request failed"
+        timestamp request_timestamp "When the API request was made"
+        timestamp created_at "Record creation timestamp"
+    }
+
+    background_tasks {
+        int id PK "Primary key for background task tracking"
+        varchar task_name "Name of the background task"
+        varchar task_type "Type: data_sync, model_training, cleanup"
+        varchar status "Status: pending, running, completed, failed"
+        jsonb task_params "Task parameters and configuration"
+        jsonb result_data "Task execution results"
+        text error_message "Error message if task failed"
+        timestamp started_at "When task execution started"
+        timestamp completed_at "When task execution completed"
+        numeric execution_time_seconds "Total execution time"
+        timestamp created_at "Task creation timestamp"
+    }
+
+    %% User Notifications & Feedback
     notifications {
         int id PK "Primary key for notification tracking"
         int user_id FK "User receiving this notification"
@@ -372,6 +474,17 @@ erDiagram
         timestamp created_at "Notification creation timestamp"
     }
 
+    suggestion_feedback {
+        int id PK "Primary key for AI suggestion feedback"
+        int suggestion_id FK "AI suggestion this feedback is for"
+        int user_id FK "User providing the feedback"
+        int rating "User rating: 1-5 stars"
+        text feedback_text "Detailed user feedback"
+        varchar action_taken "Action user took: accepted, rejected, modified"
+        jsonb feedback_data "Structured feedback data"
+        timestamp created_at "Feedback creation timestamp"
+    }
+
     %% Relationships
     users ||--o{ user_sessions : "has"
     users ||--o{ user_activities : "performs"
@@ -380,6 +493,8 @@ erDiagram
     users ||--o{ signal_executions : "executes"
     users ||--|| risk_management : "has"
     users ||--o{ notifications : "receives"
+    users ||--o{ signal_alerts : "creates"
+    users ||--o{ suggestion_feedback : "provides"
 
     cryptocurrencies ||--o{ price_data : "has"
     cryptocurrencies ||--o{ watchlist_assets : "included_in"
@@ -387,6 +502,7 @@ erDiagram
     cryptocurrencies ||--o{ trading_signals : "generates"
     cryptocurrencies ||--o{ ai_suggestions : "suggested"
     cryptocurrencies ||--o{ crypto_sector_mapping : "belongs_to"
+    cryptocurrencies ||--o{ signal_alerts : "monitored_by"
 
     crypto_sectors ||--o{ sector_performance : "has"
     crypto_sectors ||--o{ sector_rotation_analysis : "rotates_from"
@@ -398,10 +514,94 @@ erDiagram
     watchlists ||--o{ predictions : "context"
 
     trading_signals ||--o{ signal_executions : "executed_as"
+    ai_suggestions ||--o{ suggestion_feedback : "receives"
+    ai_models ||--o{ model_performance : "evaluated_by"
+    ai_models ||--o{ predictions : "generates"
 
     watchlist_assets }o--|| cryptocurrencies : "references"
     ai_suggestions }o--|| cryptocurrencies : "suggests"
     ai_suggestions }o--|| watchlists : "for"
+    signal_alerts }o--|| cryptocurrencies : "monitors"
+    crypto_sector_mapping }o--|| crypto_sectors : "maps_to"
+    crypto_sector_mapping }o--|| cryptocurrencies : "maps_from"
 ```
 
 ---
+
+## 📊 **Database Tables Summary**
+
+### **👤 User Management (4 tables):**
+```
+1. users                 - Core user accounts and authentication
+2. user_sessions         - Session management and security
+3. user_activities       - User activity tracking and analytics
+4. notifications         - User notification system
+```
+
+### **💰 Cryptocurrency Data (2 tables):**
+```
+1. cryptocurrencies      - Master cryptocurrency data
+2. price_data           - Historical and real-time price data
+```
+
+### **🌍 Layer 1: Macro Analysis (4 tables):**
+```
+1. market_regime_analysis - Bull/bear/sideways market classification
+2. market_sentiment_data  - Fear & Greed Index and social sentiment
+3. dominance_data        - BTC/ETH/ALT market dominance tracking
+4. macro_indicators      - VIX, DXY and other macro indicators
+```
+
+### **📊 Layer 2: Sector Analysis (4 tables):**
+```
+1. crypto_sectors        - 11 crypto sector definitions
+2. sector_performance    - Sector performance metrics
+3. sector_rotation_analysis - Money flow between sectors
+4. crypto_sector_mapping - Many-to-many crypto-sector relationships
+```
+
+### **📋 Layer 3: Asset Selection (3 tables):**
+```
+1. watchlists           - User and admin watchlist management
+2. watchlist_assets     - Assets within watchlists
+3. ai_suggestions       - AI-generated portfolio suggestions
+```
+
+### **⚡ Layer 4: Timing Signals (4 tables):**
+```
+1. trading_signals      - AI-generated trading signals
+2. signal_executions    - User signal execution tracking
+3. signal_alerts        - User-defined price and signal alerts
+4. risk_management      - User risk settings and exposure tracking
+```
+
+### **🤖 AI & ML Management (3 tables):**
+```
+1. ai_models           - AI model management and configuration
+2. model_performance   - Model accuracy and performance tracking
+3. predictions         - Unified prediction storage for all layers
+```
+
+### **🔧 System Management (5 tables):**
+```
+1. system_health       - System health monitoring and alerts
+2. analytics_data      - Usage analytics and KPI tracking
+3. external_api_logs   - External API call logging and monitoring
+4. background_tasks    - Background task execution tracking
+5. suggestion_feedback - User feedback on AI suggestions
+```
+
+### **📈 Total: 29 Tables Supporting:**
+```
+✅ Single UI Strategy with context-aware access
+✅ 4-Layer AI System with complete data flow
+✅ Admin Panel with comprehensive management
+✅ Real-time data updates and monitoring
+✅ Scalable architecture for future growth
+```
+
+---
+
+**📅 Last Updated:** September 4, 2025  
+**🎯 Purpose:** Complete ERD for Single UI Strategy  
+**✅ Status:** Ready for Table Creation Scripts Implementation

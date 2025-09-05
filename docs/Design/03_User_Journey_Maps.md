@@ -48,6 +48,11 @@
 ├── 1. کلیک روی Layer 1 (Macro Analysis)
 ├── 2. بررسی market sentiment و Fear & Greed
 ├── 3. انتقال به Layer 2 (Sector Analysis)
+├── 4. کلیک روی یکی از کریپتوهای watchlist
+├── 5. ورود به صفحه تحلیل کامل کریپتو
+├── 6. بررسی نمودار تعاملی و پیش‌بینی‌های AI
+├── 7. مشاهده indicators تکنیکال و اخبار
+├── 8. کشف trading opportunities و risk analysis
 ├── 4. مشاهده sector rotation analysis
 ├── 5. کلیک روی یکی از کوین‌های watchlist
 ├── 6. بررسی Layer 3 (Asset Details)
@@ -67,11 +72,16 @@
 ├── 📊 Layer 2 sector analysis
 ├── 💰 Layer 3 asset details
 ├── ⚡ Layer 4 timing signals
-├── 📱 Mobile responsive interface
+├── � Crypto deep analysis pages
+├── 📈 Interactive trading charts
+├── 🤖 AI prediction confidence meters
+├── 📰 News sentiment integration
+├── 💼 Trading opportunity cards
+├── �📱 Mobile responsive interface
 ├── 🌙 Theme switcher
 └── 📊 Real-time charts
 
-😊 Emotions: تحسین، اعتماد، کنجکاوی بیشتر
+😊 Emotions: تحسین، اعتماد، کنجکاوی بیشتر، excitement از depth of analysis
 ```
 
 ### **🎯 Phase 3: Value Recognition (15-30 minutes)**
@@ -81,13 +91,18 @@
 ├── 2. مطالعه case studies موفق
 ├── 3. مقایسه با سایر سرویس‌ها (competitive analysis)
 ├── 4. تست دقت predictions در چند کوین
-├── 5. بررسی social sentiment analysis
-├── 6. مطالعه educational content
-├── 7. کشف advanced features
-└── 8. شروع فکر کردن به personal use cases
+├── 5. تحلیل عمیق 2-3 کریپتو از watchlist
+├── 6. بررسی social sentiment analysis
+├── 7. مطالعه educational content
+├── 8. کشف advanced features
+└── 9. شروع فکر کردن به personal use cases
 
 💭 User Thoughts:
 ├── "accuracy rate خیلی بالاست، 78% دقت!"
+├── "این crypto analysis خیلی کاملتر از سایتای دیگست!"
+├── "نمودارها خیلی professional هستن"
+├── "AI predictions با confidence level هم نشون میده"
+├── "trading opportunities با risk/reward محاسبه شده!"
 ├── "این social sentiment خیلی کاربردیه"
 ├── "educational content هم خیلی خوبه"
 ├── "می‌تونم برای portfolio خودم ازش استفاده کنم"
@@ -98,11 +113,16 @@
 ├── 📚 Case study library
 ├── 🏆 Competitive comparison
 ├── 🎯 Accuracy metrics
+├── 🔍 Individual crypto analysis pages
+├── 📊 Technical indicator displays
+├── 📰 Integrated news sentiment
+├── 💰 Trading setup recommendations
+├── ⚠️ Risk analysis sections
 ├── 👥 Social sentiment dashboard
 ├── 📖 Educational resources
 └── 💡 Advanced feature previews
 
-😊 Emotions: قناعت، اعتماد، انگیزه برای ثبت‌نام
+😊 Emotions: قناعت، اعتماد، انگیزه برای ثبت‌نام، impressed by analysis depth
 ```
 
 ### **🔄 Phase 4: Conversion Consideration (30+ minutes)**
@@ -184,32 +204,49 @@
 ├── 1. انتقال به Layer 2 برای sector analysis
 ├── 2. بررسی DeFi sector performance (+8.5% این هفته)
 ├── 3. کلیک روی AAVE در personal watchlist
-├── 4. مطالعه Layer 3 asset analysis
-├── 5. بررسی social sentiment (Reddit: Bullish 71%)
-├── 6. مشاهده Layer 4 timing signals
-├── 7. مقایسه با historical patterns
-├── 8. بررسی risk assessment
-└── 9. تصمیم‌گیری: افزودن به watchlist یا نه
+├── 4. ورود به صفحه تحلیل کامل AAVE
+├── 5. بررسی نمودار قیمت تعاملی و indicators
+├── 6. مطالعه AI predictions با confidence levels
+├── 7. بررسی news sentiment و whale activity
+├── 8. مشاهده trading opportunities و risk/reward
+├── 9. مطالعه Layer 3 asset analysis
+├── 10. بررسی social sentiment (Reddit: Bullish 71%)
+├── 11. مشاهده Layer 4 timing signals
+├── 12. مقایسه با historical patterns
+├── 13. بررسی risk assessment
+└── 14. تصمیم‌گیری: افزودن به watchlist یا execute trade
 
 💭 User Thoughts:
 ├── "DeFi sector داره خوب perform می‌کنه"
 ├── "AAVE fundamentals قوی‌ان"
-├── "social sentiment مثبته"
+├── "این crypto analysis خیلی detailed هست!"
+├── "نمودارها professional هستن، RSI overbought نشون میده"
+├── "AI prediction میگه 4h تو $320 میره با 84% confidence"
+├── "news sentiment مثبت، whale activity هم bullish"
+├── "trading setup خوبی هست، R/R: 1:2.8"
 ├── "timing signal هم buy می‌گه"
 ├── "risk assessment medium هست، قابل قبوله"
-└── "بیا این رو هم اضافه کنم"
+└── "بیا این رو هم اضافه کنم یا یه position بگیرم"
 
 📱 Touchpoints:
 ├── 📊 Sector performance matrix
 ├── 💰 Asset detail pages
-├── 👥 Social sentiment gauge
+├── � Comprehensive crypto analysis page
+├── 📈 Interactive price charts
+├── 🤖 AI prediction confidence displays
+├── 📰 News sentiment integration
+├── 🐋 Whale activity indicators
+├── 💼 Trading opportunity cards
+├── ⚠️ Risk/reward calculators
+├── �👥 Social sentiment gauge
 ├── ⚡ Timing signal dashboard
 ├── 📈 Historical pattern comparison
 ├── ⚠️ Risk assessment widget
 ├── ➕ Add to watchlist button
+├── 💰 Execute trade button
 └── 💾 Save analysis notes
 
-😊 Emotions: تجزیه و تحلیل، اعتماد به نفس، آمادگی برای action
+😊 Emotions: تجزیه و تحلیل، اعتماد به نفس، excitement از depth of data، آمادگی برای action
 ```
 
 ### **🔄 Phase 3: Portfolio Management (10-20 minutes)**
