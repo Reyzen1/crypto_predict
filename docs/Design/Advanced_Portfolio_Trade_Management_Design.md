@@ -8,7 +8,7 @@
 ### **❌ مشکلات طراحی فعلی:**
 1. **نبود Trade Cataloging System** - عدم ثبت احساسات و تحلیل در لحظه ترید
 2. **فیلدهای اضافی** - محاسبه مواردی که قابل compute هستند
-3. **عدم پشتیبانی External Assets** - فقط crypto در دیتابیس
+3. **عدم پشتیبانی External Assets** - فقط assetهای موجود در دیتابیس
 4. **ارتباط ناقص Portfolio-Trades** - مشکل synchronization
 5. **AI Integration ناقص** - نبود توصیه‌های هوشمند برای سطوح مختلف
 
@@ -23,31 +23,30 @@
 CREATE TABLE trade_catalog (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    
+    portfolio_id INTEGER REFERENCES portfolio(id), -- trade مربوط به کدام portfolio item
+
     -- Asset Information
-    asset_type VARCHAR(20) NOT NULL,                       -- 'crypto', 'stock', 'forex', 'commodity', 'external'
-    asset_symbol VARCHAR(20) NOT NULL,                     -- BTC, AAPL, EUR/USD, GOLD, etc
-    crypto_id INTEGER REFERENCES cryptocurrencies(id),     -- فقط برای crypto assets
+    crypto_id INTEGER REFERENCES cryptocurrencies(id),     -- فقط برای crypto assets که در سیستم موجود هستند.
+    asset_symbol VARCHAR(20) NOT NULL,                     -- فقط برای crypto assets که در سیستم موجود نیستند.
     external_asset_info JSONB,                             -- برای external assets
     
     -- Trade Execution Details (دقیق)
-    trade_type VARCHAR(10) NOT NULL,                       -- 'long', 'short', 'buy', 'sell'
+    trade_type VARCHAR(15) NOT NULL,                       -- 'long', 'short', 'spot long'
     entry_price NUMERIC(20,8) NOT NULL,
     exit_price NUMERIC(20,8),                             -- null اگر هنوز باز است
     quantity NUMERIC(20,8) NOT NULL,
     position_size_usd NUMERIC(15,2) NOT NULL,
     leverage_ratio NUMERIC(6,2) DEFAULT 1.0,              -- 1.0 = no leverage
-    
+    fees_paid NUMERIC(15,2) DEFAULT 0,
+    pnl_realized_usd NUMERIC(15,2) DEFAULT 0,              -- سود/ضرر تحقق یافته  
+
     -- Timing Details (دقیق تا دقیقه و ساعت)
     entry_datetime TIMESTAMP WITH TIME ZONE NOT NULL,      -- دقیق تا دقیقه
     exit_datetime TIMESTAMP WITH TIME ZONE,                -- زمان بستن position
     timeframe VARCHAR(10) NOT NULL,                        -- '1m', '5m', '15m', '1h', '4h', '1d'
-    session_type VARCHAR(20),                              -- 'london', 'new_york', 'tokyo', 'overlap'
     
     -- Emotional & Psychological State (مهم برای trade psychology)
-    emotion_before_entry VARCHAR(20),                      -- 'confident', 'fearful', 'greedy', 'neutral', 'fomo'
-    emotion_during_trade VARCHAR(20),                      -- احساس در حین ترید
-    emotion_after_exit VARCHAR(20),                        -- احساس بعد از بستن
+    emotion_during_trade TEXT,                              -- احساس در حین ترید
     confidence_level INTEGER CHECK (confidence_level BETWEEN 1 AND 10),
     stress_level INTEGER CHECK (stress_level BETWEEN 1 AND 10),
     
@@ -64,72 +63,54 @@ CREATE TABLE trade_catalog (
     -- Risk Management
     planned_risk_percent NUMERIC(5,2) NOT NULL,            -- درصد ریسک برنامه‌ریزی شده
     actual_risk_percent NUMERIC(5,2),                      -- ریسک واقعی
-    stop_loss_price NUMERIC(20,8),
-    take_profit_price NUMERIC(20,8),
-    risk_reward_ratio NUMERIC(6,2),                        -- محاسبه شده
-    
-    -- Performance (محاسبه شده)
-    realized_pnl NUMERIC(15,2),                           -- سود/زیان محقق شده
-    realized_pnl_percent NUMERIC(8,4),                    -- درصد سود/زیان
-    fees_paid NUMERIC(15,2) DEFAULT 0,
-    net_profit NUMERIC(15,2),                             -- بعد از کسر فی
-    
+    initial_stop_loss NUMERIC(20,8), 
+    initial_take_profit NUMERIC(20,8), 
+    last_stop_loss NUMERIC(20,8), 
+    last_take_profit NUMERIC(20,8), 
+    sl_tp_history JSONB, -- تاریخچه تغییرات
+    planned_risk_reward_ratio NUMERIC(5,2), -- R:R برنامه‌ریزی شده
+    actual_risk_reward_ratio NUMERIC(5,2),  -- R:R واقعی
+
     -- Trade Source & AI Integration
-    trade_source VARCHAR(20) NOT NULL,                     -- 'manual', 'ai_signal', 'copy_trade', 'algorithm'
+    enter_reason VARCHAR(20) NOT NULL,                     -- 'manual', 'ai_signal', 'copy_trade', 'algorithm'
+    exit_reason VARCHAR(20) NOT NULL,                      -- 'manual', 'ai_signal', 'copy_trade', 'algorithm', 'stop_loss', 'take_profit', 'time_exit'
     signal_id INTEGER REFERENCES trading_signals(id),      -- اگر از AI آمده
     ai_confidence_score NUMERIC(3,2),                      -- اعتماد AI در هنگام پیشنهاد
     
     -- Learning & Notes
-    trade_notes TEXT,                                       -- یادداشت‌های شخصی
-    lessons_learned TEXT,                                   -- درس‌هایی که یاد گرفته
-    mistakes_made TEXT,                                     -- اشتباهات صورت گرفته
-    what_went_right TEXT,                                   -- چه چیزی درست بود
-    what_went_wrong TEXT,                                   -- چه چیزی اشتباه بود
+    lesson_learned TEXT,    -- درس‌هایی که یاد گرفته; اشتباهات صورت گرفته; چه چیزی درست بود; چه چیزی اشتباه بود
+    trade_notes TEXT,      -- یادداشت‌های این trade
+
     
     -- Status & Tracking
     trade_status VARCHAR(20) DEFAULT 'open',               -- 'open', 'closed', 'stop_hit', 'target_hit'
-    is_paper_trade BOOLEAN DEFAULT false,                  -- آیا demo trade بوده؟
     
     -- Timestamps
+    last_modification_datetime TIMESTAMP WITH TIME ZONE, -- آخرین تغییر
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Constraints
-    CONSTRAINT check_trade_type CHECK (trade_type IN ('long', 'short', 'buy', 'sell')),
-    CONSTRAINT check_asset_type CHECK (asset_type IN ('crypto', 'stock', 'forex', 'commodity', 'external')),
-    CONSTRAINT check_trade_source CHECK (trade_source IN ('manual', 'ai_signal', 'copy_trade', 'algorithm')),
-    CONSTRAINT check_trade_status CHECK (trade_status IN ('open', 'closed', 'stop_hit', 'target_hit', 'cancelled')),
-    CONSTRAINT check_crypto_asset CHECK (
-        (asset_type = 'crypto' AND crypto_id IS NOT NULL) OR
-        (asset_type != 'crypto' AND crypto_id IS NULL)
-    )
+
 );
 
--- Indexes for trade_catalog
-CREATE INDEX idx_trade_catalog_user ON trade_catalog(user_id, entry_datetime DESC);
-CREATE INDEX idx_trade_catalog_asset ON trade_catalog(asset_type, asset_symbol);
-CREATE INDEX idx_trade_catalog_crypto ON trade_catalog(crypto_id) WHERE crypto_id IS NOT NULL;
-CREATE INDEX idx_trade_catalog_status ON trade_catalog(trade_status, entry_datetime DESC);
-CREATE INDEX idx_trade_catalog_signal ON trade_catalog(signal_id) WHERE signal_id IS NOT NULL;
-CREATE INDEX idx_trade_catalog_timeframe ON trade_catalog(timeframe, entry_datetime DESC);
-CREATE INDEX idx_trade_catalog_performance ON trade_catalog(realized_pnl_percent DESC) WHERE trade_status = 'closed';
 ```
 
 ### **2️⃣ Enhanced Portfolio Management**
 
 ```sql
 -- جدول پورتفلیو با پشتیبانی External Assets
-CREATE TABLE enhanced_user_portfolio (
+CREATE TABLE portfolio (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     
-    -- Asset Information (گسترده‌تر از قبل)
-    asset_type VARCHAR(20) NOT NULL,                       -- 'crypto', 'stock', 'forex', 'commodity', 'external'
-    asset_symbol VARCHAR(20) NOT NULL,                     -- symbol اصلی
-    crypto_id INTEGER REFERENCES cryptocurrencies(id),     -- فقط برای crypto
-    external_asset_data JSONB,                             -- اطلاعات external assets
+    -- Asset Information
+    crypto_id INTEGER REFERENCES cryptocurrencies(id),     -- فقط برای crypto assets که در سیستم موجود هستند.
+    asset_symbol VARCHAR(20) NOT NULL,                     -- فقط برای crypto assets که در سیستم موجود نیستند.
+    external_asset_info JSONB,                             -- برای external assets
     
     -- Current Holdings (محاسبه شده از trades)
+    asset_type VARCHAR(10) NOT NULL,                       -- 'Crypto Asset', 'Stablecoin', 'Long Position', 'Short Position'
+    leverage_ratio NUMERIC(6,2) DEFAULT 1.0,              -- 1.0 = no leverage
+
     total_quantity NUMERIC(20,8) NOT NULL DEFAULT 0,       -- مجموع کل
     avg_entry_price NUMERIC(20,8),                         -- میانگین قیمت ورود
     total_invested_usd NUMERIC(15,2) NOT NULL DEFAULT 0,   -- کل سرمایه گذاری شده
@@ -141,26 +122,19 @@ CREATE TABLE enhanced_user_portfolio (
     risk_category VARCHAR(15) DEFAULT 'medium',             -- 'conservative', 'moderate', 'aggressive'
     
     -- Risk Management (portfolio level)
-    portfolio_stop_loss_percent NUMERIC(5,2),              -- SL کل پوزیشن
-    portfolio_take_profit_percent NUMERIC(5,2),            -- TP کل پوزیشن
+    stop_loss_price NUMERIC(20,8),
+    take_profit_price NUMERIC(20,8),
     max_allocation_percent NUMERIC(5,2) DEFAULT 10,        -- حداکثر تخصیص
     
     -- Status & Tracking
     is_active BOOLEAN DEFAULT true,
     position_status VARCHAR(20) DEFAULT 'active',           -- 'active', 'reducing', 'accumulating', 'exit_plan'
-    last_rebalance_date TIMESTAMP WITH TIME ZONE,
-    
+    pnl_realized_usd NUMERIC(15,2) DEFAULT 0,              -- سود/ضرر تحقق یافته  
+
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Constraints
-    CONSTRAINT check_asset_type_portfolio CHECK (asset_type IN ('crypto', 'stock', 'forex', 'commodity', 'external')),
-    CONSTRAINT check_crypto_portfolio CHECK (
-        (asset_type = 'crypto' AND crypto_id IS NOT NULL) OR
-        (asset_type != 'crypto' AND crypto_id IS NULL)
-    ),
-    CONSTRAINT uq_user_asset UNIQUE(user_id, asset_type, asset_symbol)
+
 );
 ```
 
