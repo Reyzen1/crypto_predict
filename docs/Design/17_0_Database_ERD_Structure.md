@@ -254,7 +254,7 @@ erDiagram
         int id PK "Primary key for AI suggestion tracking"
         int watchlist_id FK "Watchlist this suggestion applies to"
         int crypto_id FK "Cryptocurrency being suggested"
-        varchar suggestion_type "Type of suggestion: add, remove, rebalance, tier_change"
+        varchar suggestion_type "Type of suggestion: add, remove, --rebalance, --tier_change"
         int ai_layer "Which AI layer generated this suggestion (1-4)"
         decimal confidence_score "AI confidence in this suggestion (0-1)"
         jsonb reasoning "Structured AI reasoning for the suggestion"
@@ -293,7 +293,7 @@ erDiagram
         timestamp updated_at "Last update timestamp"
     }
 
-    signal_executions {
+    -- signal_executions {
         int id PK "Primary key for signal execution tracking"
         int signal_id FK "Foreign key linking to trading_signals table"
         int user_id FK "User who executed this signal"
@@ -307,7 +307,7 @@ erDiagram
         timestamp updated_at "Last update timestamp"
     }
 
-    risk_management {
+    -- risk_management {
         int id PK "Primary key for user risk management settings"
         int user_id FK "User these risk settings belong to"
         numeric max_position_size "Maximum position size allowed per trade"
@@ -323,11 +323,12 @@ erDiagram
     predictions {
         int id PK "Primary key for prediction tracking"
         int crypto_id FK "Cryptocurrency being predicted"
-        int watchlist_id FK "Watchlist context for this prediction"
-        int user_id FK "User receiving this prediction"
-        varchar model_name "Name of the AI model that generated this prediction"
-        varchar model_version "Version of the AI model used"
-        int layer_source "Which AI layer generated this prediction (1-4)"
+        -- int watchlist_id FK "Watchlist context for this prediction"
+        -- int user_id FK "User receiving this prediction"
+        --varchar model_name "Name of the AI model that generated this prediction"
+        --varchar model_version "Version of the AI model used"
+        --int layer_source "Which AI layer generated this prediction (1-4)"
+        (new) int ai_models_id FK "AI model that generated this prediction"
         varchar prediction_type "Type of prediction: price, event, trend, etc."
         numeric predicted_price "Predicted price value"
         jsonb predicted_value "Non-price predictions in structured format"
@@ -335,7 +336,7 @@ erDiagram
         int prediction_horizon "Prediction time horizon in hours"
         timestamp target_datetime "Target date/time for this prediction"
         jsonb features_used "Input features used by the model"
-        jsonb model_parameters "Model parameters and configuration"
+        -- jsonb model_parameters "Model parameters and configuration"
         numeric input_price "Input price when prediction was made"
         jsonb input_features "Input feature values"
         jsonb context_data "Market context at prediction time"
@@ -346,10 +347,9 @@ erDiagram
         boolean is_realized "Whether the prediction timeframe has passed"
         boolean is_accurate "Whether prediction met accuracy threshold"
         numeric accuracy_threshold "Threshold for considering prediction accurate"
-        timestamp training_data_end "End date of training data used"
         varchar market_conditions "Market conditions during prediction"
         varchar volatility_level "Volatility level: low, medium, high"
-        numeric model_training_time "Time taken to train the model (seconds)"
+        --numeric model_training_time "Time taken to train the model (seconds)"
         numeric prediction_time "Time taken to generate prediction (seconds)"
         text notes "Additional notes about this prediction"
         jsonb debug_info "Debug information for model analysis"
@@ -382,6 +382,7 @@ erDiagram
         int id PK "Primary key for AI model tracking"
         varchar name UK "Unique name of the AI model"
         varchar version "Version string of the model"
+        (new) varchar architecture "lstm, transformer, ensemble, regression"
         varchar model_type "Type of model: macro, sector, asset, timing"
         varchar status "Model status: active, training, inactive, error"
         jsonb configuration "Model configuration and hyperparameters"
@@ -400,6 +401,8 @@ erDiagram
         numeric metric_value "Value of the evaluation metric"
         varchar timeframe "Evaluation timeframe: 1d, 7d, 30d, 90d"
         int sample_size "Number of predictions evaluated"
+        (new) numeric model_training_time "Time taken to train the model (seconds)"
+        (new) timestamp training_data_end "End date of training data used"
         jsonb detailed_metrics "Detailed performance breakdown"
         timestamp evaluation_date "Date of performance evaluation"
         timestamp created_at "Record creation timestamp"
