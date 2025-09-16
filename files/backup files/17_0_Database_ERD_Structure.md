@@ -1,6 +1,41 @@
 # docs\Design\17_0_Database_ERD_Structure.md
 # 🗄️ Database ERD Design - Days 15-18
-## **📈 Complete ERD Structure**
+## Complete Database Architecture for 4-Layer AI System
+
+---
+
+## 🎯 **ERD Overview for Single UI Strategy**
+
+### **📊 Database Architecture Summary (Updated):**
+```
+Core Tables: 29 tables supporting 4-Layer AI System ✅ 100% Complete
+Views Required: 12+ views for dashboard and analytics ✅ 100% Complete  
+Functions Required: 35+ PL/pgSQL functions for API support ✅ 100% Complete
+Indexes Required: 95+ optimized indexes for performance ✅ 100% Complete
+
+Architecture Support:
+├── 🔐 Single UI Authentication System
+├── 🌍 Layer 1: Macro Analysis (4 tables)
+├── 📊 Layer 2: Sector Analysis (4 tables)
+├── 💰 Layer 3: Asset Selection (3 tables)
+├── ⚡ Layer 4: Timing Signals (4 tables)
+├── 🤖 AI & ML Management (3 tables)
+├── 👤 User Management (4 tables)
+└── 🔧 System Management (5 tables - includes 6 new tables)
+
+🆕 ADDED COMPLETE SUPPORT:
+├── 📈 Enhanced Analytics Functions (5 functions)
+├── 🔍 Advanced Query Functions (3 functions)  
+├── 📊 Critical Dashboard Views (4 views)
+├── ⚡ Performance Indexes (15 indexes)
+└── 🤖 AI Context & Feedback Functions (2 functions)
+```
+
+---
+
+## 🎨 **Enhanced Database Schema (بعدازظهر - 4 ساعت)**
+
+### **📈 Complete ERD Structure**
 
 ```mermaid
 erDiagram
@@ -14,30 +49,14 @@ erDiagram
         varchar role "default: public; User role: admin/public for access control"
         boolean is_active "default: true; Account status for system access"
         boolean is_verified "default: false; Email verification status"
+        boolean is_premium "default: false; Premium subscription status for future features"
+        timestamp created_at "Account creation timestamp"
+        timestamp updated_at "Last profile update timestamp"
+        timestamp last_login "Last login time for activity tracking"
         int login_count "Total login count for engagement metrics"
         jsonb preferences "User preferences and settings in JSON format"
         varchar timezone "User's timezone for localized timestamps"
         varchar language "User's preferred language (en, fa, etc.)"
-        timestamp last_login "Last login time for activity tracking"  
-        text bio "Short user biography or description"
-        varchar profile_picture_url "URL to user's profile picture"
-        varchar reset_password_token "Token for password reset functionality"
-        timestamp reset_password_expires "Expiration time for reset token"
-        varchar email_verification_token "Token for email verification"
-        timestamp email_verification_expires "Expiration time for email verification token"
-        int failed_login_attempts "Count of consecutive failed login attempts"
-        timestamp lockout_expires "Account lockout expiration time after too many failed attempts"
-        varchar referral_code "Unique referral code for user invitations"
-        int referred_by FK "User ID of the referrer, if applicable"
-        int referral_count "Number of successful referrals made by this user"
-        numeric account_balance "User's account balance for future monetization"
-        varchar subscription_plan "Current subscription plan: free, basic, pro, enterprise"
-        timestamp subscription_expires_at "Subscription plan expiration date"
-        text notes "Admin notes about the user"
-        timestamp deleted_at "Soft delete timestamp for account deactivation"
-        int deleted_by FK "User ID of admin who deleted/deactivated the account"
-        timestamp created_at "Account creation timestamp"
-        timestamp updated_at "Last profile update timestamp"
     }
 
     user_sessions {
@@ -49,9 +68,8 @@ erDiagram
         inet ip_address "IP address for security and location tracking"
         boolean is_active "Session active status"
         timestamp expires_at "Session expiration time"
-        timestamp last_used_at "Last activity timestamp for session management"
         timestamp created_at "Session creation timestamp"
-        timestamp updated_at "Last activity timestamp for session management"
+        timestamp last_used_at "Last activity timestamp for session management"
     }
 
     user_activities {
@@ -64,9 +82,8 @@ erDiagram
         jsonb details "Additional activity details in JSON format"
         inet ip_address "IP address for security and audit trail"
         text user_agent "Browser/device user agent string"
-        int session_id FK "Session identifier for activity correlation"
+        varchar session_id "Session identifier for activity correlation"
         timestamp created_at "Activity timestamp for audit and analytics"
-        timestamp updated_at "Last update timestamp"
     }
 
     %% Cryptocurrency Data
@@ -94,15 +111,19 @@ erDiagram
         varchar subreddit_url "Official Reddit community"
         jsonb github_repos "Array of GitHub repository URLs"
         varchar contract_address "Smart contract address for tokens"
+        int decimals "Token decimal places for precision"
         boolean is_active "Active status in our system"
         boolean is_supported "Whether we provide analysis for this asset"
+        int tier "Priority tier: 1=Admin Default Watchlist, 2=Personal Watchlists, 3=Universe (opportunity detection only)"
         timestamp created_at "Record creation timestamp"
         timestamp updated_at "Last data update timestamp"
+        timestamp last_data_update "Last price/market data refresh"
     }
 
     price_data {
         int id PK "Primary key for price data records"
         int crypto_id FK "Foreign key linking to cryptocurrencies table"
+        timestamp timestamp "Timestamp for this price data point"
         numeric open_price "Opening price for the time period"
         numeric high_price "Highest price during the time period"
         numeric low_price "Lowest price during the time period"
@@ -111,7 +132,6 @@ erDiagram
         numeric market_cap "Market capitalization at this timestamp"
         jsonb technical_indicators "Calculated technical indicators (RSI, MACD, etc.)"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
     }
 
     %% Layer 1: Macro Analysis
@@ -121,6 +141,7 @@ erDiagram
         numeric confidence_score "AI confidence score for regime classification (0-1)"
         jsonb indicators "Market indicators used for regime detection"
         jsonb analysis_data "Detailed analysis data and supporting metrics"
+        timestamp analysis_time "When this analysis was performed"
         timestamp created_at "Record creation timestamp"
         timestamp updated_at "Last update timestamp"
     }
@@ -131,8 +152,8 @@ erDiagram
         numeric social_sentiment "Aggregated social media sentiment score"
         jsonb sentiment_sources "Data from various sentiment sources (Twitter, Reddit, etc.)"
         jsonb analysis_metrics "Detailed sentiment analysis metrics"
+        timestamp timestamp "Timestamp for this sentiment snapshot"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"        
     }
 
     dominance_data {
@@ -141,8 +162,8 @@ erDiagram
         numeric eth_dominance "Ethereum market dominance percentage"
         numeric alt_dominance "Altcoin market dominance percentage"
         jsonb trend_analysis "Dominance trend analysis and patterns"
+        timestamp timestamp "Timestamp for this dominance snapshot"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"        
     }
 
     macro_indicators {
@@ -151,8 +172,8 @@ erDiagram
         numeric value "Current value of the indicator"
         varchar timeframe "Timeframe for this indicator (1h, 4h, 1d, etc.)"
         jsonb metadata "Additional metadata about the indicator"
+        timestamp timestamp "Timestamp for this indicator value"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"        
     }
 
     %% Layer 2: Sector Analysis
@@ -175,8 +196,8 @@ erDiagram
         numeric volume_change "Volume change percentage for the sector"
         numeric market_cap_change "Market cap change percentage for the sector"
         jsonb performance_metrics "Detailed performance metrics and calculations"
+        timestamp analysis_time "When this performance analysis was calculated"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
     }
 
     sector_rotation_analysis {
@@ -186,8 +207,8 @@ erDiagram
         numeric rotation_strength "Strength of the rotation signal (0-1)"
         numeric confidence_score "AI confidence in rotation analysis (0-1)"
         jsonb rotation_indicators "Indicators supporting this rotation analysis"
+        timestamp analysis_time "When this rotation analysis was performed"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
     }
 
     crypto_sector_mapping {
@@ -206,7 +227,7 @@ erDiagram
         varchar name "Watchlist name for user identification"
         text description "Detailed description of watchlist purpose"
         int user_id FK "Foreign key linking to users table (null for default)"
-        varchar watchlist_type "default/personal; Type of watchlist: system default or user personal"
+        --(edit)varchar watchlist_type<--type "default/personal; Type of watchlist: system default or user personal"
         boolean is_active "Whether this watchlist is currently active"
         boolean is_public "Whether this watchlist can be shared (future feature)"
         int max_assets "Maximum number of assets allowed in this watchlist"
@@ -219,17 +240,42 @@ erDiagram
         int id PK "Primary key for watchlist asset entries"
         int watchlist_id FK "Foreign key linking to watchlists table"
         int crypto_id FK "Foreign key linking to cryptocurrencies table"
-        varchar position_type "Type of position type to watch: long, short"
+        --(new) varchar position_type "Type of position type to watch: long, short"
         int position "Position/rank within the watchlist for ordering"
+        --decimal weight "Portfolio weight allocation for this asset (0-1)"
+        --decimal target_allocation "Target allocation percentage for portfolio management"
         text notes "User or admin notes about this asset inclusion"
         boolean is_active "Whether this asset is currently active in the watchlist"
+        timestamp added_at "When this asset was added to the watchlist"
         int added_by FK "User who added this asset (admin or user)"
         int last_modified_by FK "User who last modified this asset entry"
-        timestamp created_at "When this asset was added to the watchlist"
-        timestamp updated_at "Last update timestamp"
     }
 
-    portfolio {
+    --(removed) ai_suggestions {
+        int id PK "Primary key for AI suggestion tracking"
+        int watchlist_id FK "Watchlist this suggestion applies to"
+        int crypto_id FK "Cryptocurrency being suggested"
+        --(new)int prediction_id FK "Foreign key linking to predictions table"
+        varchar suggestion_type "Type of suggestion: --(edit) add_long, add_short, remove, change_position <-- add, remove, --rebalance, --tier_change"
+        --int ai_layer "Which AI layer generated this suggestion (1-4)"
+        --decimal confidence_score "AI confidence in this suggestion (0-1)"
+        --jsonb reasoning "Structured AI reasoning for the suggestion"
+        --jsonb context_data "Market context data used for the suggestion"
+        int target_position "Suggested position in the watchlist"
+        --decimal target_weight "Suggested portfolio weight allocation"
+        --decimal expected_return "Expected return percentage from this suggestion"
+        --decimal risk_score "Risk assessment score for this suggestion (0-1)"
+        (edit add default) varchar status "default: pending; Current status: pending, approved, rejected, implemented"
+        --int reviewed_by FK "Admin user who reviewed this suggestion"
+        --timestamp reviewed_at "When the suggestion was reviewed"
+        timestamp implemented_at "When the suggestion was implemented"
+        --decimal actual_return "Actual return achieved after implementation"
+        --decimal success_score "Success rating of the suggestion (0-1)"
+        timestamp created_at "Suggestion creation timestamp"
+        timestamp expires_at "When this suggestion expires"
+    }
+
+    (--add)portfolio {
         int id PK
         int user_id FK "REFERENCES users(id) ON DELETE CASCADE"
         int crypto_id FK "REFERENCES cryptocurrencies(id); only for crypto assets available in the system."
@@ -253,7 +299,7 @@ erDiagram
         timestamp updated_at "DEFAULT NOW()"
     }
 
-    trade_actions {
+    (--add)trade_actions {
         int id PK
         int portfolio_id FK "REFERENCES portfolio(id)"
         varchar action_type "NOT NULL; 'buy', 'sell', 'partial_sell', 'entry', 'partial_exit', 'full_exit', 'modify_sl', 'modify_tp'"
@@ -294,21 +340,54 @@ erDiagram
         numeric entry_price "Recommended entry price for the trade"
         numeric target_price "Target price for profit taking"
         numeric stop_loss "Stop loss price for risk management"
+        -- numeric confidence_score "AI confidence in this signal (0-1)"
         varchar risk_level "Risk level assessment: low, medium, high, extreme"
         numeric risk_reward_ratio "Risk to reward ratio for this trade"
         int time_horizon_hours "Expected time horizon for this signal in hours"
+        -- jsonb ai_analysis "Detailed AI analysis supporting this signal"
+        -- jsonb market_context "Market context and conditions when signal was generated"
         varchar status "Signal status: active, executed, expired, cancelled"
+        timestamp generated_at "When this signal was generated"
         timestamp expires_at "When this signal expires"
-        timestamp created_at "When this signal was generated"
         timestamp updated_at "Last update timestamp"
     }
 
+    -- signal_executions {
+        int id PK "Primary key for signal execution tracking"
+        int signal_id FK "Foreign key linking to trading_signals table"
+        int user_id FK "User who executed this signal"
+        numeric execution_price "Actual price at which the signal was executed"
+        numeric position_size "Size of the position taken"
+        numeric portfolio_percentage "Percentage of portfolio allocated to this trade"
+        varchar execution_type "Execution method: manual or automatic"
+        varchar status "Execution status: pending, filled, partially_filled, cancelled"
+        jsonb execution_details "Detailed execution information and metadata"
+        timestamp executed_at "When the signal was executed"
+        timestamp updated_at "Last update timestamp"
+    }
+
+    -- risk_management {
+        int id PK "Primary key for user risk management settings"
+        int user_id FK "User these risk settings belong to"
+        numeric max_position_size "Maximum position size allowed per trade"
+        numeric max_portfolio_risk "Maximum portfolio risk percentage (0-1)"
+        jsonb risk_rules "Custom risk rules and parameters"
+        jsonb current_exposure "Current portfolio exposure and risk metrics"
+        jsonb risk_metrics "Calculated risk metrics and assessments"
+        timestamp last_calculated "When risk metrics were last calculated"
+        timestamp updated_at "Last update timestamp"
+    }
 
     %% Predictions (Unified for all layers)
     predictions {
         int id PK "Primary key for prediction tracking"
         int crypto_id FK "Cryptocurrency being predicted"
-        (new) int ai_models_id FK "AI model that generated this prediction"
+        -- int watchlist_id FK "Watchlist context for this prediction"
+        -- int user_id FK "User receiving this prediction"
+        --(new) int ai_models_id FK "AI model that generated this prediction"
+        --varchar model_name "Name of the AI model that generated this prediction"
+        --varchar model_version "Version of the AI model used"
+        --int layer_source "Which AI layer generated this prediction (1-4)"
         varchar prediction_type "Type of prediction: price, event, trend, etc."
         numeric predicted_price "Predicted price value"
         jsonb predicted_value "Non-price predictions in structured format"
@@ -316,6 +395,7 @@ erDiagram
         int prediction_horizon "Prediction time horizon in hours"
         timestamp target_datetime "Target date/time for this prediction"
         jsonb features_used "Input features used by the model"
+        -- jsonb model_parameters "Model parameters and configuration"
         numeric input_price "Input price when prediction was made"
         jsonb input_features "Input feature values"
         jsonb context_data "Market context at prediction time"
@@ -326,17 +406,18 @@ erDiagram
         boolean is_realized "Whether the prediction timeframe has passed"
         boolean is_accurate "Whether prediction met accuracy threshold"
         numeric accuracy_threshold "Threshold for considering prediction accurate"
-        jsonb market_conditions "Market conditions during prediction"
+        --(edit) jsonb<--varchar market_conditions "Market conditions during prediction"
         varchar volatility_level "Volatility level: low, medium, high"
+        --numeric model_training_time "Time taken to train the model (seconds)"
         numeric prediction_time "Time taken to generate prediction (seconds)"
         text notes "Additional notes about this prediction"
         jsonb debug_info "Debug information for model analysis"
-        timestamp evaluated_at "When prediction was evaluated for accuracy"
         timestamp created_at "Prediction creation timestamp"
         timestamp updated_at "Last update timestamp"
+        timestamp evaluated_at "When prediction was evaluated for accuracy"
     }
 
-    ai_recommendations {
+    (--add)ai_recommendations {
         int id PK "Unique identifier for each recommendation"
 
         varchar target_entity_type "Type of entity: 'portfolio', 'watchlist', 'asset', 'user', 'strategy'"
@@ -385,7 +466,7 @@ erDiagram
     }
 
     %% System Management
-    ai_models {
+    (--edited)ai_models {
         int id PK "Unique identifier for each model version"
         varchar name "Model name (shared across versions)"
         varchar version "Model version (e.g., v1.0.0) — a new record is created in this table for every new version"
@@ -408,7 +489,7 @@ erDiagram
         timestamp updated_at "Last record update timestamp"
     }
 
-    model_performance {
+    (--edited)model_performance {
         int id PK "Unique identifier for performance record"
         int model_id FK "Foreign key to ai_models (specific model version)"
         varchar evaluation_metric "Name of evaluation metric: accuracy, mse, mae, sharpe_ratio"
@@ -419,7 +500,6 @@ erDiagram
         jsonb detailed_metrics "Detailed breakdown of performance metrics"
         timestamp evaluation_date "Date when evaluation was performed"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last record update timestamp"
     }
 
     system_health {
@@ -433,7 +513,6 @@ erDiagram
         jsonb performance_metrics "System performance metrics and KPIs"
         jsonb error_logs "Recent error logs and issues"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
     }
 
     analytics_data {
@@ -443,8 +522,8 @@ erDiagram
         numeric metric_value "Value of the metric"
         jsonb dimensions "Metric dimensions and breakdown"
         varchar aggregation_level "Aggregation: hourly, daily, weekly, monthly"
+        timestamp metric_timestamp "Timestamp for this metric"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
     }
 
     external_api_logs {
@@ -457,8 +536,8 @@ erDiagram
         jsonb request_params "Request parameters sent"
         jsonb response_data "Response data received (if successful)"
         text error_message "Error message if request failed"
+        timestamp request_timestamp "When the API request was made"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
     }
 
     background_tasks {
@@ -473,7 +552,6 @@ erDiagram
         timestamp completed_at "When task execution completed"
         numeric execution_time_seconds "Total execution time"
         timestamp created_at "Task creation timestamp"
-        timestamp updated_at "Last update timestamp"
     }
 
     %% User Notifications & Feedback
@@ -491,80 +569,136 @@ erDiagram
         timestamp read_at "When user read the notification"
         timestamp expires_at "When notification expires"
         timestamp created_at "Notification creation timestamp"
-        timestamp updated_at "Last update timestamp"
     }
 
+    (--remove)suggestion_feedback {
+        int id PK "Primary key for AI suggestion feedback"
+        int suggestion_id FK "AI suggestion this feedback is for"
+        int user_id FK "User providing the feedback"
+        int rating "User rating: 1-5 stars"
+        text feedback_text "Detailed user feedback"
+        varchar action_taken "Action user took: accepted, rejected, modified"
+        jsonb feedback_data "Structured feedback data"
+        timestamp created_at "Feedback creation timestamp"
+    }
 
-    %% Core User Management Relationships
+    %% Relationships
     users ||--o{ user_sessions : "has"
-    users ||--o{ user_activities : "performs"  
+    users ||--o{ user_activities : "performs"
     users ||--o{ watchlists : "owns"
-    users ||--o{ portfolio : "manages"
-    users ||--o{ signal_alerts : "creates"
+    users ||--o{ predictions : "receives"
+    users ||--o{ signal_executions : "executes"
+    users ||--|| risk_management : "has"
     users ||--o{ notifications : "receives"
-    users }o--o{ users : "refers" %% self-referencing for referral system
-    users ||--o{ users : "deleted_by"
-    user_sessions ||--o{ user_activities : "includes"
-    
-    %% Cryptocurrency Core Relationships
+    users ||--o{ signal_alerts : "creates"
+    users ||--o{ suggestion_feedback : "provides"
+
     cryptocurrencies ||--o{ price_data : "has"
     cryptocurrencies ||--o{ watchlist_assets : "included_in"
-    cryptocurrencies ||--o{ predictions : "predicted_for"
-    cryptocurrencies ||--o{ trading_signals : "generates_signals_for"
-    cryptocurrencies ||--o{ crypto_sector_mapping : "belongs_to_sectors"
-    cryptocurrencies ||--o{ signal_alerts : "monitored_by_alerts"
-    cryptocurrencies ||--o{ portfolio : "held_in"
+    cryptocurrencies ||--o{ predictions : "predicted"
+    cryptocurrencies ||--o{ trading_signals : "generates"
+    cryptocurrencies ||--o{ ai_suggestions : "suggested"
+    cryptocurrencies ||--o{ crypto_sector_mapping : "belongs_to"
+    cryptocurrencies ||--o{ signal_alerts : "monitored_by"
 
-    %% Portfolio & Trading Relationships
-    portfolio ||--o{ trade_actions : "has"
-    trade_actions }o--|| trading_signals : "based_on" %% optional relationship
-    
-    %% Sector Analysis Relationships  
     crypto_sectors ||--o{ sector_performance : "has"
+    crypto_sectors ||--o{ sector_rotation_analysis : "rotates_from"
+    crypto_sectors ||--o{ sector_rotation_analysis : "rotates_to"
     crypto_sectors ||--o{ crypto_sector_mapping : "contains"
-    crypto_sectors ||--o{ sector_rotation_analysis : "from_sector"
-    crypto_sectors ||--o{ sector_rotation_analysis : "to_sector"
 
-    %% Watchlist Relationships
     watchlists ||--o{ watchlist_assets : "contains"
-    watchlists ||--o{ ai_recommendations : "targets" %% corrected from ai_suggestions
+    watchlists ||--o{ ai_suggestions : "targets"
+    watchlists ||--o{ predictions : "context"
 
-    %% AI & ML Relationships
-    ai_models ||--o{ predictions : "generates"
+    trading_signals ||--o{ signal_executions : "executed_as"
+    ai_suggestions ||--o{ suggestion_feedback : "receives"
     ai_models ||--o{ model_performance : "evaluated_by"
-    
-    %% Predictions as Central Hub
-    predictions ||--o{ trading_signals : "generates"
-    predictions ||--o{ ai_recommendations : "basis_for"
+    ai_models ||--o{ predictions : "generates"
 
-    %% Recommendation System
-    ai_recommendations }o--|| watchlists : "targets"
-    ai_recommendations }o--|| cryptocurrencies : "suggests"
-    ai_recommendations }o--|| predictions : "based_on"
-    ai_recommendations }o--|| users : "reviewed_by" %% for reviewed_by field
-
-    %% Junction Tables (Many-to-Many)
-    watchlist_assets }o--|| watchlists : "belongs_to"
     watchlist_assets }o--|| cryptocurrencies : "references"
-    watchlist_assets }o--|| users : "added_by"
-    watchlist_assets }o--|| users : "modified_by"
-
-    crypto_sector_mapping }o--|| cryptocurrencies : "maps_crypto"
-    crypto_sector_mapping }o--|| crypto_sectors : "maps_sector"
-
-    %% Alert Relationships
-    signal_alerts }o--|| users : "belongs_to"
+    ai_suggestions }o--|| cryptocurrencies : "suggests"
+    ai_suggestions }o--|| watchlists : "for"
     signal_alerts }o--|| cryptocurrencies : "monitors"
-
-    %% Notification Relationships  
-    notifications }o--|| users : "sent_to"
-
-    %% User Activity Tracking
-    user_activities }o--|| users : "performed_by"
-
-    %% Background System Relationships
-    external_api_logs : "standalone_logging"
-    system_health : "standalone_monitoring"
-    background_tasks : "standalone_task_management"
-    analytics_data : "standalone_analytics"
+    crypto_sector_mapping }o--|| crypto_sectors : "maps_to"
+    crypto_sector_mapping }o--|| cryptocurrencies : "maps_from"
 ```
+
+---
+
+## 📊 **Database Tables Summary**
+
+### **👤 User Management (4 tables):**
+```
+1. users                 - Core user accounts and authentication
+2. user_sessions         - Session management and security
+3. user_activities       - User activity tracking and analytics
+4. notifications         - User notification system
+```
+
+### **💰 Cryptocurrency Data (2 tables):**
+```
+1. cryptocurrencies      - Master cryptocurrency data
+2. price_data           - Historical and real-time price data
+```
+
+### **🌍 Layer 1: Macro Analysis (4 tables):**
+```
+1. market_regime_analysis - Bull/bear/sideways market classification
+2. market_sentiment_data  - Fear & Greed Index and social sentiment
+3. dominance_data        - BTC/ETH/ALT market dominance tracking
+4. macro_indicators      - VIX, DXY and other macro indicators
+```
+
+### **📊 Layer 2: Sector Analysis (4 tables):**
+```
+1. crypto_sectors        - 11 crypto sector definitions
+2. sector_performance    - Sector performance metrics
+3. sector_rotation_analysis - Money flow between sectors
+4. crypto_sector_mapping - Many-to-many crypto-sector relationships
+```
+
+### **📋 Layer 3: Asset Selection (3 tables):**
+```
+1. watchlists           - User and admin watchlist management
+2. watchlist_assets     - Assets within watchlists
+3. ai_suggestions       - AI-generated portfolio suggestions
+```
+
+### **⚡ Layer 4: Timing Signals (4 tables):**
+```
+1. trading_signals      - AI-generated trading signals
+2. signal_executions    - User signal execution tracking
+3. signal_alerts        - User-defined price and signal alerts
+4. risk_management      - User risk settings and exposure tracking
+```
+
+### **🤖 AI & ML Management (3 tables):**
+```
+1. ai_models           - AI model management and configuration
+2. model_performance   - Model accuracy and performance tracking
+3. predictions         - Unified prediction storage for all layers
+```
+
+### **🔧 System Management (5 tables):**
+```
+1. system_health       - System health monitoring and alerts
+2. analytics_data      - Usage analytics and KPI tracking
+3. external_api_logs   - External API call logging and monitoring
+4. background_tasks    - Background task execution tracking
+5. suggestion_feedback - User feedback on AI suggestions
+```
+
+### **📈 Total: 29 Tables Supporting:**
+```
+✅ Single UI Strategy with context-aware access
+✅ 4-Layer AI System with complete data flow
+✅ Admin Panel with comprehensive management
+✅ Real-time data updates and monitoring
+✅ Scalable architecture for future growth
+```
+
+---
+
+**📅 Last Updated:** September 4, 2025  
+**🎯 Purpose:** Complete ERD for Single UI Strategy  
+**✅ Status:** Ready for Table Creation Scripts Implementation
