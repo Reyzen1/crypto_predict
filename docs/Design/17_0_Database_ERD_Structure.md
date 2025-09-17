@@ -74,27 +74,46 @@ erDiagram
         int id PK "Primary key for cryptocurrency identification"
         varchar symbol UK "Unique trading symbol (BTC, ETH, etc.)"
         varchar name "Full cryptocurrency name"
-        varchar coingecko_id UK "Unique CoinGecko API identifier"
-        int market_cap_rank "Market capitalization ranking"
-        numeric current_price "Current price in USD"
-        numeric market_cap "Total market capitalization"
-        numeric total_volume "24h trading volume"
-        numeric circulating_supply "Circulating token supply"
-        numeric total_supply "Total token supply"
-        numeric max_supply "Maximum possible token supply"
-        numeric price_change_percentage_24h "24-hour price change percentage"
-        numeric price_change_percentage_7d "7-day price change percentage"
-        numeric price_change_percentage_30d "30-day price change percentage"
+        jsonb external_ids "Mapping of external API identifiers in JSON format.
+                        Keys = service names, Values = asset IDs in those services.
+                        Example:
+                        {
+                          'coingecko': 'bitcoin',
+                          'coinmarketcap': '1',
+                          'binance': 'BTCUSDT',
+                          'kraken': 'XBTUSD'
+                        }"
+        numeric(30,2) market_cap "Latest known total market capitalization in USD"
+        int market_cap_rank "Latest market capitalization ranking"
+        numeric(20,8) current_price "Latest known price in USD"
+        numeric(30,2) total_volume "Latest known 24h trading volume in USD"
+        numeric(30,8) circulating_supply "Current circulating token supply"
+        numeric(30,8) total_supply "Total token supply (may be NULL if unknown)"
+        numeric(30,8) max_supply "Maximum possible token supply (may be NULL if unlimited)"
+        numeric(10,4) price_change_percentage_24h "24-hour price change percentage"
+        numeric(10,4) price_change_percentage_7d "7-day price change percentage"
+        numeric(10,4) price_change_percentage_30d "30-day price change percentage"
         text description "Detailed cryptocurrency description"
-        varchar website_url "Official project website"
-        varchar blockchain_site "Blockchain explorer URL"
-        varchar whitepaper_url "Technical whitepaper URL"
-        varchar twitter_username "Official Twitter handle"
-        varchar telegram_channel "Official Telegram channel"
-        varchar subreddit_url "Official Reddit community"
-        jsonb github_repos "Array of GitHub repository URLs"
-        varchar contract_address "Smart contract address for tokens"
-        boolean is_active "Active status in our system"
+        text logo_url "URL to the cryptocurrency logo image"
+        jsonb links "All related URLs and addresses (website, explorer, whitepaper, twitter, telegram, reddit, github, contract, etc.)                  
+                Example:
+                 {
+                   'website': 'https://bitcoin.org',
+                   'explorer': 'https://www.blockchain.com/btc',
+                   'whitepaper': 'https://bitcoin.org/bitcoin.pdf',
+                   'twitter': 'https://twitter.com/bitcoin',
+                   'telegram': 'https://t.me/bitcoin',
+                   'reddit': 'https://reddit.com/r/bitcoin',
+                   'github': ['https://github.com/bitcoin/bitcoin'],
+                   'contract': '0x1234567890abcdef...'
+                 }"
+        jsonb timeframe_usage "Usage statistics per timeframe in JSON format.
+                            Keys = timeframe codes (e.g., '1m', '5m', '1h', '1d')
+                            Values = integer usage counts.
+                            Example:{'1m': 5, '5m': 12, '1h': 120, '4h': 45, '1d': 100}"
+        timestamp last_accessed_at "Last time this asset was accessed by any user"
+        int access_count "Total number of times this asset has been accessed"
+        boolean is_active "Whether this asset is active in our system"
         boolean is_supported "Whether we provide analysis for this asset"
         timestamp created_at "Record creation timestamp"
         timestamp updated_at "Last data update timestamp"
@@ -102,16 +121,42 @@ erDiagram
 
     price_data {
         int id PK "Primary key for price data records"
-        int crypto_id FK "Foreign key linking to cryptocurrencies table"
-        numeric open_price "Opening price for the time period"
-        numeric high_price "Highest price during the time period"
-        numeric low_price "Lowest price during the time period"
-        numeric close_price "Closing price for the time period"
-        numeric volume "Trading volume during the time period"
-        numeric market_cap "Market capitalization at this timestamp"
-        jsonb technical_indicators "Calculated technical indicators (RSI, MACD, etc.)"
+        int crypto_id FK "Foreign key linking to cryptocurrencies.id"
+        varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
+        numeric(20,8) open_price "Opening price for the time period in USD"
+        numeric(20,8) high_price "Highest price during the time period in USD"
+        numeric(20,8) low_price "Lowest price during the time period in USD"
+        numeric(20,8) close_price "Closing price for the time period in USD"
+        numeric(30,2) volume "Trading volume during the time period in USD"
+        numeric(30,2) market_cap "Market capitalization at this timestamp in USD"
+        numeric(30,8) circulating_supply "Circulating supply at this timestamp"
+        jsonb technical_indicators "Calculated technical indicators (RSI, MACD, etc.).
+                                    NULL if not stored for this asset/timeframe.
+                                    Example:
+                                    {
+                                    'RSI': 56.23,
+                                    'MACD': { 'value': -12.45, 'signal': -10.32, 'histogram': -2.13 },
+                                    'SMA': { '50': 45000.12, '200': 42000.55 },
+                                    'EMA': { '20': 45500.78, '100': 43000.44 }
+                                    }"
+        timestamp candle_time "Start time of the OHLC candle in UTC."
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
+    }
+
+    price_data_archive {
+        int id PK "Primary key for archived price data records"
+        int crypto_id FK "Foreign key linking to cryptocurrencies.id"
+        varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
+        numeric(20,8) open_price "Opening price for the time period in USD"
+        numeric(20,8) high_price "Highest price during the time period in USD"
+        numeric(20,8) low_price "Lowest price during the time period in USD"
+        numeric(20,8) close_price "Closing price for the time period in USD"
+        numeric(30,2) volume "Trading volume during the time period in USD"
+        numeric(30,2) market_cap "Market capitalization at this timestamp in USD"
+        jsonb technical_indicators "Calculated technical indicators (RSI, MACD, etc.).
+                                    Usually NULL for archived data unless specifically preserved."
+        timestamp candle_time "Start time of the OHLC candle in UTC."
+        timestamp created_at "Record creation timestamp"
     }
 
     %% Layer 1: Macro Analysis
