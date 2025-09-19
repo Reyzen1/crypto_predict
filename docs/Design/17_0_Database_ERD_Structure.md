@@ -70,10 +70,12 @@ erDiagram
     }
 
     %% Cryptocurrency Data
-    cryptocurrencies {
+    assets {
         int id PK "Primary key for cryptocurrency identification"
         varchar symbol UK "Unique trading symbol (BTC, ETH, etc.)"
         varchar name "Full cryptocurrency name"
+        varchar asset_type "Asset type (e.g., crypto, stablecoin, macro (for DXY, VIX, SP500, Gold, Oil, CPI, ...), index (for total, total2, total3, btc.d, usdt.d, altcoin index, ...))"
+        varchar quote_currency "For pairs, the quote currency (e.g., USDT)"
         jsonb external_ids "Mapping of external API identifiers in JSON format.
                         Keys = service names, Values = asset IDs in those services.
                         Example:
@@ -83,17 +85,6 @@ erDiagram
                           'binance': 'BTCUSDT',
                           'kraken': 'XBTUSD'
                         }"
-        numeric(30,2) market_cap "Latest known total market capitalization in USD"
-        int market_cap_rank "Latest market capitalization ranking"
-        numeric(20,8) current_price "Latest known price in USD"
-        numeric(30,2) total_volume "Latest known 24h trading volume in USD"
-        numeric(30,8) circulating_supply "Current circulating token supply"
-        numeric(30,8) total_supply "Total token supply (may be NULL if unknown)"
-        numeric(30,8) max_supply "Maximum possible token supply (may be NULL if unlimited)"
-        numeric(10,4) price_change_percentage_24h "24-hour price change percentage"
-        numeric(10,4) price_change_percentage_7d "7-day price change percentage"
-        numeric(10,4) price_change_percentage_30d "30-day price change percentage"
-        text description "Detailed cryptocurrency description"
         text logo_url "URL to the cryptocurrency logo image"
         jsonb links "All related URLs and addresses (website, explorer, whitepaper, twitter, telegram, reddit, github, contract, etc.)                  
                 Example:
@@ -107,6 +98,18 @@ erDiagram
                    'github': ['https://github.com/bitcoin/bitcoin'],
                    'contract': '0x1234567890abcdef...'
                  }"
+        text description "Detailed cryptocurrency description"
+
+        numeric(30,2) market_cap "Latest known total market capitalization in USD"
+        int market_cap_rank "Latest market capitalization ranking"
+        numeric(20,8) current_price "Latest known price in USD"
+        numeric(30,2) total_volume "Latest known 24h trading volume in USD"
+        numeric(30,8) circulating_supply "Current circulating token supply"
+        numeric(30,8) total_supply "Total token supply (may be NULL if unknown)"
+        numeric(30,8) max_supply "Maximum possible token supply (may be NULL if unlimited)"
+        numeric(10,4) price_change_percentage_24h "24-hour price change percentage"
+        numeric(10,4) price_change_percentage_7d "7-day price change percentage"
+        numeric(10,4) price_change_percentage_30d "30-day price change percentage"
         jsonb timeframe_usage "Usage statistics per timeframe in JSON format.
                             Keys = timeframe codes (e.g., '1m', '5m', '1h', '1d')
                             Values = integer usage counts.
@@ -121,7 +124,7 @@ erDiagram
 
     price_data {
         int id PK "Primary key for price data records"
-        int crypto_id FK "Foreign key linking to cryptocurrencies.id"
+        int asset_id FK "Foreign key linking to cryptocurrencies.id"
         varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
         numeric(20,8) open_price "Opening price for the time period in USD"
         numeric(20,8) high_price "Highest price during the time period in USD"
@@ -129,7 +132,6 @@ erDiagram
         numeric(20,8) close_price "Closing price for the time period in USD"
         numeric(30,2) volume "Trading volume during the time period in USD"
         numeric(30,2) market_cap "Market capitalization at this timestamp in USD"
-        numeric(30,8) circulating_supply "Circulating supply at this timestamp"
         jsonb technical_indicators "Calculated technical indicators (RSI, MACD, etc.).
                                     NULL if not stored for this asset/timeframe.
                                     Example:
@@ -145,7 +147,7 @@ erDiagram
 
     price_data_archive {
         int id PK "Primary key for archived price data records"
-        int crypto_id FK "Foreign key linking to cryptocurrencies.id"
+        int asset_id FK "Foreign key linking to cryptocurrencies.id"
         varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
         numeric(20,8) open_price "Opening price for the time period in USD"
         numeric(20,8) high_price "Highest price during the time period in USD"
@@ -161,44 +163,95 @@ erDiagram
 
     %% Layer 1: Macro Analysis
     market_regime_analysis {
-        int id PK "Primary key for market regime analysis"
-        varchar regime "bull/bear/sideways" 
-        numeric confidence_score "AI confidence score for regime classification (0-1)"
-        jsonb indicators "Market indicators used for regime detection"
-        jsonb analysis_data "Detailed analysis data and supporting metrics"
+        int id PK "Primary key for market regime analysis records"
+        varchar regime "Market regime classification ('Bull', 'Bear', 'Sideways')"
+        ***numeric(4,2) confidence_score "Confidence score for the regime classification (0 to 1)"
+        jsonb market_snapshot "Snapshot of key market metrics at analysis time.
+                            Example:
+                            {
+                                'btc_price': 68500.25,
+                                'btc_dominance': 52.3,
+                                'usdt_dominance': 7.1,
+                                'stablecoins_dominance': 10.9,
+                                'rsi': 62.4,
+                                'fear_greed_index': 68,
+                                'total_marketcap': 2100000000000,
+                                'total2_marketcap': 1250000000000,
+                                'total3_marketcap': 850000000000,
+                                'volume_24h_total': 145000000000,
+                                'trend_flags': {
+                                'price_above_ma200': true,
+                                'btc_dominance_trend': 'falling',
+                                'stablecoins_dominance_trend': 'flat'
+                                }
+                            }"
+        jsonb macro_snapshot "Snapshot of macroeconomic indicators at analysis time.
+                            Example:
+                            {
+                                'DXY': 101.52,
+                                'VIX': 14.2,
+                                'SP500': 5200.45,
+                                'Gold': 1925.3,
+                                'Oil': 78.6
+                            }"
+        ***jsonb metrics_detail "Additional and flexible market metrics (moving averages, MACD, volume metrics, altcoin indices, derivatives, correlations, etc.)"
+        jsonb analysis_data "Reasoning and notes for the regime classification.
+                            Example:
+                            {
+                            'rationale': [
+                                'BTC above MA200 and RSI>50',
+                                'TOTAL and TOTAL2 rising, BTC.D falling',
+                                'Fear & Greed in Greed zone',
+                                'DXY not in strong uptrend'
+                            ],
+                            'notes': 'Slightly higher allocation to alts; medium risk.'
+                            }"
+        varchar timeframe "Timeframe of the analysis (e.g., '1d', '1w', '1h')"
+        timestamp analysis_time "Timestamp when the analysis was performed"
         timestamp created_at "Record creation timestamp"
         timestamp updated_at "Last update timestamp"
     }
 
-    market_sentiment_data {
-        int id PK "Primary key for sentiment data"
-        numeric fear_greed_index "Fear & Greed Index value (0-100)"
-        numeric social_sentiment "Aggregated social media sentiment score"
-        jsonb sentiment_sources "Data from various sentiment sources (Twitter, Reddit, etc.)"
-        jsonb analysis_metrics "Detailed sentiment analysis metrics"
+تحلیل رژیم بازار
+
+الگوریتم یا مدل AI داده‌های snapshot و metrics_detail را پردازش می‌کند.
+
+خروجی: regime و confidence_score + دلایل در analysis_data
+
+
+    ***market_sentiment_data {
+        int id PK "Primary key for market sentiment records"
+        numeric(5,2) fear_greed_index "Fear & Greed Index value (0-100)"
+        numeric(5,2) social_sentiment "Aggregated social sentiment score (-1 to 1 or 0 to 1)"
+        ***jsonb sources "Detailed sentiment data from various sources.
+                    Example:
+                    {
+                        'twitter': 0.7,
+                        'reddit': 0.65,
+                        'google_trends': 0.55
+                    }"
+        ****jsonb analysis_metrics "Detailed sentiment analysis metrics"
+        varchar timeframe "Timeframe of the sentiment data (e.g., '1d', '1w')"
+        timestamp sentiment_time "Timestamp of the sentiment measurement"
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"        
     }
 
-    dominance_data {
-        int id PK "Primary key for dominance data"
-        numeric btc_dominance "Bitcoin market dominance percentage"
-        numeric eth_dominance "Ethereum market dominance percentage"
-        numeric alt_dominance "Altcoin market dominance percentage"
-        jsonb trend_analysis "Dominance trend analysis and patterns"
-        timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"        
-    }
 
-    macro_indicators {
-        int id PK "Primary key for macro indicators"
-        varchar indicator_name "Name of the macro indicator (VIX, DXY, etc.)"
-        numeric value "Current value of the indicator"
-        varchar timeframe "Timeframe for this indicator (1h, 4h, 1d, etc.)"
-        jsonb metadata "Additional metadata about the indicator"
-        timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"        
-    }
+***(اختیاری) onchain_metrics → داده‌های آن‌چین (Active Addresses، Exchange Flows، Whale Activity)
+
+***(اختیاری) derivatives_data → داده‌های بازار مشتقات (Funding Rate، Open Interest، Liquidations)
+
+***(اختیاری) event_calendar → رویدادهای مهم بازار (هاوینگ، آپدیت شبکه‌ها، اخبار کلان اقتصادی)
+
+لایه ۳ – تحلیل ترکیبی و خروجی‌ها (Composite Analysis Layer)
+اینجا خروجی‌های تحلیلی ساخته می‌شوند.
+
+market_regime_analysis → وضعیت کلی بازار (Bull / Bear / Sideways) + Confidence Score
+
+(اختیاری) market_health_index → شاخص ترکیبی سلامت بازار از چند فاکتور
+
+(اختیاری) trend_signals → سیگنال‌های روند (Trend Up, Trend Down, Consolidation)
+
 
     %% Layer 2: Sector Analysis
     crypto_sectors {
@@ -237,7 +290,7 @@ erDiagram
 
     crypto_sector_mapping {
         int id PK "Primary key for crypto-sector mapping"
-        int crypto_id FK "Foreign key linking to cryptocurrencies table"
+        int asset_id FK "Foreign key linking to cryptocurrencies table"
         int sector_id FK "Foreign key linking to crypto_sectors table"
         numeric allocation_percentage "Percentage allocation of crypto to this sector"
         boolean is_primary_sector "Whether this is the primary sector for the crypto"
@@ -263,7 +316,7 @@ erDiagram
     watchlist_assets {
         int id PK "Primary key for watchlist asset entries"
         int watchlist_id FK "Foreign key linking to watchlists table"
-        int crypto_id FK "Foreign key linking to cryptocurrencies table"
+        int asset_id FK "Foreign key linking to cryptocurrencies table"
         varchar position_type "Type of position type to watch: long, short"
         int position "Position/rank within the watchlist for ordering"
         text notes "User or admin notes about this asset inclusion"
@@ -277,7 +330,7 @@ erDiagram
     portfolio {
         int id PK
         int user_id FK "REFERENCES users(id) ON DELETE CASCADE"
-        int crypto_id FK "REFERENCES cryptocurrencies(id); only for crypto assets available in the system."
+        int asset_id FK "REFERENCES cryptocurrencies(id); only for crypto assets available in the system."
         varchar asset_symbol "NOT NULL; applies to both available and unavailable crypto assets."
         jsonb external_asset_info "for external assets"
         varchar asset_type "NOT NULL; 'Crypto Asset', 'Stablecoin', 'Long Position', 'Short Position'"
@@ -333,7 +386,7 @@ erDiagram
     %% Layer 4: Micro Timing
     trading_signals {
         int id PK "Primary key for trading signal identification"
-        int crypto_id FK "Cryptocurrency this signal applies to"
+        int asset_id FK "Cryptocurrency this signal applies to"
         (new) int prediction_id FK "Foreign key linking to predictions table"
         varchar signal_type "long/short; Type of trading signal: long or short position"
         numeric entry_price "Recommended entry price for the trade"
@@ -352,7 +405,7 @@ erDiagram
     %% Predictions (Unified for all layers)
     predictions {
         int id PK "Primary key for prediction tracking"
-        int crypto_id FK "Cryptocurrency being predicted"
+        int asset_id FK "Cryptocurrency being predicted"
         (new) int ai_models_id FK "AI model that generated this prediction"
         varchar prediction_type "Type of prediction: price, event, trend, etc."
         numeric predicted_price "Predicted price value"
@@ -414,7 +467,7 @@ erDiagram
     signal_alerts {
         int id PK "Primary key for signal alerts"
         int user_id FK "User who created this alert"
-        int crypto_id FK "Cryptocurrency this alert monitors"
+        int asset_id FK "Cryptocurrency this alert monitors"
         varchar alert_type "Alert type: price_target, signal_generated, volume_spike"
         numeric trigger_value "Value that triggers the alert"
         varchar condition "Condition: above, below, equals, percentage_change"
