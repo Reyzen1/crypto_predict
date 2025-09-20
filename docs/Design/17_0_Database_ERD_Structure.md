@@ -165,7 +165,6 @@ erDiagram
     market_regime_analysis {
         int id PK "Primary key for market regime analysis records"
         varchar regime "Market regime classification ('Bull', 'Bear', 'Sideways')"
-        ***numeric(4,2) confidence_score "Confidence score for the regime classification (0 to 1)"
         jsonb market_snapshot "Snapshot of key market metrics at analysis time.
                             Example:
                             {
@@ -195,6 +194,7 @@ erDiagram
                                 'Oil': 78.6
                             }"
         ***jsonb metrics_detail "Additional and flexible market metrics (moving averages, MACD, volume metrics, altcoin indices, derivatives, correlations, etc.)"
+        ai_models_id FK "Foreign key linking to ai_models table indicating which model generated this analysis"
         jsonb analysis_data "Reasoning and notes for the regime classification.
                             Example:
                             {
@@ -251,6 +251,12 @@ market_regime_analysis → وضعیت کلی بازار (Bull / Bear / Sideways)
 (اختیاری) market_health_index → شاخص ترکیبی سلامت بازار از چند فاکتور
 
 (اختیاری) trend_signals → سیگنال‌های روند (Trend Up, Trend Down, Consolidation)
+
+
+liquidations_long	numeric(30,2)	حجم لیکوییدیشن پوزیشن‌های لانگ
+liquidations_short	numeric(30,2)	حجم لیکوییدیشن پوزیشن‌های شورت
+orderbook_snapshot	jsonb	عمق بازار (bid/ask) در لحظه کندل
+volatility_index	numeric(10,4)	شاخص نوسان (مثلاً ATR یا HV)
 
 
     %% Layer 2: Sector Analysis
