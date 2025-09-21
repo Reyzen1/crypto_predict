@@ -162,194 +162,154 @@ erDiagram
     }
 
     %% Layer 1: Macro Analysis
-    market_regime_analysis {
-        int      id                         "Unique record ID"          
-        varchar  regime                     "Market regime: 'Bull','Bear','Sideways'"    
-        numeric(4,2) confidence_score      "AI confidence in regime (0–1)"              
-        varchar  timeframe                  "Analysis timeframe (e.g. '1d','1w')"        
-        timestamp analysis_time            "When this analysis ran"   
-        timestamp created_at               "Record created at"
-        timestamp updated_at               "Last updated at"
+    metrics_snapshot {
+        int                id                       "Primary key"  
+        timestamp          snapshot_time            "When snapshot is taken"  
+        varchar(10)        timeframe                "Interval ('1h','4h','1d')"  
+        numeric(18,2)      price                    "BTC price at snapshot time"
 
-        -- 📊 Technical (computed from free price feeds)
-        numeric(5,2)  rsi_14               "14-period RSI"            
-        numeric(30,8) sma_200              "200-period simple MA"     
-        numeric(30,8) ema_200              "200-period exponential MA"
+        -- 📊 Technical Indicators  
+        numeric(5,2)       rsi_14                   "14-period RSI"  
+        numeric(30,8)      sma_200                  "200-period simple MA"  
+        numeric(30,8)      ema_200                  "200-period exponential MA"  
 
-        -- 📈 Trend & Structure
-        numeric(5,2)  trend_strength_score "AI trend-strength score (0–1)"              
-        boolean       breakout_signal      "Breakout detected?"        
-        boolean       price_above_ma200    "Price > SMA200?"           
+        -- 🧠 Market Sentiment  
+        numeric(5,2)       fear_greed_index         "Fear & Greed Index (alternative.me)"  
+        numeric(5,2)       google_trends_score      "Google Trends score for 'Bitcoin'"  
 
-        -- 🧠 Market Sentiment (free sources)
-        numeric(5,2)  fear_greed_index     "Fear & Greed Index (alternative.me)"        
-        numeric(5,2)  google_trends_score "Google Trends interest for 'Bitcoin'"        
+        -- 🧪 Derivatives & Futures  
+        numeric(10,6)      funding_rate_btc         "BTC perpetual funding rate"  
+        numeric(30,2)      open_interest_btc        "BTC futures open interest"  
 
-        -- 🧪 Derivatives & Futures (exchange APIs, free)
-        numeric(10,6) funding_rate_btc     "BTC perpetual futures funding rate"         
-        numeric(30,2) open_interest_btc    "BTC futures open interest"
+        -- 🧬 On-chain & Whale Flows  
+        numeric(30,2)      whale_netflow_24h        "24h net flow whale→exchange"  
+        int                active_addresses_btc     "Daily active BTC addresses"  
 
-        -- 🧬 On-chain & Whale Flows (CryptoQuant Free / public explorers)
-        numeric(30,2) whale_netflow_24h    "24h net flow of whale addresses → exchanges"
-        int           active_addresses_btc "Daily active BTC addresses"
+        -- 🧮 Composite & Health  
+        numeric(5,2)       altcoin_dominance        "Altcoins’ market-cap dominance (%)"  
+        numeric(10,6)      liquidity_score          "24h volume / market-cap ratio"  
 
-        -- 🧮 Composite & Health
-        numeric(5,2)  altcoin_dominance    "Altcoins’ market-cap dominance (%)"         
+        -- 🧭 Cycle & Returns  
+        int                halving_countdown_days   "Days until next BTC halving"  
+        numeric(5,4)       weekly_return            "1-week return (%)"  
+        numeric(5,4)       monthly_return           "1-month return (%)"  
 
-        -- 🔗 Intermarket Correlations (from free price data)
-        numeric(5,2)  corr_btc_sp500_30d   "30-day BTC ↔ S&P500 correlation"            
-        numeric(5,2)  corr_btc_dxy_30d     "30-day BTC ↔ DXY correlation"               
+        -- ⭐ Dominance & Total Market-Cap Levels  
+        numeric(5,2)       btc_dominance            "BTC dominance (%)"  
+        numeric(5,2)       eth_dominance            "ETH dominance (%)"  
+        numeric(5,2)       usdt_dominance           "USDT dominance (%)"  
+        numeric(18,2)      total                    "Total market-cap (USD)"  
 
-        -- 🧭 Cycle & Temporal
-        int           halving_countdown_days "Days until next BTC halving"               
-        numeric(5,4)  weekly_return        "Weekly return (%)"        
-        numeric(5,4)  monthly_return       "Monthly return (%)"       
+        -- 🔗 Intermarket Levels  
+        numeric(10,2)      sp500                    "S&P500 closing price (USD)"  
+        numeric(10,2)      gold                     "Gold closing price (USD)"  
+        numeric(10,2)      dxy                      "DXY index closing value"  
 
-        -- 🤖 AI Signals & Meta
-        varchar       ai_regime_prediction "AI-predicted regime"       
-        numeric(4,2)  ai_confidence_score  "AI model confidence (0–1)"
-        numeric(4,2)  signal_agreement_score "Agreement across signals (0–1)"            
+        -- 📦 Liquidations
+        numeric(30,2)      liquidations_long        "24h total long-position liquidation volume (BTC)"
+        numeric(30,2)      liquidations_short       "24h total short-position liquidation volume (BTC)"
+        jsonb              liquidation_zones        "Liquidation Zones (JSON array of price-bins)
+                                                    [  
+                                                        {bin_low, bin_high, long_vol, short_vol}, …  
+                                                    ]"  
 
-        -- 📦 Extended Metrics (all medium/low-priority, categorized)
-        jsonb extended_metrics "
-        {
-            'technical_indicators': {
-                'rsi_7':               float,  // medium
-                'stochastic_k':        float,  // medium
-                'stochastic_d':        float,  // medium
-                'macd_value':          float,  // medium
-                'macd_signal':         float,  // medium
-                'macd_histogram':      float,  // medium
-                'sma_100':             float,  // medium
-                'sma_50':              float,  // medium
-                'sma_20':              float,  // low
-                'ema_100':             float,  // medium
-                'ema_50':              float,  // medium
-                'ema_20':              float,  // low
-                'bollinger_upper':     float,  // low
-                'bollinger_lower':     float,  // low
-                'bollinger_bandwidth': float,  // low
-                'atr_14':              float,  // low
-                'adx':                 float,  // medium
-                'di_plus':             float,  // low
-                'di_minus':            float   // low
-            },
-            'trend_metrics': {
-                'momentum_score':      float,  // medium
-                'consolidation_score': float   // low
-            },
-            'sentiment_metrics': {
-                'social_sentiment_score': float, // medium
-                'sentiment_direction':     string,// medium
-                'twitter_volume':          int,   // low
-                'reddit_volume':           int    // low
-            },
-            'derivatives_metrics': {
-                'funding_rate_eth':    float,  // medium
-                'open_interest_eth':   float,  // medium
-                'liquidations_long':   float,  // medium
-                'liquidations_short':  float,  // medium
-                'oi_change_24h':       float,  // low
-                'funding_rate_trend':  string  // medium
-            },
-            'onchain_metrics': {
-                'exchange_netflow_btc':    float,  // medium
-                'exchange_netflow_eth':    float,  // medium
-                'active_addresses_eth':    int,    // medium
-                'whale_to_exchange_volume_btc': float,  // medium
-                'whale_from_exchange_volume_btc': float, // medium
-                'supply_on_exchanges_btc': float,  // medium
-                'supply_on_exchanges_eth': float,  // medium
-                'tx_volume_btc':           float,  // medium
-                'tx_volume_eth':           float,  // medium
-                'miner_outflow':           float,  // low
-                'miner_balance_change':    float   // low
-            },
-            'composite_metrics': {
-                'liquidity_score':           float,  // medium
-                'volatility_index':          float,  // medium
-                'breadth_advancers_ratio':   float,  // medium
-                'breadth_new_highs_lows_ratio': float // medium
-            },
-            'correlation_metrics': {
-                'corr_eth_btc_30d':     float,  // medium
-                'corr_total2_btc_30d':  float   // medium
-            },
-            'cycle_metrics': {
-                'btc_epoch_phase':      string, // medium
-                'seasonality_score':    float   // low
-            },
-            'ai_metrics': {
-                'regime_volatility_score': float // medium
-            }
-        }"
-
-        jsonb analysis_data        "Analyst free-text notes & rationale"
+        -- 📦 Extended Metrics (categorized JSON of medium/low-priority signals)  
+        jsonb              extended_metrics         "{  
+            technical_indicators: {  
+                rsi_7, stochastic_k, stochastic_d,  
+                macd_value, macd_signal, macd_histogram,  
+                sma_100, sma_50, sma_20,  
+                ema_100, ema_50, ema_20,  
+                bollinger_upper, bollinger_lower, bollinger_bandwidth,  
+                atr_14, adx, di_plus, di_minus  
+            },  
+            trend_metrics: {  
+                momentum_score, consolidation_score  
+            },  
+            sentiment_metrics: {  
+                social_sentiment_score, sentiment_direction,  
+                twitter_volume, reddit_volume  
+            },  
+            derivatives_metrics: {  
+                funding_rate_eth, open_interest_eth,  
+                liquidations_long_24h, liquidations_short_24h,  
+                oi_change_24h, funding_rate_trend  
+            },  
+            onchain_metrics: {  
+                exchange_netflow_btc, exchange_netflow_eth,  
+                active_addresses_eth,  
+                whale_to_exchange_volume_btc, whale_from_exchange_volume_btc,  
+                supply_on_exchanges_btc, supply_on_exchanges_eth,  
+                tx_volume_btc, tx_volume_eth,  
+                miner_outflow, miner_balance_change  
+            },  
+            composite_metrics: {  
+                volatility_index, breadth_advancers_ratio,  
+                breadth_new_highs_lows_ratio  
+            },  
+            correlation_metrics: {  
+                corr_eth_btc_30d, corr_total2_btc_30d  
+            },  
+            cycle_metrics: {  
+                btc_epoch_phase, seasonality_score  
+            },  
+                ai_metrics: {  
+                regime_volatility_score  
+            }  
+        }"  
+        timestamp          created_at                 "Record creation timestamp"
+        timestamp          updated_at                 "Last update timestamp"
     }
         
+    market_regime_analysis {
+        int                id                         "Primary key"
+        int                metrics_snapshot_id        "FK → metrics_snapshot.id"
+        int                ai_model_id              "FK → ai_models.id"
 
-        jsonb analysis_data "Reasoning and notes for the regime classification.
+        timestamp          analysis_time              "When this analysis ran"
+        varchar(10)        regime                     "Detected regime: 'Bull','Bear','Sideways'"
+        numeric(4,2)       confidence_score           "AI confidence in regime (0–1)"
+
+        -- 📈 Trend & Breakout Signals
+        numeric(5,2)       trend_strength_score       "AI trend-strength (0–1)"
+        boolean            breakout_signal            "TRUE if price broke key technical level"
+        boolean            volume_confirmation        "TRUE if breakout volume ≥ X% above N-bar avg volume"
+        numeric(5,2)       volatility_expansion_score "Pct. increase in ATR or Bollinger width on breakout"
+        boolean            retest_confirmation        "TRUE if price retested and held breakout level within M bars"
+        numeric(5,2)       momentum_divergence_score  "Score of divergence between momentum indicator & price"
+        boolean            multi_timeframe_breakout   "TRUE if breakout confirmed on multiple timeframes"
+        boolean            price_above_ma200          "Price > 200-period SMA?"
+
+        -- 🔑 AI-Detected Key Levels (JSON array with strength)
+        jsonb              key_levels                 "Array of pivotal levels detected by AI:
+            [
+                {type:'support',    value:64200, strength:0.85},
+                {type:'support',    value:63000, strength:0.72},
+                {type:'resistance', value:67000, strength:0.67},
+                {type:'trendline',  points:[{x:'2025-09-20T12:00',y:65500},…], strength:0.60}
+            ]"
+
+        -- 🤖 AI Meta-Signals
+        varchar(10)        ai_regime_prediction       "AI-predicted regime"
+        numeric(4,2)       ai_confidence_score        "AI model confidence (0–1)"
+        numeric(4,2)       signal_agreement_score     "Ensemble agreement across signals (0–1)"
+        int                regime_duration_estimate   "Estimated duration of current regime in hours"
+
+        -- 📝 Analyst Notes & Rationale
+        jsonb              analysis_data              "Free-text or structured rationale"
                             Example:
                             {
-                            'rationale': [
-                                'BTC above MA200 and RSI>50',
-                                'TOTAL and TOTAL2 rising, BTC.D falling',
-                                'Fear & Greed in Greed zone',
-                                'DXY not in strong uptrend'
-                            ],
-                            'notes': 'Slightly higher allocation to alts; medium risk.'
-                            }"
-        varchar timeframe "Timeframe of the analysis (e.g., '1d', '1w', '1h')"
-        timestamp analysis_time "Timestamp when the analysis was performed"
-        timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
-    
-
-تحلیل رژیم بازار
-
-الگوریتم یا مدل AI داده‌های snapshot و metrics_detail را پردازش می‌کند.
-
-خروجی: regime و confidence_score + دلایل در analysis_data
-
-
-    ***market_sentiment_data {
-        int id PK "Primary key for market sentiment records"
-        numeric(5,2) fear_greed_index "Fear & Greed Index value (0-100)"
-        numeric(5,2) social_sentiment "Aggregated social sentiment score (-1 to 1 or 0 to 1)"
-        ***jsonb sources "Detailed sentiment data from various sources.
-                    Example:
-                    {
-                        'twitter': 0.7,
-                        'reddit': 0.65,
-                        'google_trends': 0.55
-                    }"
-        ****jsonb analysis_metrics "Detailed sentiment analysis metrics"
-        varchar timeframe "Timeframe of the sentiment data (e.g., '1d', '1w')"
-        timestamp sentiment_time "Timestamp of the sentiment measurement"
-        timestamp created_at "Record creation timestamp"
+                                'rationale': [
+                                    'BTC above MA200 and RSI>50',
+                                    'TOTAL and TOTAL2 rising, BTC.D falling',
+                                    'Fear & Greed in Greed zone',
+                                    'DXY not in strong uptrend'
+                                ],
+                                'notes': 'Slightly higher allocation to alts; medium risk.'
+                            }
+        timestamp          created_at                 "Record creation timestamp"
+        timestamp          updated_at                 "Last update timestamp"
     }
-
-
-***(اختیاری) onchain_metrics → داده‌های آن‌چین (Active Addresses، Exchange Flows، Whale Activity)
-
-***(اختیاری) derivatives_data → داده‌های بازار مشتقات (Funding Rate، Open Interest، Liquidations)
-
-***(اختیاری) event_calendar → رویدادهای مهم بازار (هاوینگ، آپدیت شبکه‌ها، اخبار کلان اقتصادی)
-
-لایه ۳ – تحلیل ترکیبی و خروجی‌ها (Composite Analysis Layer)
-اینجا خروجی‌های تحلیلی ساخته می‌شوند.
-
-market_regime_analysis → وضعیت کلی بازار (Bull / Bear / Sideways) + Confidence Score
-
-(اختیاری) market_health_index → شاخص ترکیبی سلامت بازار از چند فاکتور
-
-(اختیاری) trend_signals → سیگنال‌های روند (Trend Up, Trend Down, Consolidation)
-
-
-liquidations_long	numeric(30,2)	حجم لیکوییدیشن پوزیشن‌های لانگ
-liquidations_short	numeric(30,2)	حجم لیکوییدیشن پوزیشن‌های شورت
-orderbook_snapshot	jsonb	عمق بازار (bid/ask) در لحظه کندل
-volatility_index	numeric(10,4)	شاخص نوسان (مثلاً ATR یا HV)
 
 
     %% Layer 2: Sector Analysis
