@@ -163,38 +163,131 @@ erDiagram
 
     %% Layer 1: Macro Analysis
     market_regime_analysis {
-        int id PK "Primary key for market regime analysis records"
-        varchar regime "Market regime classification ('Bull', 'Bear', 'Sideways')"
-        jsonb market_snapshot "Snapshot of key market metrics at analysis time.
-                            Example:
-                            {
-                                'btc_price': 68500.25,
-                                'btc_dominance': 52.3,
-                                'usdt_dominance': 7.1,
-                                'stablecoins_dominance': 10.9,
-                                'rsi': 62.4,
-                                'fear_greed_index': 68,
-                                'total_marketcap': 2100000000000,
-                                'total2_marketcap': 1250000000000,
-                                'total3_marketcap': 850000000000,
-                                'volume_24h_total': 145000000000,
-                                'trend_flags': {
-                                'price_above_ma200': true,
-                                'btc_dominance_trend': 'falling',
-                                'stablecoins_dominance_trend': 'flat'
-                                }
-                            }"
-        jsonb macro_snapshot "Snapshot of macroeconomic indicators at analysis time.
-                            Example:
-                            {
-                                'DXY': 101.52,
-                                'VIX': 14.2,
-                                'SP500': 5200.45,
-                                'Gold': 1925.3,
-                                'Oil': 78.6
-                            }"
-        ***jsonb metrics_detail "Additional and flexible market metrics (moving averages, MACD, volume metrics, altcoin indices, derivatives, correlations, etc.)"
-        ai_models_id FK "Foreign key linking to ai_models table indicating which model generated this analysis"
+        int      id                         "Unique record ID"          
+        varchar  regime                     "Market regime: 'Bull','Bear','Sideways'"    
+        numeric(4,2) confidence_score      "AI confidence in regime (0–1)"              
+        varchar  timeframe                  "Analysis timeframe (e.g. '1d','1w')"        
+        timestamp analysis_time            "When this analysis ran"   
+        timestamp created_at               "Record created at"
+        timestamp updated_at               "Last updated at"
+
+        -- 📊 Technical (computed from free price feeds)
+        numeric(5,2)  rsi_14               "14-period RSI"            
+        numeric(30,8) sma_200              "200-period simple MA"     
+        numeric(30,8) ema_200              "200-period exponential MA"
+
+        -- 📈 Trend & Structure
+        numeric(5,2)  trend_strength_score "AI trend-strength score (0–1)"              
+        boolean       breakout_signal      "Breakout detected?"        
+        boolean       price_above_ma200    "Price > SMA200?"           
+
+        -- 🧠 Market Sentiment (free sources)
+        numeric(5,2)  fear_greed_index     "Fear & Greed Index (alternative.me)"        
+        numeric(5,2)  google_trends_score "Google Trends interest for 'Bitcoin'"        
+
+        -- 🧪 Derivatives & Futures (exchange APIs, free)
+        numeric(10,6) funding_rate_btc     "BTC perpetual futures funding rate"         
+        numeric(30,2) open_interest_btc    "BTC futures open interest"
+
+        -- 🧬 On-chain & Whale Flows (CryptoQuant Free / public explorers)
+        numeric(30,2) whale_netflow_24h    "24h net flow of whale addresses → exchanges"
+        int           active_addresses_btc "Daily active BTC addresses"
+
+        -- 🧮 Composite & Health
+        numeric(5,2)  altcoin_dominance    "Altcoins’ market-cap dominance (%)"         
+
+        -- 🔗 Intermarket Correlations (from free price data)
+        numeric(5,2)  corr_btc_sp500_30d   "30-day BTC ↔ S&P500 correlation"            
+        numeric(5,2)  corr_btc_dxy_30d     "30-day BTC ↔ DXY correlation"               
+
+        -- 🧭 Cycle & Temporal
+        int           halving_countdown_days "Days until next BTC halving"               
+        numeric(5,4)  weekly_return        "Weekly return (%)"        
+        numeric(5,4)  monthly_return       "Monthly return (%)"       
+
+        -- 🤖 AI Signals & Meta
+        varchar       ai_regime_prediction "AI-predicted regime"       
+        numeric(4,2)  ai_confidence_score  "AI model confidence (0–1)"
+        numeric(4,2)  signal_agreement_score "Agreement across signals (0–1)"            
+
+        -- 📦 Extended Metrics (all medium/low-priority, categorized)
+        jsonb extended_metrics "
+        {
+            'technical_indicators': {
+                'rsi_7':               float,  // medium
+                'stochastic_k':        float,  // medium
+                'stochastic_d':        float,  // medium
+                'macd_value':          float,  // medium
+                'macd_signal':         float,  // medium
+                'macd_histogram':      float,  // medium
+                'sma_100':             float,  // medium
+                'sma_50':              float,  // medium
+                'sma_20':              float,  // low
+                'ema_100':             float,  // medium
+                'ema_50':              float,  // medium
+                'ema_20':              float,  // low
+                'bollinger_upper':     float,  // low
+                'bollinger_lower':     float,  // low
+                'bollinger_bandwidth': float,  // low
+                'atr_14':              float,  // low
+                'adx':                 float,  // medium
+                'di_plus':             float,  // low
+                'di_minus':            float   // low
+            },
+            'trend_metrics': {
+                'momentum_score':      float,  // medium
+                'consolidation_score': float   // low
+            },
+            'sentiment_metrics': {
+                'social_sentiment_score': float, // medium
+                'sentiment_direction':     string,// medium
+                'twitter_volume':          int,   // low
+                'reddit_volume':           int    // low
+            },
+            'derivatives_metrics': {
+                'funding_rate_eth':    float,  // medium
+                'open_interest_eth':   float,  // medium
+                'liquidations_long':   float,  // medium
+                'liquidations_short':  float,  // medium
+                'oi_change_24h':       float,  // low
+                'funding_rate_trend':  string  // medium
+            },
+            'onchain_metrics': {
+                'exchange_netflow_btc':    float,  // medium
+                'exchange_netflow_eth':    float,  // medium
+                'active_addresses_eth':    int,    // medium
+                'whale_to_exchange_volume_btc': float,  // medium
+                'whale_from_exchange_volume_btc': float, // medium
+                'supply_on_exchanges_btc': float,  // medium
+                'supply_on_exchanges_eth': float,  // medium
+                'tx_volume_btc':           float,  // medium
+                'tx_volume_eth':           float,  // medium
+                'miner_outflow':           float,  // low
+                'miner_balance_change':    float   // low
+            },
+            'composite_metrics': {
+                'liquidity_score':           float,  // medium
+                'volatility_index':          float,  // medium
+                'breadth_advancers_ratio':   float,  // medium
+                'breadth_new_highs_lows_ratio': float // medium
+            },
+            'correlation_metrics': {
+                'corr_eth_btc_30d':     float,  // medium
+                'corr_total2_btc_30d':  float   // medium
+            },
+            'cycle_metrics': {
+                'btc_epoch_phase':      string, // medium
+                'seasonality_score':    float   // low
+            },
+            'ai_metrics': {
+                'regime_volatility_score': float // medium
+            }
+        }"
+
+        jsonb analysis_data        "Analyst free-text notes & rationale"
+    }
+        
+
         jsonb analysis_data "Reasoning and notes for the regime classification.
                             Example:
                             {
@@ -210,7 +303,7 @@ erDiagram
         timestamp analysis_time "Timestamp when the analysis was performed"
         timestamp created_at "Record creation timestamp"
         timestamp updated_at "Last update timestamp"
-    }
+    
 
 تحلیل رژیم بازار
 
