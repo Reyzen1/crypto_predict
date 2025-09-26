@@ -100,16 +100,22 @@ erDiagram
                  }"
         text description "Detailed cryptocurrency description"
 
+        numeric(20,8) current_price "Latest known price in USD"
         numeric(30,2) market_cap "Latest known total market capitalization in USD"
         int market_cap_rank "Latest market capitalization ranking"
-        numeric(20,8) current_price "Latest known price in USD"
-        numeric(30,2) total_volume "Latest known 24h trading volume in USD"
+        jsonb volume "{24h, change_24h, 7d, change_7d, 30d, change_30d}"
+        jsonb market_cap "{24h, change_24h, 7d, change_7d, 30d, change_30d}"
+        jsonb price_hist_abstract "{price_high_24h, price_high_time_24h, price_high_7d, price_high_time_7d, price_high_30d, price_high_time_30d,price_low_24h, price_low_time_24h, price_low_7d, price_low_time_7d, price_low_30d, price_low_time_30d, price_change_24h, price_change_7d, price_change_30d}"
+        numeric(30,2) volume_24h "Latest known 24h trading volume in USD"
+        numeric(20,8) market_cap_change_percentage_24h
         numeric(30,8) circulating_supply "Current circulating token supply"
         numeric(30,8) total_supply "Total token supply (may be NULL if unknown)"
         numeric(30,8) max_supply "Maximum possible token supply (may be NULL if unlimited)"
-        numeric(10,4) price_change_percentage_24h "24-hour price change percentage"
-        numeric(10,4) price_change_percentage_7d "7-day price change percentage"
-        numeric(10,4) price_change_percentage_30d "30-day price change percentage"
+        numeric(20,8) ath "all the time high price"
+        timestamp ath_date "all the time high price date"
+        numeric(20,8) atl "all the time low price"
+        timestamp atl_date: "all the time low price date"
+
         jsonb timeframe_usage "Usage statistics per timeframe in JSON format.
                             Keys = timeframe codes (e.g., '1m', '5m', '1h', '1d')
                             Values = integer usage counts.
@@ -315,9 +321,17 @@ erDiagram
     %% Layer 2: Sector Analysis
     crypto_sectors {
         int id PK "Primary key for crypto sectors"
+        varchar coingecko_id
         varchar name UK "Unique sector name (DeFi, Gaming, Infrastructure, etc.)"
         text description "Detailed description of the sector"
         jsonb characteristics "Sector characteristics and defining features"
+        jsonb volume "{24h, change_24h, 7d, change_7d, 30d, change_30d}"
+        jsonb market_cap "{24h, change_24h, 7d, change_7d, 30d, change_30d}"
+        jsonb top_3_coins_id "[
+            "bitcoin",
+            "ethereum",
+            "binancecoin"
+        ]",
         boolean is_active "Whether this sector is actively tracked"
         timestamp created_at "Record creation timestamp"
         timestamp updated_at "Last update timestamp"
