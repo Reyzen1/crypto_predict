@@ -76,45 +76,27 @@ erDiagram
         varchar name "Full cryptocurrency name"
         varchar asset_type "Asset type (e.g., crypto, stablecoin, macro (for DXY, VIX, SP500, Gold, Oil, CPI, ...), index (for total, total2, total3, btc.d, usdt.d, altcoin index, ...))"
         varchar quote_currency "For pairs, the quote currency (e.g., USDT)"
-        jsonb external_ids "Mapping of external API identifiers in JSON format.
-                        Keys = service names, Values = asset IDs in those services.
-                        Example:
-                        {
-                          'coingecko': 'bitcoin',
-                          'coinmarketcap': '1',
-                          'binance': 'BTCUSDT',
-                          'kraken': 'XBTUSD'
-                        }"
+        jsonb external_ids "External API identifiers in JSON format.
+                        Example:{'coingecko': 'bitcoin','coinmarketcap': '1'}"
         text logo_url "URL to the cryptocurrency logo image"
-        jsonb links "All related URLs and addresses (website, explorer, whitepaper, twitter, telegram, reddit, github, contract, etc.)                  
-                Example:
-                 {
-                   'website': 'https://bitcoin.org',
-                   'explorer': 'https://www.blockchain.com/btc',
-                   'whitepaper': 'https://bitcoin.org/bitcoin.pdf',
-                   'twitter': 'https://twitter.com/bitcoin',
-                   'telegram': 'https://t.me/bitcoin',
-                   'reddit': 'https://reddit.com/r/bitcoin',
-                   'github': ['https://github.com/bitcoin/bitcoin'],
-                   'contract': '0x1234567890abcdef...'
-                 }"
+        jsonb links "All related URLs and addresses (website, explorer, whitepaper, twitter, telegram, reddit, github, contract, etc.)"
         text description "Detailed cryptocurrency description"
 
-        numeric(20,8) current_price "Latest known price in USD"
         numeric(30,2) market_cap "Latest known total market capitalization in USD"
         int market_cap_rank "Latest market capitalization ranking"
-        jsonb volume "{24h, change_24h, 7d, change_7d, 30d, change_30d}"
-        jsonb market_cap "{24h, change_24h, 7d, change_7d, 30d, change_30d}"
-        jsonb price_hist_abstract "{price_high_24h, price_high_time_24h, price_high_7d, price_high_time_7d, price_high_30d, price_high_time_30d,price_low_24h, price_low_time_24h, price_low_7d, price_low_time_7d, price_low_30d, price_low_time_30d, price_change_24h, price_change_7d, price_change_30d}"
-        numeric(30,2) volume_24h "Latest known 24h trading volume in USD"
-        numeric(20,8) market_cap_change_percentage_24h
+        numeric(20,8) current_price "Latest known price in USD"
+        numeric(30,2) total_volume "24h trading volume in USD"
         numeric(30,8) circulating_supply "Current circulating token supply"
         numeric(30,8) total_supply "Total token supply (may be NULL if unknown)"
         numeric(30,8) max_supply "Maximum possible token supply (may be NULL if unlimited)"
+        numeric(10,4) price_change_percentage_24h "24-hour price change percentage"
+        numeric(10,4) price_change_percentage_7d "7-day price change percentage"
+        numeric(10,4) price_change_percentage_30d "30-day price change percentage"
         numeric(20,8) ath "all the time high price"
         timestamp ath_date "all the time high price date"
         numeric(20,8) atl "all the time low price"
-        timestamp atl_date: "all the time low price date"
+        timestamp atl_date "all the time low price date"
+        jsonb metrics_details "7 records for ohlv in 7d timeframe and so on.. "
 
         jsonb timeframe_usage "Usage statistics per timeframe in JSON format.
                             Keys = timeframe codes (e.g., '1m', '5m', '1h', '1d')
@@ -130,7 +112,7 @@ erDiagram
 
     price_data {
         int id PK "Primary key for price data records"
-        int asset_id FK "Foreign key linking to cryptocurrencies.id"
+        int asset_id FK "Foreign key linking to assets.id"
         varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
         numeric(20,8) open_price "Opening price for the time period in USD"
         numeric(20,8) high_price "Highest price during the time period in USD"
@@ -153,7 +135,7 @@ erDiagram
 
     price_data_archive {
         int id PK "Primary key for archived price data records"
-        int asset_id FK "Foreign key linking to cryptocurrencies.id"
+        int asset_id FK "Foreign key linking to assets.id"
         varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
         numeric(20,8) open_price "Opening price for the time period in USD"
         numeric(20,8) high_price "Highest price during the time period in USD"
@@ -274,7 +256,6 @@ erDiagram
 
         timestamp          analysis_time              "When this analysis ran"
         varchar(10)        regime                     "Detected regime: 'Bull','Bear','Sideways'"
-        numeric(4,2)       confidence_score           "AI confidence in regime (0–1)"
 
         -- 📈 Trend & Breakout Signals
         numeric(5,2)       trend_strength_score       "AI trend-strength (0–1)"
@@ -319,56 +300,197 @@ erDiagram
 
 
     %% Layer 2: Sector Analysis
-    crypto_sectors {
+    sectors {
         int id PK "Primary key for crypto sectors"
         varchar coingecko_id
         varchar name UK "Unique sector name (DeFi, Gaming, Infrastructure, etc.)"
         text description "Detailed description of the sector"
-        jsonb characteristics "Sector characteristics and defining features"
-        jsonb volume "{24h, change_24h, 7d, change_7d, 30d, change_30d}"
-        jsonb market_cap "{24h, change_24h, 7d, change_7d, 30d, change_30d}"
-        jsonb top_3_coins_id "[
-            "bitcoin",
-            "ethereum",
-            "binancecoin"
-        ]",
+        numeric(30,2) market_cap
+        numeric(30,2) market_cap_change_24h
+        numeric(30,2) volume_24h
+        jsonb metrics_details "7 records for ohlv in 7d timeframe and so on.. "
+        int[] top_3_coins_id "[bitcoin's PK, ethereum's PK, binancecoin's PK]",
         boolean is_active "Whether this sector is actively tracked"
         timestamp created_at "Record creation timestamp"
         timestamp updated_at "Last update timestamp"
     }
 
-    sector_performance {
-        int id PK "Primary key for sector performance data"
-        int sector_id FK "Foreign key linking to crypto_sectors table"
-        numeric performance_24h "24-hour sector performance percentage"
-        numeric performance_7d "7-day sector performance percentage"
-        numeric performance_30d "30-day sector performance percentage"
-        numeric volume_change "Volume change percentage for the sector"
-        numeric market_cap_change "Market cap change percentage for the sector"
-        jsonb performance_metrics "Detailed performance metrics and calculations"
+    sector_history {
+        int id PK "Primary key for sector history data"
+        int sector_id FK "Foreign key linking to sectors table"
+        varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
+        numeric(30,2) market_cap
+        numeric(30,2) volume_24h
+        jsonb technical_indicators "Calculated technical indicators (RSI, MACD, etc.).
+                                    NULL if not stored for this asset/timeframe.
+                                    Example:
+                                    {
+                                    'RSI': 56.23,
+                                    'MACD': { 'value': -12.45, 'signal': -10.32, 'histogram': -2.13 },
+                                    'SMA': { '50': 45000.12, '200': 42000.55 },
+                                    'EMA': { '20': 45500.78, '100': 43000.44 }
+                                    }"
+        timestamp candle_time "Timestamp of the candle in UTC."
         timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
     }
 
-    sector_rotation_analysis {
-        int id PK "Primary key for sector rotation analysis"
-        int from_sector_id FK "Sector where capital is rotating from"
-        int to_sector_id FK "Sector where capital is rotating to"
-        numeric rotation_strength "Strength of the rotation signal (0-1)"
-        numeric confidence_score "AI confidence in rotation analysis (0-1)"
-        jsonb rotation_indicators "Indicators supporting this rotation analysis"
-        timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last update timestamp"
-    }
-
-    crypto_sector_mapping {
+    sector_mapping {
         int id PK "Primary key for crypto-sector mapping"
-        int asset_id FK "Foreign key linking to cryptocurrencies table"
-        int sector_id FK "Foreign key linking to crypto_sectors table"
-        numeric allocation_percentage "Percentage allocation of crypto to this sector"
+        int asset_id FK "Foreign key linking to assets table"
+        int sector_id FK "Foreign key linking to sectors table"
         boolean is_primary_sector "Whether this is the primary sector for the crypto"
         timestamp created_at "Record creation timestamp"
         timestamp updated_at "Last update timestamp"
+    }
+
+    sector_analysis {
+        int id PK "Primary key for sector analysis record"
+        int metrics_snapshot_id FK "Foreign key linking to metrics_snapshot.id"
+        int ai_model_id FK "Foreign key linking to ai_models.id"
+        int sector_id FK "Foreign key linking to sectors.id (DeFi, L1, L2, NFT, AI, RWA, ...)"
+
+        varchar timeframe "Timeframe of the record (e.g., '1d', '7d', '30d')"
+        timestamp candle_time "Timestamp of the candle in UTC."
+        timestamp analysis_time "Timestamp when this analysis was executed"
+
+        -- 📈 Sector performance & returns
+        numeric(12,2) sector_market_cap "Total market capitalization of the sector (USD)"
+        numeric(12,2) sector_volume_24h "24h trading volume of the sector (USD)"
+        numeric(6,2) sector_dominance_pct "Sector share of the total crypto market (%)"
+        numeric(6,2) performance_24h_pct "Sector return in the last 24 hours (%)"
+        numeric(6,2) performance_7d_pct "Sector return in the last 7 days (%)"
+        numeric(6,2) performance_30d_pct "Sector return in the last 30 days (%)"
+
+        -- 🔄 Capital rotation & flows
+        numeric(6,2) rotation_inflow_score "AI score for capital inflow into the sector (0–1)"
+        numeric(6,2) rotation_outflow_score "AI score for capital outflow from the sector (0–1)"
+        numeric(6,2) relative_strength_score "Relative strength of the sector vs. BTC or total market (0–1)"
+
+        -- 💧 Liquidity & volatility
+        numeric(6,2) liquidity_score "Liquidity depth score (0–1)"
+        numeric(6,2) volatility_score "Volatility score (0–1)"
+
+        -- 📊 Correlation & narratives
+        numeric(6,2) correlation_with_btc "Correlation coefficient with BTC returns"
+        numeric(6,2) correlation_with_eth "Correlation coefficient with ETH returns"
+        varchar(50) narrative_tag[] "Array of dominant narrative: 'AI', 'RWA', 'DeFi Summer', 'NFT Boom', etc."
+
+        -- 🏦 Institutional & fundamental metrics
+        numeric(12,2) institutional_inflow "Estimated institutional inflows into the sector (USD)"
+        numeric(12,2) tvl_total "Total Value Locked (TVL) in the sector (USD)"
+        int active_users "Number of active users in the sector"
+        int active_protocols "Number of active protocols in the sector"
+
+        -- 🔑 AI key signals
+        jsonb key_signals "AI-detected key signals:
+            [
+                {type:'momentum_leader', value:true},
+                {type:'liquidity_surge', value:0.78},
+                {type:'rotation_inflow', value:0.85}
+            ]"
+
+        -- 🤖 AI meta-signals
+        varchar(20) ai_sector_outlook "AI outlook: 'Bullish','Bearish','Neutral'"
+        numeric(4,2) ai_confidence_score "AI model confidence score (0–1)"
+        numeric(4,2) signal_agreement_score "Agreement level across signals (0–1)"
+        int outlook_duration_estimate "Estimated duration of current outlook (hours)"
+
+        -- 📝 Analyst notes & rationale
+        jsonb analysis_data "Notes and rationale:
+            {
+                'rationale': [
+                    'DeFi TVL +15% in the past week',
+                    'Uniswap trading volume increased by 20%',
+                    'DeFi market cap share rose from 12% to 14%'
+                ],
+                'notes': 'Slightly higher allocation to DeFi short-term, medium risk.'
+            }"
+
+        timestamp created_at "Record creation timestamp"
+        timestamp updated_at "Last update timestamp"
+    }
+
+    cross_sector_analysis {
+        int id PK "Primary key for cross-sector analysis record"
+        int metrics_snapshot_id FK "Foreign key linking to metrics_snapshot.id"
+        int ai_model_id FK "Foreign key linking to ai_models.id"
+
+        timestamp analysis_time "Timestamp when this cross-sector analysis was executed"
+
+        -- 🔄 Sector rotation & comparative flows
+        jsonb sector_rotation_flows "Matrix of capital flows between sectors:
+            {
+            'DeFi→AI': 0.72,
+            'AI→NFT': 0.15,
+            'L1→RWA': 0.60
+            }"
+
+        jsonb sector_performance_ranking "Ranking of sectors by performance:
+            [
+            {sector:'AI', return_7d:12.5, rank:1},
+            {sector:'DeFi', return_7d:8.2, rank:2},
+            {sector:'NFT', return_7d:-3.1, rank:5}
+            ]"
+
+        -- 📈 Liquidity & volatility comparison
+        jsonb liquidity_comparison "Liquidity comparison across sectors:
+            { 'AI':0.85, 'DeFi':0.78, 'NFT':0.40 }"
+        jsonb volatility_comparison "Volatility comparison across sectors:
+            { 'AI':0.65, 'DeFi':0.55, 'NFT':0.90 }"
+
+        -- 🏦 Market share & dominance
+        jsonb dominance_distribution "Market share of each sector:
+            { 'BTC':48.2, 'DeFi':14.1, 'AI':6.5, 'NFT':2.3 }"
+
+        -- 🔍 Correlation between sectors
+        jsonb correlation_matrix "Correlation matrix of returns between sectors:
+            {
+            'DeFi': {'AI':0.72,'NFT':0.55},
+            'AI':   {'DeFi':0.72,'NFT':0.40}
+            }"
+
+        -- ⏳ Narrative trends
+        jsonb narrative_trends "Dominant narratives across sectors:
+            [
+            {sector:'AI', narrative:'AI Agents', strength:0.88},
+            {sector:'RWA', narrative:'Tokenized Treasuries', strength:0.75}
+            ]"
+
+        -- ⚖️ Risk/Reward comparison
+        jsonb risk_reward_map "Risk vs. reward comparison across sectors:
+            [
+            {sector:'AI', risk:0.8, reward:0.9},
+            {sector:'DeFi', risk:0.6, reward:0.7}
+            ]"
+
+        -- 🤖 AI meta-signals
+        varchar(20) ai_market_outlook "AI outlook for the overall crypto market: 'Bullish','Bearish','Neutral'"
+        numeric(4,2) ai_confidence_score "AI model confidence score (0–1)"
+        numeric(4,2) signal_agreement_score "Agreement level across AI signals (0–1)"
+        int outlook_duration_estimate "Estimated duration of current outlook (hours)"
+
+        -- 📝 Analyst notes & rationale
+        jsonb analysis_data "Notes and rationale:
+            {
+            'rationale': [
+                'Capital rotating from L1 into DeFi and AI',
+                'NFTs show low correlation with other sectors',
+                'RWA attracting institutional inflows'
+            ],
+            'notes': 'Portfolio allocation: overweight AI and DeFi, underweight NFT'
+            }"
+
+        timestamp created_at "Record creation timestamp"
+        timestamp updated_at "Last update timestamp"
+    }
+
+    sector_rotation_flows {
+        int id PK
+        int cross_sector_analysis_id FK "Link to cross_sector_analysis.id"
+        int from_sector_id FK "Source sector"
+        int to_sector_id FK "Destination sector"
+        numeric(6,2) score "Rotation score (0–1)"
+        timestamp created_at
     }
 
     %% Layer 3: Asset Selection
@@ -389,7 +511,7 @@ erDiagram
     watchlist_assets {
         int id PK "Primary key for watchlist asset entries"
         int watchlist_id FK "Foreign key linking to watchlists table"
-        int asset_id FK "Foreign key linking to cryptocurrencies table"
+        int asset_id FK "Foreign key linking to assets table"
         varchar position_type "Type of position type to watch: long, short"
         int position "Position/rank within the watchlist for ordering"
         text notes "User or admin notes about this asset inclusion"
@@ -403,7 +525,7 @@ erDiagram
     portfolio {
         int id PK
         int user_id FK "REFERENCES users(id) ON DELETE CASCADE"
-        int asset_id FK "REFERENCES cryptocurrencies(id); only for crypto assets available in the system."
+        int asset_id FK "REFERENCES assets(id); only for crypto assets available in the system."
         varchar asset_symbol "NOT NULL; applies to both available and unavailable crypto assets."
         jsonb external_asset_info "for external assets"
         varchar asset_type "NOT NULL; 'Crypto Asset', 'Stablecoin', 'Long Position', 'Short Position'"
@@ -666,76 +788,4 @@ erDiagram
     }
 
 
-    %% Core User Management Relationships
-    users ||--o{ user_sessions : "has"
-    users ||--o{ user_activities : "performs"  
-    users ||--o{ watchlists : "owns"
-    users ||--o{ portfolio : "manages"
-    users ||--o{ signal_alerts : "creates"
-    users ||--o{ notifications : "receives"
-    users }o--o{ users : "refers" %% self-referencing for referral system
-    users ||--o{ users : "deleted_by"
-    user_sessions ||--o{ user_activities : "includes"
-    
-    %% Cryptocurrency Core Relationships
-    cryptocurrencies ||--o{ price_data : "has"
-    cryptocurrencies ||--o{ watchlist_assets : "included_in"
-    cryptocurrencies ||--o{ predictions : "predicted_for"
-    cryptocurrencies ||--o{ trading_signals : "generates_signals_for"
-    cryptocurrencies ||--o{ crypto_sector_mapping : "belongs_to_sectors"
-    cryptocurrencies ||--o{ signal_alerts : "monitored_by_alerts"
-    cryptocurrencies ||--o{ portfolio : "held_in"
-
-    %% Portfolio & Trading Relationships
-    portfolio ||--o{ trade_actions : "has"
-    trade_actions }o--|| trading_signals : "based_on" %% optional relationship
-    
-    %% Sector Analysis Relationships  
-    crypto_sectors ||--o{ sector_performance : "has"
-    crypto_sectors ||--o{ crypto_sector_mapping : "contains"
-    crypto_sectors ||--o{ sector_rotation_analysis : "from_sector"
-    crypto_sectors ||--o{ sector_rotation_analysis : "to_sector"
-
-    %% Watchlist Relationships
-    watchlists ||--o{ watchlist_assets : "contains"
-    watchlists ||--o{ ai_recommendations : "targets" %% corrected from ai_suggestions
-
-    %% AI & ML Relationships
-    ai_models ||--o{ predictions : "generates"
-    ai_models ||--o{ model_performance : "evaluated_by"
-    
-    %% Predictions as Central Hub
-    predictions ||--o{ trading_signals : "generates"
-    predictions ||--o{ ai_recommendations : "basis_for"
-
-    %% Recommendation System
-    ai_recommendations }o--|| watchlists : "targets"
-    ai_recommendations }o--|| cryptocurrencies : "suggests"
-    ai_recommendations }o--|| predictions : "based_on"
-    ai_recommendations }o--|| users : "reviewed_by" %% for reviewed_by field
-
-    %% Junction Tables (Many-to-Many)
-    watchlist_assets }o--|| watchlists : "belongs_to"
-    watchlist_assets }o--|| cryptocurrencies : "references"
-    watchlist_assets }o--|| users : "added_by"
-    watchlist_assets }o--|| users : "modified_by"
-
-    crypto_sector_mapping }o--|| cryptocurrencies : "maps_crypto"
-    crypto_sector_mapping }o--|| crypto_sectors : "maps_sector"
-
-    %% Alert Relationships
-    signal_alerts }o--|| users : "belongs_to"
-    signal_alerts }o--|| cryptocurrencies : "monitors"
-
-    %% Notification Relationships  
-    notifications }o--|| users : "sent_to"
-
-    %% User Activity Tracking
-    user_activities }o--|| users : "performed_by"
-
-    %% Background System Relationships
-    external_api_logs : "standalone_logging"
-    system_health : "standalone_monitoring"
-    background_tasks : "standalone_task_management"
-    analytics_data : "standalone_analytics"
 ```
