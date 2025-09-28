@@ -6,18 +6,18 @@
 erDiagram
     %% Core User Management
     users {
-        int id PK "Primary key for user identification"
-        varchar email UK "Unique email address for authentication"
-        varchar password_hash "Hashed password for security"
+        int id PK "NOT NULL; rimary key for user identification"
+        varchar email UK "NOT NULL; Unique email address for authentication"
+        varchar password_hash "NOT NULL; Hashed password for security"
         varchar first_name "User's first name for personalization"
         varchar last_name "User's last name for personalization"
-        varchar role "default: public; User role: admin/public for access control"
-        boolean is_active "default: true; Account status for system access"
-        boolean is_verified "default: false; Email verification status"
+        varchar role "NOT NULL; default: public; User role: admin/public/guest for access control"
+        boolean is_active "NOT NULL; default: true; Account status for system access"
+        boolean is_verified "NOT NULL; default: false; Email verification status"
         int login_count "Total login count for engagement metrics"
         jsonb preferences "User preferences and settings in JSON format"
         varchar timezone "User's timezone for localized timestamps"
-        varchar language "User's preferred language (en, fa, etc.)"
+        varchar language "NOT NULL; default: en; User's preferred language (en, fa, etc.)"
         timestamp last_login "Last login time for activity tracking"  
         text bio "Short user biography or description"
         varchar profile_picture_url "URL to user's profile picture"
@@ -36,13 +36,13 @@ erDiagram
         text notes "Admin notes about the user"
         timestamp deleted_at "Soft delete timestamp for account deactivation"
         int deleted_by FK "User ID of admin who deleted/deactivated the account"
-        timestamp created_at "Account creation timestamp"
-        timestamp updated_at "Last profile update timestamp"
+        timestamp created_at "NOT NULL; default: Now(); Account creation timestamp"
+        timestamp updated_at "NOT NULL; default: Now(); Last profile update timestamp"
     }
 
     user_sessions {
-        int id PK "Primary key for session identification"
-        int user_id FK "Foreign key linking to users table"
+        int id PK "NOT NULL; Primary key for session identification"
+        int user_id FK "NOT NULL; Foreign key linking to users table"
         varchar session_token UK "Unique session token for authentication"
         varchar refresh_token "Token for session renewal"
         jsonb device_info "Device and browser information for security"
@@ -50,31 +50,30 @@ erDiagram
         boolean is_active "Session active status"
         timestamp expires_at "Session expiration time"
         timestamp last_used_at "Last activity timestamp for session management"
-        timestamp created_at "Session creation timestamp"
-        timestamp updated_at "Last activity timestamp for session management"
+        timestamp created_at "NOT NULL; default: Now(); Session creation timestamp"
+        timestamp updated_at "NOT NULL; default: Now(); Last activity timestamp for session management"
     }
 
     user_activities {
-        int id PK "Primary key for activity tracking"
-        int user_id FK "Foreign key linking to users table"
-        varchar activity_type "Type of user activity (login, watchlist_update, ai_interaction)"
+        int id PK "NOT NULL; Primary key for activity tracking"
+        int user_id FK "NOT NULL; Foreign key linking to users table"
+        int session_id FK "NOT NULL; Session identifier for activity correlation"
+        varchar activity_type "NOT NULL; Type of user activity (login, watchlist_update, ai_interaction)"
         varchar entity_type "Type of entity being interacted with (watchlist, asset, suggestion)"
         int entity_id "ID of the specific entity being acted upon"
-        varchar action "Specific action performed (create, update, delete, view)"
+        varchar action "NOT NULL; Specific action performed (create, update, delete, view)"
         jsonb details "Additional activity details in JSON format"
         inet ip_address "IP address for security and audit trail"
         text user_agent "Browser/device user agent string"
-        int session_id FK "Session identifier for activity correlation"
-        timestamp created_at "Activity timestamp for audit and analytics"
-        timestamp updated_at "Last update timestamp"
+        timestamp created_at "NOT NULL; default: Now(); Activity timestamp for audit and analytics"
     }
 
     %% Cryptocurrency Data
     assets {
-        int id PK "Primary key for cryptocurrency identification"
-        varchar symbol UK "Unique trading symbol (BTC, ETH, etc.)"
-        varchar name "Full cryptocurrency name"
-        varchar asset_type "Asset type (e.g., crypto, stablecoin, macro (for DXY, VIX, SP500, Gold, Oil, CPI, ...), index (for total, total2, total3, btc.d, usdt.d, altcoin index, ...))"
+        int id PK "NOT NULL; Primary key for cryptocurrency identification"
+        varchar symbol UK "NOT NULL; Unique trading symbol (BTC, ETH, etc.)"
+        varchar name "NOT NULL; Full cryptocurrency name"
+        varchar asset_type "NOT NULL; Asset type (e.g., crypto, stablecoin, macro (for DXY, VIX, SP500, Gold, Oil, CPI, ...), index (for total, total2, total3, btc.d, usdt.d, altcoin index, ...))"
         varchar quote_currency "For pairs, the quote currency (e.g., USDT)"
         jsonb external_ids "External API identifiers in JSON format.
                         Example:{'coingecko': 'bitcoin','coinmarketcap': '1'}"
@@ -104,15 +103,15 @@ erDiagram
                             Example:{'1m': 5, '5m': 12, '1h': 120, '4h': 45, '1d': 100}"
         timestamp last_accessed_at "Last time this asset was accessed by any user"
         int access_count "Total number of times this asset has been accessed"
-        boolean is_active "Whether this asset is active in our system"
-        boolean is_supported "Whether we provide analysis for this asset"
-        timestamp created_at "Record creation timestamp"
-        timestamp updated_at "Last data update timestamp"
+        boolean is_active "NOT NULL; default: true; Whether this asset is active in our system"
+        boolean is_supported "NOT NULL; default: true; Whether we provide analysis for this asset"
+        timestamp created_at "NOT NULL; default: Now(); Record creation timestamp"
+        timestamp updated_at "NOT NULL; default: Now(); Last data update timestamp"
     }
 
     price_data {
-        int id PK "Primary key for price data records"
-        int asset_id FK "Foreign key linking to assets.id"
+        int id PK "NOT NULL; Primary key for price data records"
+        int asset_id FK "NOT NULL; Foreign key linking to assets.id"
         varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
         numeric(20,8) open_price "Opening price for the time period in USD"
         numeric(20,8) high_price "Highest price during the time period in USD"
@@ -130,12 +129,12 @@ erDiagram
                                     'EMA': { '20': 45500.78, '100': 43000.44 }
                                     }"
         timestamp candle_time "Start time of the OHLC candle in UTC."
-        timestamp created_at "Record creation timestamp"
+        timestamp created_at "NOT NULL; default: Now(); Record creation timestamp"
     }
 
     price_data_archive {
-        int id PK "Primary key for archived price data records"
-        int asset_id FK "Foreign key linking to assets.id"
+        int id PK "NOT NULL; Primary key for archived price data records"
+        int asset_id FK "NOT NULL; Foreign key linking to assets.id"
         varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
         numeric(20,8) open_price "Opening price for the time period in USD"
         numeric(20,8) high_price "Highest price during the time period in USD"
@@ -146,7 +145,7 @@ erDiagram
         jsonb technical_indicators "Calculated technical indicators (RSI, MACD, etc.).
                                     Usually NULL for archived data unless specifically preserved."
         timestamp candle_time "Start time of the OHLC candle in UTC."
-        timestamp created_at "Record creation timestamp"
+        timestamp created_at "NOT NULL; default: Now(); Record creation timestamp"
     }
 
     %% Layer 1: Macro Analysis
