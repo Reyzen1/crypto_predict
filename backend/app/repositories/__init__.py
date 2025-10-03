@@ -1,26 +1,53 @@
-# File: backend/app/repositories/__init__.py
+# backend/app/repositories/__init__.py
 # Repository package initialization - exports all repositories
 
-from app.repositories.base import BaseRepository
-from app.repositories.user import UserRepository, user_repository
-from app.repositories.cryptocurrency import CryptocurrencyRepository, cryptocurrency_repository
-from app.repositories.price_data import PriceDataRepository, price_data_repository
-from app.repositories.prediction import PredictionRepository, prediction_repository
+from .base import BaseRepository
 
-# Export all repository classes
+# AI Repositories
+from .ai import (
+    AIModelRepository,
+    ModelPerformanceRepository,
+    ModelJobRepository
+)
+
+# Asset Repositories  
+from .asset import (
+    AssetRepository,
+    PriceDataRepository,
+    PriceDataArchiveRepository
+)
+
+# Macro Repositories
+from .macro import (
+    MetricsSnapshotRepository,
+    AIMarketRegimeAnalysisRepository
+)
+
+# User Repositories
+from .user import (
+    UserRepository
+)
+
+
 __all__ = [
-    # Base repository
+    # Base
     "BaseRepository",
     
-    # Repository classes
-    "UserRepository",
-    "CryptocurrencyRepository", 
-    "PriceDataRepository",
-    "PredictionRepository",
+    # AI
+    "AIModelRepository",
+    "ModelPerformanceRepository", 
+    "ModelJobRepository",
     
-    # Repository instances (ready to use)
-    "user_repository",
-    "cryptocurrency_repository",
-    "price_data_repository",
-    "prediction_repository"
+    # Asset
+    "AssetRepository",
+    "PriceDataRepository",
+    "PriceDataArchiveRepository",
+    
+    # Macro
+    "MetricsSnapshotRepository",
+    "AIMarketRegimeAnalysisRepository",
+    
+    # User
+    "UserRepository",
 ]
+

@@ -179,21 +179,42 @@ erDiagram
         -- This will be implemented in migration scripts
     }
 
-    **price_data_archive {
+    price_data_archive {
         int id PK "NOT NULL; Primary key for archived price data records"
         int asset_id FK "NOT NULL; Foreign key linking to assets.id"
-        varchar timeframe "Timeframe of the record (e.g., '1m', '5m', '1h', '1d')"
-        numeric(20,8) open_price "Opening price for the time period in USD"
-        numeric(20,8) high_price "Highest price during the time period in USD"
-        numeric(20,8) low_price "Lowest price during the time period in USD"
-        numeric(20,8) close_price "Closing price for the time period in USD"
-        numeric(30,2) volume "Trading volume during the time period in USD"
+        varchar(10) timeframe "NOT NULL; CHECK (timeframe IN ('1m','5m','15m','1h','4h','1d','1w','1M')); Timeframe of the record"
+        numeric(20,8) open_price "NOT NULL; Opening price for the time period in USD"
+        numeric(20,8) high_price "NOT NULL; Highest price during the time period in USD"
+        numeric(20,8) low_price "NOT NULL; Lowest price during the time period in USD"
+        numeric(20,8) close_price "NOT NULL; Closing price for the time period in USD"
+        numeric(30,2) volume "NOT NULL; default: 0; Trading volume during the time period in USD"
         numeric(30,2) market_cap "Market capitalization at this timestamp in USD"
-        jsonb technical_indicators "Calculated technical indicators (RSI, MACD, etc.).
-                                    Usually NULL for archived data unless specifically preserved."
-        timestamp candle_time "Start time of the OHLC candle in UTC."
+        int trade_count "Number of trades during the time period"
+        numeric(20,8) vwap "Volume Weighted Average Price during the period"
+        
+        jsonb technical_indicators "Calculated technical indicators"
+        
+        timestamp candle_time "NOT NULL; Start time of the OHLC candle in UTC"
+        boolean is_validated "NOT NULL; default: false; Whether data has been validated"
+        
         timestamp created_at "NOT NULL; default: Now(); Record creation timestamp"
         timestamp updated_at "NOT NULL; default: Now(); Last data update timestamp"
+        
+        -- 📋 Enhanced Constraints & Validations
+        CONSTRAINT chk_ohlc_logic_archive CHECK (low_price <= open_price AND low_price <= close_price AND high_price >= open_price AND high_price >= close_price)
+        CONSTRAINT chk_prices_positive_archive CHECK (open_price > 0 AND high_price > 0 AND low_price > 0 AND close_price > 0)
+        CONSTRAINT chk_volume_non_negative_archive CHECK (volume >= 0)
+        CONSTRAINT unique_asset_timeframe_candle_archive UNIQUE (asset_id, timeframe, candle_time)
+        
+        -- 📊 Performance Indexes
+        INDEX idx_price_data_archive_asset_timeframe_time (asset_id, timeframe, candle_time DESC)
+        INDEX idx_price_data_archive_candle_time (candle_time DESC)
+        INDEX idx_price_data_archive_timeframe (timeframe)
+        INDEX idx_price_data_archive_volume (volume DESC) WHERE volume > 0
+        
+        -- 🚀 Partitioning Strategy (PostgreSQL)
+        -- PARTITION BY RANGE (candle_time) - monthly partitions for archive
+        -- This will be implemented in migration scripts
     }
 
     %% Layer 1: Macro Analysis
@@ -341,7 +362,7 @@ erDiagram
 
         -- ⏰ Analysis Metadata
         timestamp          analysis_time              "NOT NULL; When this analysis was executed"
-        varchar(10)        analysis_timeframe         "NOT NULL; Analysis timeframe: '1h','4h','1d','1w'"
+        varchar(10)        analysis_timeframe         "NOT NULL; Analysis timeframe: '1h','4h','1d','1w', '1M'"
         varchar(20)        data_source                "NOT NULL; default: 'live'; Data source: live, backtest, simulation"
         
         -- 🎯 Regime Classification
@@ -1369,75 +1390,292 @@ erDiagram
         CONSTRAINT chk_prediction_count_positive CHECK (prediction_count >= 0)
     }
 
-    model_training_jobs {
-        int id PK "NOT NULL; Unique identifier for each training job"
+    model_performance {
+        int id PK "NOT NULL; Unique identifier for evaluation record"
         int model_id FK "NOT NULL; Foreign key to ai_models (specific model version)"
-        varchar job_status "NOT NULL; Job status: pending, running, completed, failed"
-        jsonb job_params "NOT NULL; Parameters and configuration for this training job"
-        numeric progress_percentage "NOT NULL; Progress of the training job (0-100)"
-        text log_output "Logs and output generated during training"
-        text error_message "Error message if the job failed"
-        timestamp started_at "When the training job started"
-        timestamp completed_at "When the training job completed"
-        numeric execution_time_seconds "Total execution time of the training job"
-        timestamp created_at "NOT NULL; default: Now(); Job creation timestamp"
-        timestamp updated_at "NOT NULL; default: Now(); Last update timestamp"
+        int source_job_id FK "Foreign key to model_jobs - links evaluation to the job that triggered it"
+        
+        -- � NOTE: Configuration, timing, and job details are accessed via source_job_id relationship
+        -- Use JOIN with model_jobs to get: job_params, started_at, completed_at, execution_time, etc.
+        
+        -- �📊 Evaluation Metadata (Non-redundant with model_jobs)
+        timestamp evaluation_date "NOT NULL; When this evaluation was performed"
+        varchar(50) evaluation_type "NOT NULL; Type: 'backtesting', 'forward_testing', 'cross_validation', 'live_performance', 'job_triggered'"
+        
+        -- 📈 Core Performance Metrics (کلیدی‌ترین metrics)
+        numeric(8,6) accuracy "Classification accuracy (0-1)"
+        numeric(8,6) precision_score "Precision score (0-1)"
+        numeric(8,6) recall "Recall score (0-1)"
+        numeric(8,6) f1_score "F1 score (0-1)"
+        
+        -- 💰 Trading Performance (مهم‌ترین برای crypto)
+        numeric(8,6) win_rate "Win rate percentage (0-1)"
+        numeric(10,4) profit_factor "Profit factor (gross profit / gross loss)"
+        numeric(10,6) sharpe_ratio "Risk-adjusted returns"
+        numeric(8,6) max_drawdown "Maximum drawdown percentage (0-1)"
+        numeric(10,4) total_return "Total return percentage"
+        
+        -- � Statistical Metrics
+        numeric mse "Mean Squared Error"
+        numeric mae "Mean Absolute Error"
+        numeric r2_score "R-squared score"
+        
+        -- 🔍 Evaluation Quality & Details
+        int sample_count "Number of samples/predictions evaluated"
+        numeric(6,4) confidence_avg "Average confidence score of predictions"
+        numeric(6,4) confidence_std "Standard deviation of confidence scores"
+        int true_positives "Count of true positive predictions"
+        int false_positives "Count of false positive predictions"
+        int true_negatives "Count of true negative predictions"
+        int false_negatives "Count of false negative predictions"
+        
+        -- 📊 Market Condition Context
+        varchar(20) market_regime "Market regime during evaluation: 'bull', 'bear', 'sideways', 'volatile'"
+        numeric(8,6) market_volatility "Average market volatility during period (0-1)"
+        numeric(10,4) btc_correlation "Correlation with BTC during evaluation period"
+        
+        -- 📝 Evaluation-Specific Details (Not available in model_jobs)
+        jsonb detailed_metrics "Detailed breakdown of all computed metrics and intermediate results"
+        jsonb evaluation_metadata "Evaluation-specific metadata (test dataset info, evaluation conditions, etc.)"
+        
+        -- 🎯 Pass/Fail Status & Grading
+        boolean meets_threshold "Whether performance meets minimum business thresholds"
+        varchar(2) performance_grade "Performance grade: 'A', 'B', 'C', 'D', 'F'"
+        numeric(6,4) overall_score "Computed overall performance score (0-1)"
+        varchar(20) evaluation_status "Status: 'completed', 'failed', 'partial', 'invalidated'"
+        
+        -- 📋 Analysis & Notes
+        text evaluation_notes "Detailed notes about this evaluation run"
+        text recommendations "Recommendations based on evaluation results"
+        
+        timestamp created_at "NOT NULL; default: Now(); Evaluation record creation time"
+        
+        -- � High-Performance Indexes
+        INDEX idx_perf_model_recent (model_id, evaluation_date DESC)
+        INDEX idx_perf_grade_threshold (performance_grade, meets_min_threshold, composite_score DESC)
+        INDEX idx_perf_trading_metrics (win_rate DESC, sharpe_ratio DESC, profit_factor DESC) WHERE meets_min_threshold = true
+        INDEX idx_perf_job_source (source_job_id, evaluation_date DESC) WHERE source_job_id IS NOT NULL
+        INDEX idx_perf_trigger_status (evaluation_trigger, evaluation_status, evaluation_date DESC)
+        INDEX idx_perf_quality_samples (total_samples DESC, valid_predictions DESC) WHERE evaluation_status = 'completed'
+        
+        -- ✅ Comprehensive Validation Constraints
+        CONSTRAINT chk_perf_ml_metrics CHECK (
+            accuracy IS NULL OR (accuracy >= 0 AND accuracy <= 1) AND
+            precision_score IS NULL OR (precision_score >= 0 AND precision_score <= 1) AND
+            recall IS NULL OR (recall >= 0 AND recall <= 1) AND
+            f1_score IS NULL OR (f1_score >= 0 AND f1_score <= 1) AND
+            auc_score IS NULL OR (auc_score >= 0 AND auc_score <= 1)
+        )
+        CONSTRAINT chk_perf_trading_metrics CHECK (
+            win_rate IS NULL OR (win_rate >= 0 AND win_rate <= 1) AND
+            max_drawdown IS NULL OR (max_drawdown >= 0 AND max_drawdown <= 1) AND
+            profit_factor IS NULL OR profit_factor >= 0
+        )
+        CONSTRAINT chk_perf_statistical_metrics CHECK (
+            r2_score IS NULL OR (r2_score >= -1 AND r2_score <= 1) AND
+            mse IS NULL OR mse >= 0 AND
+            mae IS NULL OR mae >= 0
+        )
+        CONSTRAINT chk_perf_sample_counts CHECK (
+            total_samples IS NULL OR total_samples > 0 AND
+            valid_predictions IS NULL OR (valid_predictions >= 0 AND valid_predictions <= total_samples)
+        )
+        CONSTRAINT chk_perf_confidence_metrics CHECK (
+            confidence_mean IS NULL OR (confidence_mean >= 0 AND confidence_mean <= 1) AND
+            confidence_std IS NULL OR confidence_std >= 0
+        )
+        CONSTRAINT chk_perf_composite_score CHECK (composite_score IS NULL OR (composite_score >= 0 AND composite_score <= 1))
+        CONSTRAINT chk_perf_market_volatility CHECK (market_volatility IS NULL OR (market_volatility >= 0 AND market_volatility <= 1))
+        
+        -- 🏷️ Enum Value Constraints
+        CONSTRAINT chk_perf_evaluation_trigger CHECK (evaluation_trigger IN ('job_completion', 'manual', 'scheduled', 'api_request'))
+        CONSTRAINT chk_perf_grade_valid CHECK (performance_grade IS NULL OR performance_grade IN ('A', 'B', 'C', 'D', 'F'))
+        CONSTRAINT chk_perf_market_regime CHECK (market_regime IS NULL OR market_regime IN ('bull', 'bear', 'sideways', 'volatile'))
+        CONSTRAINT chk_perf_status_valid CHECK (evaluation_status IN ('completed', 'failed', 'partial', 'invalidated'))
     }
 
-    model_prediction_jobs {
-        int id PK "NOT NULL; Unique identifier for each prediction job"
-        int model_id FK "NOT NULL; Foreign key to ai_models (specific model version)"
-        varchar job_status "NOT NULL; Job status: pending, running, completed, failed"
-        jsonb job_params "NOT NULL; Parameters and configuration for this prediction job"
-        numeric progress_percentage "NOT NULL; Progress of the prediction job (0-100)"
-        text log_output "Logs and output generated during prediction"
-        text error_message "Error message if the job failed"
-        timestamp started_at "When the prediction job started"
-        timestamp completed_at "When the prediction job completed"
-        numeric execution_time_seconds "Total execution time of the prediction job"
+    %% 🔗 OPTIMIZED DESIGN: model_jobs ↔ model_performance
+    %% ✅ model_jobs: Complete job lifecycle, configuration, execution, resources
+    %% ✅ model_performance: Pure evaluation results, metrics, grading
+    %% ✅ Zero redundancy: All job context via JOIN, performance data separate
+    %% ✅ Usage: JOIN tables to get complete picture of model training → evaluation
+    
+    model_jobs {
+        int id PK "NOT NULL; Unique identifier for model job"
+        int model_id FK "NOT NULL; Foreign key to ai_models"
+        
+        -- 🎯 Job Classification & Control
+        varchar(20) job_status "NOT NULL; pending, running, completed, failed, cancelled, paused"
+        varchar(15) job_category "NOT NULL; training, prediction, evaluation, optimization, deployment"
+        varchar(25) job_type "NOT NULL; Specific job type within category"
+        varchar(30) job_name "Human-readable job name/description"
+        
+        -- 📊 Execution Tracking
+        numeric(5,2) progress_pct "NOT NULL; default: 0; Job progress (0-100)"
+        varchar(20) current_phase "Current execution phase/stage"
+        int total_steps "Total number of steps in job (if applicable)"
+        int completed_steps "Number of completed steps"
+        
+        -- ⚙️ Comprehensive Job Configuration  
+        jsonb job_config "NOT NULL; Complete job configuration and parameters:
+            {
+                -- Training Jobs
+                'training_config': {
+                    'dataset_config': {
+                        'start_date': '2023-01-01',
+                        'end_date': '2024-12-31',
+                        'timeframe': '1h',
+                        'validation_split': 0.2
+                    },
+                    'hyperparameters': {
+                        'learning_rate': 0.001,
+                        'batch_size': 64,
+                        'epochs': 100,
+                        'early_stopping_patience': 10
+                    },
+                    'feature_config': {
+                        'technical_indicators': true,
+                        'market_regime_features': true,
+                        'sector_features': false
+                    }
+                },
+                -- Prediction Jobs
+                'prediction_config': {
+                    'start_date': '2024-01-01',
+                    'end_date': '2024-12-31',
+                    'timeframe': '1h',
+                    'assets': ['BTC', 'ETH', 'ADA'],
+                    'prediction_horizon': 24
+                },
+                'output_config': {
+                    'include_confidence': true,
+                    'include_probabilities': true,
+                    'export_format': 'json',
+                    'store_in_db': true
+                },
+                'filters': {
+                    'min_confidence_threshold': 0.7,
+                    'sector_filter': ['DeFi', 'L1'],
+                    'market_cap_min': 1000000000
+                }
+            }"
+        
+        -- � Real-time Metrics (Dynamic based on job category)
+        jsonb job_metrics "Real-time job metrics (structure varies by job category):
+            {
+                -- Training Jobs
+                'training_metrics': {
+                    'current_epoch': 45,
+                    'train_loss': 0.0234,
+                    'val_loss': 0.0267,
+                    'train_accuracy': 0.87,
+                    'val_accuracy': 0.83,
+                    'learning_rate': 0.0008,
+                    'time_per_epoch': 12.5
+                },
+                -- Prediction Jobs
+                'prediction_stats': {
+                    'total_samples': 10000,
+                    'processed_samples': 7500,
+                    'successful_predictions': 7200,
+                    'failed_predictions': 300,
+                    'avg_confidence': 0.82,
+                    'processing_rate_per_second': 15.6
+                },
+                -- Performance Metrics (All Jobs)
+                'resource_usage': {
+                    'peak_memory_mb': 2048,
+                    'avg_cpu_percent': 75,
+                    'avg_gpu_percent': 90,
+                    'disk_io_mb': 156
+                }
+            }"
+        
+        -- 📝 Logging & Monitoring
+        text log_output "Job logs and output (truncated for storage)"
+        text error_message "Detailed error message if the job failed"
+        
+        -- ⏱️ Timing Information
+        timestamp started_at "When the job actually started"
+        timestamp completed_at "When the job completed (success or failure)"
+        numeric execution_time_seconds "Total execution time of the job"
+        timestamp estimated_completion "Estimated completion time (updated during processing)"
+        
+        -- � Results & Output (Dynamic based on job category)
+        jsonb job_results "Job results and outputs:
+            {
+                -- Training Jobs
+                'model_output_path': '/models/BTC_LSTM_v2.1.0.pkl',
+                'final_metrics': {
+                    'final_accuracy': 0.87,
+                    'final_loss': 0.0234,
+                    'validation_score': 0.83
+                },
+                -- Prediction Jobs
+                'predictions_output_path': '/predictions/btc_predictions_20241003.json',
+                'sample_predictions': [
+                    {'asset': 'BTC', 'prediction': 'bull', 'confidence': 0.85, 'timestamp': '2024-10-03T10:00:00Z'}
+                ],
+                -- Performance Metrics
+                'performance_summary': {
+                    'throughput_per_minute': 850,
+                    'data_quality_score': 0.94,
+                    'success_rate': 0.96
+                }
+            }"
+        
+        -- 🔄 Scheduling & Recurrence (For prediction jobs mainly)
+        boolean is_recurring "Whether this is a recurring scheduled job"
+        varchar cron_schedule "Cron expression for recurring jobs (if applicable)"
+        timestamp next_run_time "Next scheduled execution time (for recurring jobs)"
+        
+        -- 👥 User & Administrative
+        int initiated_by FK "User/admin who started this job"
+        varchar priority "Job priority: low, normal, high, urgent"
+        int retry_count "Number of times this job has been retried"
+        int max_retries "Maximum number of retries allowed (default: 3)"
+        
+        -- 📊 Performance & Resource Management
+        jsonb resource_limits "Resource limits for this job:
+            {
+                'max_memory_mb': 4096,
+                'max_execution_seconds': 3600,
+                'max_cpu_percent': 80,
+                'max_gpu_percent': 95
+            }"
+        
         timestamp created_at "NOT NULL; default: Now(); Job creation timestamp"
         timestamp updated_at "NOT NULL; default: Now(); Last update timestamp"
+        
+        -- 📋 Enhanced Constraints & Indexes
+        CONSTRAINT chk_progress_range CHECK (progress_percentage >= 0 AND progress_percentage <= 100)
+        CONSTRAINT chk_retry_count CHECK (retry_count >= 0 AND retry_count <= max_retries)
+        CONSTRAINT chk_max_retries CHECK (max_retries >= 0 AND max_retries <= 10)
+        CONSTRAINT chk_job_category_valid CHECK (job_category IN ('training', 'prediction', 'evaluation', 'optimization'))
+        CONSTRAINT chk_cron_schedule_valid CHECK (cron_schedule IS NULL OR is_recurring = true)
+        
+        -- Indexes for Performance
+        INDEX idx_model_jobs_status_category (job_status, job_category, created_at DESC)
+        INDEX idx_model_jobs_model_type (model_id, job_category, job_status)
+        INDEX idx_model_jobs_priority_queue (priority DESC, created_at ASC) WHERE job_status = 'pending'
+        INDEX idx_model_jobs_recurring (is_recurring, next_run_time ASC) WHERE is_recurring = true
+        INDEX idx_model_jobs_monitoring (job_status, progress_percentage, updated_at DESC) WHERE job_status IN ('pending', 'running')
     }
     
-    model_feature_store {
-        int id PK "NOT NULL; Unique identifier for each feature record"
-        int model_id FK "NOT NULL; Foreign key to ai_models (specific model version)"
-        timestamp feature_time "NOT NULL; Timestamp of the feature data point"
-        jsonb feature_values "NOT NULL; Key-value pairs of feature names and their values"
-        varchar data_source "NOT NULL; Source of the feature data: market_data, sentiment_data, onchain_data"
-        varchar timeframe "Time interval of the feature data (e.g., 1m, 5m, 1h, 1d)"
-        boolean is_normalized "Indicates if features are normalized/scaled"
-        boolean is_missing "Indicates if any features are missing"
-        text notes "Free-form notes about this feature record"
-        timestamp created_at "NOT NULL; default: Now(); Feature record creation timestamp"
-        timestamp updated_at "NOT NULL; default: Now(); Last update timestamp"
-    }
 
-    model_audit_logs {
-        int id PK "NOT NULL; Unique identifier for each audit log entry"
-        int model_id FK "NOT NULL; Foreign key to ai_models (specific model version)"
-        varchar action_type "NOT NULL; Type of action: created, updated, trained, deployed, archived"
-        text action_details "NOT NULL; Detailed description of the action taken"
+    %% ❌ model_audit_logs - حذف شد برای MVP
+    %% 📝 فاز 2: اضافه می‌شود برای compliance و enterprise features
+    %% model_audit_logs {
+    %%     int id PK
+    %%     int model_id FK
+    %%     varchar action_type
+    %%     text action_details
         int performed_by FK "NOT NULL; User/admin who performed the action"
         jsonb previous_state "Snapshot of model state before the action"
         jsonb new_state "Snapshot of model state after the action"
         timestamp action_time "When the action was performed"
         timestamp created_at "NOT NULL; default: Now(); Audit log creation timestamp"
         timestamp updated_at "NOT NULL; default: Now(); Last update timestamp"
-    }
-
-    model_performance {
-        int id PK "NOT NULL; Unique identifier for performance record"
-        int model_id FK "NOT NULL; Foreign key to ai_models (specific model version)"
-        varchar evaluation_metric "Name of evaluation metric: accuracy, mse, mae, sharpe_ratio"
-        numeric metric_value "Value of the evaluation metric"
-        jsonb evaluation_data_range "Exact date range of data used for evaluation"
-        varchar evaluation_data_timeframe "Time interval between evaluation data points (e.g., 1m, 5m, 1h, 1d)"
-        int evaluated_predictions_count "Number of predictions evaluated in this assessment"
-        jsonb detailed_metrics "Detailed breakdown of performance metrics"
-        timestamp evaluation_date "Date when evaluation was performed"
-        timestamp created_at "NOT NULL; default: Now(); Record creation timestamp"
-        timestamp updated_at "NOT NULL; default: Now(); Last record update timestamp"
     }
 
     %% User Notifications & Feedback
@@ -1567,6 +1805,7 @@ erDiagram
     users ||--o{ signal_alerts : "sets alerts"
     users ||--o{ trade_actions : "executes trades"
     users ||--o{ recommendations : "receives recommendations"
+    users ||--o{ model_jobs : "initiates model jobs"
     
     %% Asset & Market Data
     assets ||--o{ price_data : "has price data"
@@ -1601,11 +1840,11 @@ erDiagram
     ai_models ||--o{ ai_portfolio_analysis : "analyzes portfolios"
     ai_models ||--o{ ai_portfolio_asset_analysis : "analyzes assets"
     ai_models ||--o{ ai_trading_signals : "generates signals"
-    ai_models ||--o{ model_training_jobs : "training jobs"
-    ai_models ||--o{ model_prediction_jobs : "prediction jobs"
-    ai_models ||--o{ model_feature_store : "feature data"
-    ai_models ||--o{ model_audit_logs : "audit logs"
-    ai_models ||--o{ model_performance : "performance data"
+    ai_models ||--o{ model_performance : "performance evaluations"
+    ai_models ||--o{ model_jobs : "model jobs"
+    
+    %% Job to Performance Relationship
+    model_jobs ||--o{ model_performance : "triggers evaluations"
     
     %% Portfolio Management
     portfolios ||--o{ portfolio_assets : "contains assets"

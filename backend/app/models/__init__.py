@@ -1,58 +1,49 @@
-# File: backend\app\models\__init__.py
-# SQLAlchemy model for   init   data
+# SQLAlchemy Models Package
+# CryptoPredict - Domain-based Model Structure
 
-from app.core.database import Base
+# Base classes and mixins
+from .base import Base, BaseModel, CreatedAtMixin, UpdatedAtMixin, TimestampMixin, IDMixin
+from .mixins import (
+    ActiveMixin, SoftDeleteMixin, UserTrackingMixin, 
+    ValidationMixin, AIAnalysisMixin, DataQualityMixin,
+    AccessTrackingMixin, UserPreferencesMixin, ExternalIdsMixin
+)
+from .enums import (
+    UserRole, AssetType, TimeframeEnum, MarketRegime,
+    JobStatus, ModelType, ModelStatus
+)
 
-# Core domain imports
-from .core.user import User, UserActivity
-from .core.crypto import Cryptocurrency
-from .core.price import PriceData
-from .core.prediction import Prediction
+# User Management
+from .user import User, UserSession, UserActivity
 
-# Market analysis domain
-from .market.regime import MarketRegimeAnalysis
-from .market.sentiment import MarketSentimentData
-from .market.dominance import DominanceData
-from .market.indicators import MacroIndicator
+# Asset Management  
+from .asset import Asset, PriceData, PriceDataArchive
 
-# Sectors domain
-from .sectors.sector import CryptoSector, CryptoSectorMapping
-from .sectors.performance import SectorPerformance
-from .sectors.rotation import SectorRotationAnalysis
+# AI Framework
+from .ai import AIModel, ModelPerformance, ModelJob
 
-# Trading domain
-from .trading.signal import TradingSignal
-from .trading.execution import SignalExecution
-from .trading.risk import RiskManagement
+# Layer 1: Macro Analysis
+from .macro import MetricsSnapshot, AIMarketRegimeAnalysis
 
-# Watchlist domain
-from .watchlist.watchlist import Watchlist, WatchlistItem
-from .watchlist.suggestion import AISuggestion
-from .watchlist.review import SuggestionReview
+# Layer 2: Sector Analysis
+from .sector import *
 
-# System domain
-from .system.ai_model import AIModel
-from .system.health import SystemHealth
-from .system.info import SystemInfo
-from .system.notification import Notification
+# Layer 3: Asset Selection & Management
+from .selection import *
 
-# All models for easy import
+# Layer 4: Trading Operations
+from .trading import *
+
 __all__ = [
-    # Core (4 models)
-    "User", "UserActivity", "Cryptocurrency", "PriceData", "Prediction",
+    # Base
+    "BaseModel",
+    "Base",
     
-    # Market (4 models)
-    "MarketRegimeAnalysis", "MarketSentimentData", "DominanceData", "MacroIndicator",
-    
-    # Sectors (4 models)
-    "CryptoSector", "CryptoSectorMapping", "SectorPerformance", "SectorRotationAnalysis",
-    
-    # Trading (3 models)
-    "TradingSignal", "SignalExecution", "RiskManagement",
-    
-    # Watchlist (4 models)
-    "Watchlist", "WatchlistItem", "AISuggestion", "SuggestionReview",
-    
-    # System (4 models)
-    "AIModel", "SystemHealth", "SystemInfo", "Notification",
+    # User models will be exported here
+    # Asset models will be exported here
+    # AI models will be exported here
+    # Macro models will be exported here
+    # Sector models will be exported here
+    # Selection models will be exported here
+    # Trading models will be exported here
 ]

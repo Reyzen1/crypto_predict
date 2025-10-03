@@ -1,8 +1,10 @@
-# File: backend\app\models\trading\__init__.py
-# SQLAlchemy model for module initialization
+# Layer 4: Trading Operations Models
+# Trading signals and actions
 
-from .signal import TradingSignal
-from .execution import SignalExecution  
-from .risk import RiskManagement
+# from .signals import AITradingSignal
+# from .actions import TradeAction
 
-__all__ = ["TradingSignal", "SignalExecution", "RiskManagement"]
+__all__ = [
+    # "AITradingSignal",
+    # "TradeAction"
+]
