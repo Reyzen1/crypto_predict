@@ -2,13 +2,13 @@
 # Price data management API endpoints with CRUD operations
 
 from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, get_optional_current_user
+from app.core.deps import get_current_active_user, get_optional_current_user, get_current_admin_user
 from app.schemas.price_data import (
     PriceDataCreate, PriceDataResponse, PriceDataWithCrypto, OHLCV,
     PriceHistoryRequest, PriceHistoryResponse, PriceStatistics,
@@ -24,22 +24,70 @@ from app.models import User
 router = APIRouter()
 
 
+# Helper functions
+def validate_timeframe(timeframe: str) -> str:
+    """
+    Validate timeframe parameter
+    
+    Args:
+        timeframe: Timeframe string to validate
+        
+    Returns:
+        Validated timeframe string
+        
+    Raises:
+        HTTPException: If timeframe is invalid
+    """
+    valid_timeframes = ['1h', '4h', '1d']
+    if timeframe not in valid_timeframes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid timeframe '{timeframe}'. Must be one of: {valid_timeframes}"
+        )
+    return timeframe
+
+
+def get_timeframe_limit(timeframe: str, days: int) -> int:
+    """
+    Calculate data point limit based on timeframe and days
+    
+    Args:
+        timeframe: Data timeframe (1h, 4h, 1d)
+        days: Number of days
+        
+    Returns:
+        Number of expected data points
+    """
+    timeframe_multipliers = {
+        '1h': 24,    # 24 hours per day
+        '4h': 6,     # 6 four-hour periods per day  
+        '1d': 1      # 1 day per day
+    }
+    
+    return days * timeframe_multipliers.get(timeframe, 1)
+
+
 @router.get("/", response_model=PaginatedResponse[PriceDataWithCrypto])
 def list_price_data(
     pagination: PaginationParams = Depends(),
     crypto_id: Optional[int] = Query(None, description="Filter by cryptocurrency ID"),
     start_date: Optional[datetime] = Query(None, description="Start date for filtering"),
     end_date: Optional[datetime] = Query(None, description="End date for filtering"),
+    timeframe: Optional[str] = Query(None, description="Data timeframe filter (1h, 4h, 1d)"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_current_user)
 ) -> Any:
     """
-    List price data with pagination and filtering
+    List price data with pagination and filtering including timeframe support
     
     Public endpoint - no authentication required.
-    Supports filtering by cryptocurrency and date range.
+    Supports filtering by cryptocurrency, date range, and timeframe.
     """
     try:
+        # Validate timeframe if provided
+        if timeframe:
+            timeframe = validate_timeframe(timeframe)
+        
         if crypto_id:
             # Get price history for specific cryptocurrency
             price_data = price_data_repository.get_price_history(
@@ -98,12 +146,12 @@ def list_price_data(
 def create_price_data(
     price_data: PriceDataCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Create new price data entry
     
-    Requires user authentication.
+    Requires admin authentication.
     Validates cryptocurrency existence.
     """
     try:
@@ -154,12 +202,12 @@ def create_price_data(
 def bulk_create_price_data(
     bulk_data: PriceDataBulkInsert,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Bulk insert price data
     
-    Requires user authentication.
+    Requires admin authentication.
     Efficient for importing large datasets.
     """
     try:
@@ -216,17 +264,21 @@ def bulk_create_price_data(
 def get_price_history(
     crypto_id: int,
     days: int = Query(30, description="Number of days of history"),
-    interval: str = Query("1d", description="Data interval (1h, 1d, 1w)"),
+    timeframe: str = Query("1d", description="Data timeframe (1h, 4h, 1d)"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_current_user)
 ) -> Any:
     """
-    Get price history for cryptocurrency
+    Get price history for cryptocurrency with timeframe support
     
     Public endpoint - no authentication required.
-    Returns OHLCV data for specified period.
+    Returns OHLCV data for specified period and timeframe.
+    Supports 1h (hourly), 4h (4-hourly), 1d (daily) timeframes.
     """
     try:
+        # Validate timeframe
+        timeframe = validate_timeframe(timeframe)
+        
         # Verify cryptocurrency exists
         crypto = cryptocurrency_repository.get(db, crypto_id)
         if not crypto:
@@ -235,9 +287,10 @@ def get_price_history(
                 detail="Cryptocurrency not found"
             )
         
-        # Calculate date range
+        # Calculate date range and expected data points
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
+        expected_points = get_timeframe_limit(timeframe, days)
         
         # Get price history using your existing repository
         price_history = price_data_repository.get_price_history(
@@ -272,7 +325,7 @@ def get_price_history(
             name=crypto.name,
             start_date=start_date,
             end_date=end_date,
-            interval=interval,
+            timeframe=timeframe,
             data_points=len(ohlcv_data),
             ohlcv_data=ohlcv_data
         )
@@ -290,16 +343,21 @@ def get_price_history(
 def get_price_statistics(
     crypto_id: int,
     days: int = Query(30, description="Number of days for statistics"),
+    timeframe: str = Query("1d", description="Data timeframe (1h, 4h, 1d)"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_current_user)
 ) -> Any:
     """
-    Get price statistics for cryptocurrency
+    Get price statistics for cryptocurrency with timeframe support
     
     Public endpoint - no authentication required.
-    Calculates various price metrics for specified period.
+    Calculates various price metrics for specified period and timeframe.
+    Supports 1h (hourly), 4h (4-hourly), 1d (daily) timeframes.
     """
     try:
+        # Validate timeframe
+        timeframe = validate_timeframe(timeframe)
+        
         # Verify cryptocurrency exists
         crypto = cryptocurrency_repository.get(db, crypto_id)
         if not crypto:
@@ -308,9 +366,10 @@ def get_price_statistics(
                 detail="Cryptocurrency not found"
             )
         
-        # Calculate date range
+        # Calculate date range and expected data points
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
+        expected_points = get_timeframe_limit(timeframe, days)
         
         # Get price history for calculations
         price_history = price_data_repository.get_price_history(
@@ -381,12 +440,12 @@ def get_ml_data(
     crypto_id: int,
     ml_request: MLDataRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Get price data formatted for ML training
     
-    Requires user authentication.
+    Requires admin authentication.
     Returns data in format suitable for machine learning models.
     """
     try:
@@ -442,12 +501,12 @@ def get_ml_data(
 def delete_price_data(
     price_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Delete price data entry
     
-    Requires user authentication.
+    Requires admin authentication.
     Use with caution as this affects historical data.
     """
     try:
@@ -483,4 +542,301 @@ def delete_price_data(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete price data"
+        )
+
+
+@router.post("/admin/fetch-asset-data", response_model=SuccessResponse)
+async def fetch_asset_price_data(
+    asset_id: int = Query(..., description="Asset ID to fetch data for"),
+    days: int = Query(30, description="Number of days of historical data", ge=1, le=365),
+    timeframe: str = Query("1d", description="Data timeframe (1d, 1h, 4h)"),
+    vs_currency: str = Query("usd", description="Base currency"),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Fetch and populate price data for a specific asset from CoinGecko
+    
+    Admin endpoint for populating historical price data.
+    Supports multiple timeframes: 1d (daily), 1h (hourly), 4h (4-hourly).
+    
+    Args:
+        asset_id: ID of the asset to fetch data for
+        days: Number of days of historical data (1-365)
+        timeframe: Data resolution (1d, 1h, 4h)
+        vs_currency: Base currency (default: usd)
+    
+    Returns:
+        Operation results with success status and record count
+    """
+    
+    # Validate timeframe
+    timeframe = validate_timeframe(timeframe)
+    
+    try:
+        # Import service
+        from app.services.price_data_service import get_price_data_service
+        
+        # Get service instance
+        price_service = get_price_data_service(db)
+        
+        # Populate asset price data
+        result = await price_service.populate_asset_price_data(
+            asset_id=asset_id,
+            days=days,
+            timeframe=timeframe,
+            vs_currency=vs_currency
+        )
+        
+        if result['success']:
+            return SuccessResponse(
+                message=result['message'],
+                data={
+                    "asset_id": result['asset_id'],
+                    "records_inserted": result['records_inserted'],
+                    "timeframe": result['timeframe'],
+                    "period_days": result['period_days']
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result.get('message', 'Failed to fetch price data')
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.post("/admin/batch-fetch", response_model=SuccessResponse)
+async def batch_fetch_price_data(
+    asset_ids: List[int] = Query(..., description="List of asset IDs"),
+    timeframe: str = Query("1d", description="Data timeframe"),
+    days: int = Query(1, description="Number of days to fetch", ge=1, le=30),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Batch fetch latest price data for multiple assets
+    
+    Admin endpoint for updating latest prices across multiple assets.
+    Useful for daily/hourly data refresh operations.
+    """
+    
+    try:
+        # Import service
+        from app.services.price_data_service import get_price_data_service
+        
+        # Get service instance
+        price_service = get_price_data_service(db)
+        
+        # Batch update prices
+        result = await price_service.fetch_and_update_latest_prices(
+            asset_ids=asset_ids,
+            timeframe=timeframe,
+            days=days
+        )
+        
+        return SuccessResponse(
+            message=f"Batch operation completed: {result['success_count']} successful, {result['failed_count']} failed",
+            data={
+                "success_count": result['success_count'],
+                "failed_count": result['failed_count'],
+                "total_assets": result['total_assets'],
+                "timeframe": result['timeframe'],
+                "errors": result['errors'][:10]  # Limit errors in response
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Batch operation failed: {str(e)}"
+        )
+
+
+@router.get("/{asset_id}/data-quality", response_model=dict)
+def get_asset_data_quality(
+    asset_id: int,
+    timeframe: str = Query("1d", description="Data timeframe"),
+    days: int = Query(7, description="Days to analyze"),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Get data quality report for an asset
+    
+    Returns comprehensive data quality metrics including:
+    - Completeness score
+    - Missing data gaps
+    - Data validation results
+    """
+    try:
+        # Import service
+        from app.services.price_data_service import get_price_data_service
+        
+        # Get service instance
+        price_service = get_price_data_service(db)
+        
+        # Get quality report
+        quality_report = price_service.get_data_quality_report(
+            asset_id=asset_id,
+            timeframe=timeframe,
+            days=days
+        )
+        
+        # Get data gaps
+        data_gaps = price_service.get_price_data_gaps(
+            asset_id=asset_id,
+            timeframe=timeframe,
+            days_back=days
+        )
+        
+        return {
+            "asset_id": asset_id,
+            "timeframe": timeframe,
+            "analysis_period_days": days,
+            "quality_report": quality_report,
+            "data_gaps": data_gaps,
+            "recommendations": _generate_quality_recommendations(quality_report, data_gaps)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate quality report: {str(e)}"
+        )
+
+
+def _generate_quality_recommendations(
+    quality_report: dict,
+    data_gaps: List[dict]
+) -> List[str]:
+    """Generate recommendations based on data quality analysis"""
+    recommendations = []
+    
+    quality_score = quality_report.get('quality_score', 0)
+    
+    if quality_score < 70:
+        recommendations.append("Data quality is poor. Consider refreshing historical data.")
+    
+    if quality_report.get('missing_price', 0) > 0:
+        recommendations.append("Missing price data detected. Fetch missing records.")
+    
+    if len(data_gaps) > 5:
+        recommendations.append("Multiple data gaps found. Run gap-filling process.")
+    
+    if quality_report.get('zero_prices', 0) > 0:
+        recommendations.append("Zero price values detected. Review data validation rules.")
+    
+    if not recommendations:
+        recommendations.append("Data quality is good. No immediate action required.")
+    
+    return recommendations
+
+
+# ============= TASK EXECUTION ENDPOINTS =============
+
+@router.post("/admin/tasks/fetch-daily", status_code=status.HTTP_202_ACCEPTED)
+def trigger_daily_price_fetch(
+    asset_id: Optional[int] = Body(None, description="Specific asset ID (optional)"),
+    timeframe: str = Body("1d", description="Timeframe (1d, 1h, 4h)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+) -> Any:
+    """
+    Trigger daily price data fetch task manually
+    
+    Admin only endpoint for manual task execution.
+    """
+    try:
+        from app.tasks.price_collector import fetch_daily_price_data
+        
+        # Execute task asynchronously
+        task = fetch_daily_price_data.delay(
+            asset_id=asset_id,
+            timeframe=timeframe
+        )
+        
+        return {
+            "message": "Daily price fetch task started",
+            "task_id": task.id,
+            "asset_id": asset_id,
+            "timeframe": timeframe,
+            "status": "started"
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to start daily price fetch task: {str(e)}"
+        )
+
+
+@router.post("/admin/tasks/fetch-historical", status_code=status.HTTP_202_ACCEPTED)
+def trigger_historical_price_fetch(
+    asset_id: int = Body(..., description="Asset ID"),
+    timeframe: str = Body("1d", description="Timeframe (1d, 1h, 4h)"),
+    days: int = Body(30, description="Number of days"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+) -> Any:
+    """
+    Trigger historical price data fetch task manually
+    
+    Admin only endpoint for manual historical data collection.
+    """
+    try:
+        from app.tasks.price_collector import fetch_historical_price_data
+        
+        # Execute task asynchronously
+        task = fetch_historical_price_data.delay(
+            asset_id=asset_id,
+            timeframe=timeframe,
+            days=days
+        )
+        
+        return {
+            "message": "Historical price fetch task started",
+            "task_id": task.id,
+            "asset_id": asset_id,
+            "timeframe": timeframe,
+            "days": days,
+            "status": "started"
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to start historical price fetch task: {str(e)}"
+        )
+
+
+@router.get("/admin/tasks/{task_id}/status")
+def get_task_status(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+) -> Any:
+    """
+    Get status of a price data task
+    
+    Admin only endpoint for task monitoring.
+    """
+    try:
+        from app.tasks.price_collector import get_task_status as get_status
+        
+        status_info = get_status(task_id)
+        
+        return status_info
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get task status: {str(e)}"
         )

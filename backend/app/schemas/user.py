@@ -60,7 +60,7 @@ class UserUpdate(BaseSchema):
     
     first_name: Optional[str] = Field(default=None, max_length=100, description="First name")
     last_name: Optional[str] = Field(default=None, max_length=100, description="Last name")
-    preferences: Optional[str] = Field(default=None, description="User preferences as JSON string")
+    preferences: Optional[dict] = Field(default=None, description="User preferences as dict (JSON)")
 
 
 class UserPasswordChange(BaseSchema):
@@ -114,7 +114,7 @@ class UserProfile(UserResponse):
     """Extended user profile schema"""
     
     last_login: Optional[datetime] = Field(default=None, description="Last login timestamp")
-    preferences: Optional[str] = Field(default=None, description="User preferences")
+    preferences: Optional[dict] = Field(default=None, description="User preferences")
     
     @property
     def full_name(self) -> str:

@@ -86,6 +86,32 @@ class TaskScheduler:
                 'options': {'queue': 'price_data'}
             }
             
+            # ============= NEW PRICE DATA SERVICE TASKS =============
+            
+            # Fetch daily price data every hour using PriceDataService
+            self.celery_app.conf.beat_schedule['fetch-daily-price-data-hourly'] = {
+                'task': 'app.tasks.price_collector.fetch_daily_price_data',
+                'schedule': crontab(minute=30),  # Every hour at minute 30
+                'kwargs': {'timeframe': '1d'},
+                'options': {'queue': 'price_data'}
+            }
+            
+            # Fetch hourly price data every 15 minutes for active trading
+            self.celery_app.conf.beat_schedule['fetch-hourly-price-data-15min'] = {
+                'task': 'app.tasks.price_collector.fetch_daily_price_data',
+                'schedule': crontab(minute='*/15'),  # Every 15 minutes
+                'kwargs': {'timeframe': '1h'},
+                'options': {'queue': 'price_data'}
+            }
+            
+            # Fetch 4-hour price data every 4 hours for medium-term analysis
+            self.celery_app.conf.beat_schedule['fetch-4hour-price-data'] = {
+                'task': 'app.tasks.price_collector.fetch_daily_price_data',
+                'schedule': crontab(minute=15, hour='*/4'),  # Every 4 hours at minute 15
+                'kwargs': {'timeframe': '4h'},
+                'options': {'queue': 'price_data'}
+            }
+            
             # ============= ML TASKS (NEW) =============
             
             # Auto train models - Weekly on Sunday at 1:00 AM

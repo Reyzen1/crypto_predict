@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 
 from app.models import User
 from app.schemas.user import UserRegister, UserLogin, Token
-from app.repositories import user_repository
+from app.repositories.user.user import UserRepository
 from app.core.security import security
 import logging
 
@@ -32,7 +32,8 @@ class AuthService:
             HTTPException: If email already exists or validation fails
         """
         # Check if user already exists
-        existing_user = user_repository.get_by_email(db, user_data.email)
+        user_repo = UserRepository(db)
+        existing_user = user_repo.get_by_email(user_data.email)
         if existing_user:
             detail_text=f"Email already registered: {user_data.email}"
             logger.warning(f"❌ HTTP_400_BAD_REQUEST Registration failed: {detail_text}")
@@ -44,15 +45,24 @@ class AuthService:
         # Hash password
         password_hash = security.hash_password(user_data.password)
         
-        # Create user using your existing repository
         try:
-            user = user_repository.create_user(
-                db,
-                email=user_data.email,
-                password_hash=password_hash,
-                first_name=user_data.first_name,
-                last_name=user_data.last_name
-            )
+            user_in = {
+                "email": user_data.email.strip().lower(),
+                "password_hash": password_hash,
+                "first_name": user_data.first_name,
+                "last_name": user_data.last_name,
+                "is_active": True,
+                "is_verified": False,
+                "role": "public"  # Set default role based on UserRole enum
+            }
+            
+            # Use the correct method name
+            user_repo = UserRepository(db)
+            user = user_repo.create_user(user_in)
+            
+            if not user:
+                raise Exception("Failed to create user")
+                
         except Exception as e:
             detail_text=f"Failed to create user: {user_data.email}"
             logger.warning(f"❌ HTTP_400_BAD_REQUEST Registration failed: {detail_text}")
@@ -73,8 +83,8 @@ class AuthService:
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "is_active": user.is_active,
-                "is_verified": user.is_verified,
-                "created_at": user.created_at
+                "is_verified": getattr(user, "is_verified", False),
+                "created_at": getattr(user, "created_at", None)
             },
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -96,13 +106,14 @@ class AuthService:
         Raises:
             HTTPException: If credentials are invalid
         """
-        # Get user by email using your existing repository
-        user = user_repository.get_by_email(db, login_data.email)
+        # Get user by email using repository
+        user_repo = UserRepository(db)
+        user = user_repo.get_by_email(login_data.email)
         if not user:
             detail_text=f"Invalid email or password: {login_data.email}"
-            logger.warning(f"🔐 HTTP_401_BAD_REQUEST: {detail_text}")
+            logger.warning(f"🔐 HTTP_401_UNAUTHORIZED: {detail_text}")
             raise HTTPException(
-                status_code=status.HTTP_401_BAD_REQUEST,
+                status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=detail_text
             )
         
@@ -129,9 +140,9 @@ class AuthService:
         access_token = security.create_access_token(token_data)
         refresh_token = security.create_refresh_token(token_data)
         
-        # Update last login time using your existing repository (optional)
+        # Update last login time using repository method
         try:
-            user_repository.update(db, db_obj=user, obj_in={"last_login": user.updated_at})
+            user_repo.update_last_login(user.id)
         except:
             pass  # Ignore last login update errors
         
@@ -142,13 +153,13 @@ class AuthService:
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "is_active": user.is_active,
-                "is_verified": user.is_verified,
-                "created_at": user.created_at
+                "is_verified": getattr(user, "is_verified", False),
+                "created_at": getattr(user, "created_at", None)
             },
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-            "expires_in": 30 * 60  # FIXED: Added missing expires_in (30 minutes in seconds)
+            "expires_in": 30 * 60
         }
 
     def refresh_access_token(self, db: Session, refresh_token: str) -> Token:
@@ -176,9 +187,10 @@ class AuthService:
                 detail=detail_text
             )
         
-        # Get user using your existing repository
+        # Get user using repository
         user_id = payload.get("user_id")
-        user = user_repository.get(db, user_id)
+        user_repo = UserRepository(db)
+        user = user_repo.get(user_id)
         if not user or not user.is_active:
             detail_text=f"User not found or inactive: user_id={user_id}"
             logger.warning(f"🔐 HTTP_401_UNAUTHORIZED: {detail_text}")
@@ -195,7 +207,7 @@ class AuthService:
         return Token(
             access_token=new_access_token,
             token_type="bearer",
-            expires_in=30 * 60  # 30 minutes in seconds
+            expires_in=30 * 60
         )
 
     def verify_user_email(self, db: Session, user_id: int) -> User:
@@ -212,7 +224,8 @@ class AuthService:
         Raises:
             HTTPException: If user not found
         """
-        user = user_repository.get(db, user_id)
+        user_repo = UserRepository(db)
+        user = user_repo.get(user_id)
         if not user:
             detail_text=f"User not found: user_id={user_id}"
             logger.warning(f"🔐 HTTP_404_NOT_FOUND: {detail_text}")
@@ -221,7 +234,15 @@ class AuthService:
                 detail=detail_text
             )
         
-        return user_repository.verify_user(db, user_id)
+        # Use repository's verify_user method
+        success = user_repo.verify_user(user_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to verify user"
+            )
+        
+        return user_repo.get(user_id)
 
     def change_password(
         self, 
@@ -257,10 +278,12 @@ class AuthService:
         # Hash new password
         new_password_hash = security.hash_password(new_password)
         
-        # Update password using your existing repository
-        user_repository.update(db, db_obj=user, obj_in={"password_hash": new_password_hash})
+        # Update password using repository
+        user_repo = UserRepository(db)
+        updates = {"password_hash": new_password_hash}
+        result = user_repo.batch_update_users([user.id], updates)
         
-        return True
+        return result['success'] > 0
 
 
 # Global auth service instance

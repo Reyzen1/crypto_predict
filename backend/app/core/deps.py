@@ -216,6 +216,25 @@ def get_current_superuser(
     return current_user
 
 
+def get_current_admin_user(
+    current_user: User = Depends(get_current_active_user)
+) -> User:
+    """
+    Get current admin user (must be admin or superuser)
+    """
+    # Import UserRole enum for comparison
+    from app.models.enums import UserRole
+    
+    # Check if user has admin role or is superuser
+    if not (current_user.is_superuser or current_user.role == UserRole.ADMIN.value):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    return current_user
+
+
 # Rate limiting dependency
 def get_rate_limit_key(
     request

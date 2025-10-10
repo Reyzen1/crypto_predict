@@ -137,23 +137,23 @@ class PriceHistoryRequest(BaseModel):
         le=3650, 
         description="Number of days of historical data"
     )
-    interval: str = Field(
-        default="daily", 
-        description="Data interval (hourly, daily, weekly)"
+    timeframe: str = Field(
+        default="1d", 
+        description="Data timeframe (1h, 4h, 1d)"
     )
     
-    @field_validator('interval')
+    @field_validator('timeframe')
     @classmethod
-    def validate_interval(cls, v):
-        """Validate data interval"""
-        valid_intervals = ["hourly", "daily", "weekly", "monthly"]
-        if v.lower() not in valid_intervals:
-            raise ValueError(f'Interval must be one of: {", ".join(valid_intervals)}')
-        return v.lower()
+    def validate_timeframe(cls, v):
+        """Validate data timeframe"""
+        valid_timeframes = ["1h", "4h", "1d"]
+        if v not in valid_timeframes:
+            raise ValueError(f'Timeframe must be one of: {", ".join(valid_timeframes)}')
+        return v
 
 
 class PriceHistoryResponse(BaseModel):
-    """Schema for price history responses"""
+    """Schema for price history responses - aligned with API endpoint"""
     
     model_config = ConfigDict(
         protected_namespaces=(),  
@@ -161,15 +161,17 @@ class PriceHistoryResponse(BaseModel):
     )
     
     crypto_id: int = Field(description="Cryptocurrency ID")
-    crypto_symbol: str = Field(description="Cryptocurrency symbol")
-    interval: str = Field(description="Data interval")
-    data: List[OHLCV] = Field(description="Historical price data")
-    count: int = Field(description="Number of data points")
-    date_range: Dict[str, datetime] = Field(description="Date range of data")
+    symbol: str = Field(description="Cryptocurrency symbol")
+    name: str = Field(description="Cryptocurrency name")
+    start_date: datetime = Field(description="Start date of data")
+    end_date: datetime = Field(description="End date of data")
+    timeframe: str = Field(description="Data timeframe")
+    data_points: int = Field(description="Number of data points")
+    ohlcv_data: List[OHLCV] = Field(description="Historical OHLCV data")
 
 
 class PriceStatistics(BaseSchema):
-    """Schema for price statistics"""
+    """Schema for price statistics - aligned with API endpoint"""
     
     model_config = ConfigDict(
         protected_namespaces=(),  
@@ -178,15 +180,20 @@ class PriceStatistics(BaseSchema):
     )
     
     crypto_id: int = Field(description="Cryptocurrency ID")
+    symbol: str = Field(description="Cryptocurrency symbol")
+    name: str = Field(description="Cryptocurrency name")
     period_days: int = Field(description="Analysis period in days")
-    avg_price: Decimal = Field(description="Average price")
-    min_price: Decimal = Field(description="Minimum price")
-    max_price: Decimal = Field(description="Maximum price")
-    total_volume: Decimal = Field(description="Total trading volume")
-    price_volatility: float = Field(description="Price volatility (standard deviation)")
-    price_change_percentage: float = Field(description="Total price change percentage")
     data_points: int = Field(description="Number of data points")
-    latest_price: Decimal = Field(description="Latest price")
+    current_price: Decimal = Field(description="Current/latest price")
+    min_price: Decimal = Field(description="Minimum price in period")
+    max_price: Decimal = Field(description="Maximum price in period")
+    avg_price: Decimal = Field(description="Average price in period")
+    price_change: Decimal = Field(description="Absolute price change")
+    price_change_percentage: float = Field(description="Price change percentage")
+    volatility: float = Field(description="Price volatility (standard deviation)")
+    avg_volume: Decimal = Field(description="Average trading volume")
+    start_date: datetime = Field(description="Analysis start date")
+    end_date: datetime = Field(description="Analysis end date")
 
 
 class MLDataRequest(BaseModel):
@@ -223,7 +230,7 @@ class MLDataRequest(BaseModel):
 
 
 class MLDataResponse(BaseModel):
-    """Schema for ML model data responses"""
+    """Schema for ML model data responses - aligned with API endpoint"""
     
     model_config = ConfigDict(
         protected_namespaces=(),  
@@ -231,11 +238,14 @@ class MLDataResponse(BaseModel):
     )
     
     crypto_id: int = Field(description="Cryptocurrency ID")
-    data_points: int = Field(description="Number of data points")
+    symbol: str = Field(description="Cryptocurrency symbol")
+    name: str = Field(description="Cryptocurrency name")
+    start_date: datetime = Field(description="Data start date")
+    end_date: datetime = Field(description="Data end date")
     features: List[str] = Field(description="Features included")
-    date_range: Dict[str, datetime] = Field(description="Date range of data")
-    data: List[Dict[str, Any]] = Field(description="ML-ready data")
-    statistics: Dict[str, Any] = Field(description="Data statistics")
+    data_points: int = Field(description="Number of data points")
+    ml_data: List[Dict[str, Any]] = Field(description="ML-ready data")
+    preprocessing_notes: List[str] = Field(description="Preprocessing information")
 
 
 class PriceAlert(BaseSchema):
@@ -264,7 +274,7 @@ class PriceAlert(BaseSchema):
 
 
 class PriceDataBulkInsert(BaseModel):
-    """Schema for bulk price data insertion"""
+    """Schema for bulk price data insertion - aligned with API endpoint"""
     
     model_config = ConfigDict(
         protected_namespaces=(),  
@@ -272,7 +282,8 @@ class PriceDataBulkInsert(BaseModel):
         validate_assignment=True
     )
     
-    price_data: List[PriceDataCreate] = Field(
+    crypto_id: int = Field(gt=0, description="Cryptocurrency ID for all records")
+    price_data: List[PriceDataBase] = Field(
         min_length=1, 
         max_length=1000, 
         description="List of price data to insert"
@@ -298,6 +309,96 @@ class PriceDataAnalytics(BaseSchema):
     
     crypto_id: int = Field(description="Cryptocurrency ID")
     analysis_period: int = Field(description="Analysis period in days")
+
+
+class AssetPriceDataFetchRequest(BaseSchema):
+    """Schema for asset price data fetch request"""
+    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True,
+        validate_assignment=True
+    )
+    
+    asset_id: int = Field(gt=0, description="Asset ID")
+    days: int = Field(default=30, ge=1, le=365, description="Number of days")
+    timeframe: str = Field(default="1d", description="Data timeframe")
+    vs_currency: str = Field(default="usd", description="Base currency")
+    
+    @field_validator('timeframe')
+    @classmethod
+    def validate_timeframe(cls, v):
+        """Validate timeframe - aligned with API endpoints"""
+        valid_timeframes = ['1h', '4h', '1d']
+        if v not in valid_timeframes:
+            raise ValueError(f'Timeframe must be one of: {", ".join(valid_timeframes)}')
+        return v
+
+
+class AssetPriceDataFetchResponse(BaseSchema):
+    """Schema for asset price data fetch response"""
+    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True
+    )
+    
+    success: bool = Field(description="Operation success")
+    asset_id: int = Field(description="Asset ID")
+    records_inserted: int = Field(description="Number of records inserted")
+    timeframe: str = Field(description="Data timeframe")
+    period_days: int = Field(description="Period in days")
+    message: str = Field(description="Operation message")
+
+
+class BatchPriceDataFetchResponse(BaseSchema):
+    """Schema for batch price data fetch response"""
+    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True
+    )
+    
+    success_count: int = Field(description="Successful operations")
+    failed_count: int = Field(description="Failed operations")
+    total_assets: int = Field(description="Total assets processed")
+    timeframe: str = Field(description="Data timeframe")
+    errors: List[str] = Field(description="Error messages")
+
+
+class DataQualityReport(BaseSchema):
+    """Schema for data quality report"""
+    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True
+    )
+    
+    asset_id: int = Field(description="Asset ID")
+    timeframe: str = Field(description="Data timeframe")
+    analysis_period_days: int = Field(description="Analysis period")
+    total_records: int = Field(description="Total records")
+    missing_price: int = Field(description="Missing price records")
+    missing_volume: int = Field(description="Missing volume records")
+    zero_prices: int = Field(description="Zero price records")
+    data_gaps: int = Field(description="Number of data gaps")
+    quality_score: float = Field(description="Quality score (0-100)")
+    quality_grade: str = Field(description="Quality grade (A-F)")
+    recommendations: List[str] = Field(description="Improvement recommendations")
+
+
+class PriceDataGap(BaseSchema):
+    """Schema for price data gap information"""
+    
+    model_config = ConfigDict(
+        protected_namespaces=(),  
+        str_strip_whitespace=True
+    )
+    
+    start: str = Field(description="Gap start time")
+    end: str = Field(description="Gap end time")
+    duration_minutes: float = Field(description="Gap duration in minutes")
+    expected_minutes: int = Field(description="Expected interval in minutes")
     trend_analysis: Dict[str, Any] = Field(description="Trend analysis results")
     support_levels: List[Decimal] = Field(description="Identified support levels")
     resistance_levels: List[Decimal] = Field(description="Identified resistance levels")

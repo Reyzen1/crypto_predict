@@ -1,4 +1,4 @@
-# backend/app/repositories/user/user.py
+﻿# backend/app/repositories/user/user.py
 # Repository for user management
 
 from typing import List, Optional, Dict, Any
@@ -34,14 +34,9 @@ class UserRepository(BaseRepository):
             return None
     
     def get_by_username(self, username: str) -> Optional[User]:
-        """Get user by username"""
-        try:
-            if not username or not username.strip():
-                return None
-            return self.db.query(User).filter(User.username == username.strip()).first()
-        except SQLAlchemyError as e:
-            logger.error(f"Error getting user by username {username}: {str(e)}")
-            return None
+        """Get user by username - Not available since User model doesn't have username field"""
+        logger.warning("get_by_username called but User model doesn't have username field")
+        return None
     
     def get_active_users(self, skip: int = 0, limit: int = 100) -> List[User]:
         """Get active users with pagination"""
@@ -82,8 +77,7 @@ class UserRepository(BaseRepository):
                 or_(
                     User.first_name.ilike(f'%{search_term}%'),
                     User.last_name.ilike(f'%{search_term}%'),
-                    User.email.ilike(f'%{search_term}%'),
-                    User.username.ilike(f'%{search_term}%')
+                    User.email.ilike(f'%{search_term}%')
                 )
             ).limit(limit).all()
         except SQLAlchemyError as e:
@@ -126,12 +120,12 @@ class UserRepository(BaseRepository):
             cutoff_date = datetime.utcnow() - timedelta(days=days)
             return self.db.query(User).filter(
                 or_(
-                    User.last_login_at < cutoff_date,
-                    User.last_login_at.is_(None)
+                    User.last_login < cutoff_date,
+                    User.last_login.is_(None)
                 ),
                 User.is_active == True,
                 User.is_deleted == False
-            ).order_by(User.last_login_at.asc()).all()
+            ).order_by(User.last_login.asc()).all()
         except SQLAlchemyError as e:
             logger.error(f"Error getting inactive users for {days} days: {str(e)}")
             return []
@@ -146,7 +140,7 @@ class UserRepository(BaseRepository):
             if not user or user.is_deleted:
                 return False
             
-            user.last_login_at = datetime.utcnow()
+            user.last_login = datetime.utcnow()
             user.login_count = (user.login_count or 0) + 1
             self.db.commit()
             return True
@@ -223,7 +217,7 @@ class UserRepository(BaseRepository):
                 return False
             
             user.is_verified = True
-            user.email_verified_at = datetime.utcnow()
+            # Note: email_verified_at field doesn't exist in User model
             self.db.commit()
             logger.info(f"User {user_id} verified successfully")
             return True
@@ -277,7 +271,7 @@ class UserRepository(BaseRepository):
             ).scalar() or 0
             
             recent_logins = self.db.query(func.count(User.id)).filter(
-                User.last_login_at >= datetime.utcnow() - timedelta(days=30),
+                User.last_login >= datetime.utcnow() - timedelta(days=30),
                 User.is_deleted == False
             ).scalar() or 0
             
@@ -300,11 +294,11 @@ class UserRepository(BaseRepository):
                 'activity_rate': 0
             }
     
-    def create_user_safely(self, user_data: Dict[str, Any]) -> Optional[User]:
+    def create_user(self, user_data: Dict[str, Any]) -> Optional[User]:
         """Create user with comprehensive error handling"""
         try:
             # Validate required fields
-            required_fields = ['email', 'username']
+            required_fields = ['email']
             for field in required_fields:
                 if not user_data.get(field) or not user_data[field].strip():
                     logger.warning(f"Missing required field: {field}")
@@ -316,10 +310,7 @@ class UserRepository(BaseRepository):
                 logger.warning(f"User with email {user_data['email']} already exists")
                 return None
             
-            existing_username = self.get_by_username(user_data['username'])
-            if existing_username:
-                logger.warning(f"User with username {user_data['username']} already exists")
-                return None
+            # Username check removed since User model doesn't have username field
             
             # Create new user
             user = User(**user_data)
@@ -393,14 +384,7 @@ class UserRepository(BaseRepository):
         elif len(email) > 255:
             errors.setdefault('email', []).append('Email too long (max 255 characters)')
         
-        # Username validation
-        username = user_data.get('username', '')
-        if not username or not username.strip():
-            errors.setdefault('username', []).append('Username is required')
-        elif len(username.strip()) < 3:
-            errors.setdefault('username', []).append('Username must be at least 3 characters')
-        elif len(username) > 50:
-            errors.setdefault('username', []).append('Username too long (max 50 characters)')
+        # Username validation removed since User model doesn't have username field
         
         # Password validation (if provided)
         password = user_data.get('password', '')

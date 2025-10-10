@@ -458,6 +458,203 @@ def get_task_status(task_id: str) -> Dict[str, Any]:
         }
 
 
+@celery_app.task(bind=True, name='app.tasks.price_collector.fetch_daily_price_data')
+def fetch_daily_price_data(self, asset_id: int = None, timeframe: str = "1d") -> Dict[str, Any]:
+    """
+    Fetch daily price data for assets using PriceDataService
+    
+    Args:
+        asset_id: Optional specific asset ID to fetch data for
+        timeframe: Timeframe for data collection (1d, 1h, 4h)
+        
+    Returns:
+        dict: Task execution results
+    """
+    from sqlalchemy.orm import sessionmaker
+    from app.db.database import get_db
+    from app.services.price_data_service import PriceDataService
+    from app.repositories.asset_repository import AssetRepository
+    from app.repositories.price_data_repository import PriceDataRepository
+    
+    start_time = datetime.utcnow()
+    results = {
+        "task_id": self.request.id,
+        "task_name": "fetch_daily_price_data",
+        "start_time": start_time.isoformat(),
+        "timeframe": timeframe,
+        "status": "started",
+        "processed_assets": 0,
+        "successful_updates": 0,
+        "failed_updates": 0,
+        "errors": []
+    }
+    
+    try:
+        # Get database session
+        db = next(get_db())
+        
+        # Initialize repositories and service
+        asset_repo = AssetRepository(db)
+        price_data_repo = PriceDataRepository(db)
+        price_service = PriceDataService(asset_repo, price_data_repo)
+        
+        if asset_id:
+            # Fetch data for specific asset
+            asset = asset_repo.get_by_id(asset_id)
+            if not asset:
+                raise ValueError(f"Asset with ID {asset_id} not found")
+            
+            result = price_service.populate_asset_price_data(
+                asset_id=asset_id,
+                timeframe=timeframe,
+                limit=1  # Just get latest data
+            )
+            
+            results["processed_assets"] = 1
+            if result["success"]:
+                results["successful_updates"] = 1
+            else:
+                results["failed_updates"] = 1
+                results["errors"].append(result.get("error", "Unknown error"))
+                
+        else:
+            # Fetch data for all active assets
+            active_assets = asset_repo.get_active_assets()
+            results["processed_assets"] = len(active_assets)
+            
+            for asset in active_assets:
+                try:
+                    result = price_service.populate_asset_price_data(
+                        asset_id=asset.id,
+                        timeframe=timeframe,
+                        limit=1  # Just get latest data
+                    )
+                    
+                    if result["success"]:
+                        results["successful_updates"] += 1
+                    else:
+                        results["failed_updates"] += 1
+                        results["errors"].append(f"Asset {asset.symbol}: {result.get('error', 'Unknown error')}")
+                        
+                except Exception as e:
+                    results["failed_updates"] += 1
+                    results["errors"].append(f"Asset {asset.symbol}: {str(e)}")
+                    
+                # Add small delay to respect API rate limits
+                time.sleep(0.1)
+        
+        # Update task status
+        results["status"] = "completed"
+        results["end_time"] = datetime.utcnow().isoformat()
+        results["duration"] = (datetime.utcnow() - start_time).total_seconds()
+        
+        logger.info(f"Daily price data fetch completed: {results['successful_updates']}/{results['processed_assets']} successful")
+        
+        return results
+        
+    except Exception as e:
+        results["status"] = "failed"
+        results["error"] = str(e)
+        results["end_time"] = datetime.utcnow().isoformat()
+        results["duration"] = (datetime.utcnow() - start_time).total_seconds()
+        
+        logger.error(f"Daily price data fetch failed: {str(e)}")
+        raise self.retry(countdown=60, max_retries=3, exc=e)
+    
+    finally:
+        if 'db' in locals():
+            db.close()
+
+
+@celery_app.task(bind=True, name='app.tasks.price_collector.fetch_historical_price_data')
+def fetch_historical_price_data(self, asset_id: int, timeframe: str = "1d", days: int = 30) -> Dict[str, Any]:
+    """
+    Fetch historical price data for a specific asset
+    
+    Args:
+        asset_id: Asset ID to fetch data for
+        timeframe: Timeframe for data collection (1d, 1h, 4h)
+        days: Number of days of historical data to fetch
+        
+    Returns:
+        dict: Task execution results
+    """
+    from sqlalchemy.orm import sessionmaker
+    from app.db.database import get_db
+    from app.services.price_data_service import PriceDataService
+    from app.repositories.asset_repository import AssetRepository
+    from app.repositories.price_data_repository import PriceDataRepository
+    
+    start_time = datetime.utcnow()
+    results = {
+        "task_id": self.request.id,
+        "task_name": "fetch_historical_price_data",
+        "start_time": start_time.isoformat(),
+        "asset_id": asset_id,
+        "timeframe": timeframe,
+        "days": days,
+        "status": "started",
+        "records_fetched": 0,
+        "errors": []
+    }
+    
+    try:
+        # Get database session
+        db = next(get_db())
+        
+        # Initialize repositories and service
+        asset_repo = AssetRepository(db)
+        price_data_repo = PriceDataRepository(db)
+        price_service = PriceDataService(asset_repo, price_data_repo)
+        
+        # Verify asset exists
+        asset = asset_repo.get_by_id(asset_id)
+        if not asset:
+            raise ValueError(f"Asset with ID {asset_id} not found")
+        
+        # Calculate limit based on timeframe and days
+        if timeframe == "1h":
+            limit = days * 24
+        elif timeframe == "4h":
+            limit = days * 6
+        else:  # 1d
+            limit = days
+        
+        # Fetch historical data
+        result = price_service.populate_asset_price_data(
+            asset_id=asset_id,
+            timeframe=timeframe,
+            limit=limit
+        )
+        
+        if result["success"]:
+            results["records_fetched"] = result.get("records_count", 0)
+            results["status"] = "completed"
+        else:
+            results["status"] = "failed"
+            results["errors"].append(result.get("error", "Unknown error"))
+        
+        results["end_time"] = datetime.utcnow().isoformat()
+        results["duration"] = (datetime.utcnow() - start_time).total_seconds()
+        
+        logger.info(f"Historical price data fetch completed for asset {asset_id}: {results['records_fetched']} records")
+        
+        return results
+        
+    except Exception as e:
+        results["status"] = "failed"
+        results["error"] = str(e)
+        results["end_time"] = datetime.utcnow().isoformat()
+        results["duration"] = (datetime.utcnow() - start_time).total_seconds()
+        
+        logger.error(f"Historical price data fetch failed for asset {asset_id}: {str(e)}")
+        raise self.retry(countdown=60, max_retries=3, exc=e)
+    
+    finally:
+        if 'db' in locals():
+            db.close()
+
+
 # Export task functions
 __all__ = [
     'sync_all_prices',
@@ -465,5 +662,7 @@ __all__ = [
     'discover_new_cryptocurrencies',
     'cleanup_old_data',
     'sync_specific_cryptocurrency',
-    'get_task_status'
+    'get_task_status',
+    'fetch_daily_price_data',
+    'fetch_historical_price_data'
 ]
