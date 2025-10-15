@@ -57,7 +57,7 @@ Critical Path: Database Functions → APIs → Frontend → Integration
 └── ✅ price_data - Price history
 
 🌍 Layer 1 Macro (4/4 tables) ✅:
-├── ✅ market_regime_analysis - Market state
+├── ✅ regime_analysis - Market state
 ├── ✅ market_sentiment_data - Sentiment tracking
 ├── ✅ dominance_data - BTC/ETH dominance
 └── ✅ macro_indicators - Economic indicators
@@ -97,7 +97,7 @@ Critical Path: Database Functions → APIs → Frontend → Integration
 ❌ MISSING ORM MODELS (17 missing):
 
 🌍 Layer 1 Models (1/4 complete):
-├── ✅ market_regime_analysis → MarketRegimeAnalysis
+├── ✅ regime_analysis → AIRegimeAnalysis
 ├── ❌ market_sentiment_data → MarketSentimentData (MISSING)
 ├── ❌ dominance_data → DominanceData (MISSING)  
 └── ❌ macro_indicators → MacroIndicators (MISSING)
@@ -137,7 +137,7 @@ Critical Path: Database Functions → APIs → Frontend → Integration
 ❌ MISSING CRITICAL FUNCTIONS:
 
 Layer 1 Macro Functions (0/4 implemented):
-├── ❌ get_market_regime_analysis() - MISSING
+├── ❌ get_regime_analysis() - MISSING
 ├── ❌ get_market_sentiment_analysis() - MISSING  
 ├── ❌ get_dominance_analysis() - MISSING
 └── ❌ get_macro_indicators() - MISSING
@@ -223,7 +223,7 @@ Priority 1 - Layer 3 Functions (2 days):
 └── get_ai_suggestions(user_id, watchlist_id)
 
 Priority 2 - Layer 1 Functions (2 days):
-├── get_market_regime_analysis()
+├── get_regime_analysis()
 ├── get_market_sentiment_analysis()
 ├── get_dominance_analysis()
 └── get_macro_indicators()

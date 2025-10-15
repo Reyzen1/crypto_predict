@@ -8,7 +8,7 @@ from sqlalchemy import desc, asc, func
 from decimal import Decimal
 
 from app.models import PriceData
-from app.repositories.base import BaseRepository
+from backend.app.repositories.base_repository import BaseRepository
 
 
 class PriceDataRepository(BaseRepository[PriceData, dict, dict]):

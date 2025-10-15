@@ -9,7 +9,7 @@ from .mixins import (
     AccessTrackingMixin, UserPreferencesMixin, ExternalIdsMixin
 )
 from .enums import (
-    UserRole, AssetType, TimeframeEnum, MarketRegime,
+    UserRole, AssetType, TimeframeEnum, Regime,
     JobStatus, ModelType, ModelStatus
 )
 
@@ -23,7 +23,7 @@ from .asset import Asset, PriceData, PriceDataArchive
 from .ai import AIModel, ModelPerformance, ModelJob
 
 # Layer 1: Macro Analysis
-from .macro import MetricsSnapshot, AIMarketRegimeAnalysis
+from .macro import MetricsSnapshot, AIRegimeAnalysis
 
 # Layer 2: Sector Analysis
 from .sector import *

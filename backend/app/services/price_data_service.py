@@ -8,8 +8,8 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.external.coingecko import CoinGeckoClient
-from app.repositories.asset.price_data import PriceDataRepository
-from app.repositories.asset.asset import AssetRepository
+from backend.app.repositories.asset.price_data_repository import PriceDataRepository
+from backend.app.repositories.asset.asset_repository import AssetRepository
 from app.models.asset.asset import Asset
 from app.models.asset.price_data import PriceData
 

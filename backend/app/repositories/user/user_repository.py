@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from datetime import datetime, timedelta
 import logging
 
-from ..base import BaseRepository
+from ..base_repository import BaseRepository
 from ...models.user.user import User
 
 # Setup logger

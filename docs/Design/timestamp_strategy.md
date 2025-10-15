@@ -23,7 +23,7 @@
 -- باید باشد: created_at, updated_at
 -- حذف: added_at
 
--- 3. market_regime_analysis
+-- 3. regime_analysis
 -- فعلی: analysis_time, created_at, updated_at
 -- باید باشد: created_at, updated_at
 -- حذف: analysis_time

@@ -355,7 +355,7 @@ erDiagram
         CONSTRAINT chk_collection_duration CHECK (collection_duration_ms IS NULL OR collection_duration_ms >= 0)
     }
         
-    ai_market_regime_analysis {
+    ai_regime_analysis {
         int                id                         "NOT NULL; Primary key"
         int                metrics_snapshot_id        "NOT NULL; FK → metrics_snapshot.id"
         int                ai_model_id                "NOT NULL; FK → ai_models.id"
@@ -1203,7 +1203,7 @@ erDiagram
 
         jsonb recommendation_payload "Structured content: suggested_position_size, stop_loss, take_profit, rebalance instructions, etc."
 
-        int ai_market_regime_analysis_id FK "Reference to ai_market_regime_analysis that generated this recommendation"
+        int ai_regime_analysis_id FK "Reference to ai_regime_analysis that generated this recommendation"
         int ai_sector_analysis_id FK "Reference to ai_sector_analysis that generated this recommendation"
         int ai_cross_sector_analysis_id FK "Reference to ai_cross_sector_analysis that generated this recommendation"
         int ai_trading_signal_id FK "Reference to ai_trading_signals that generated this recommendation"
@@ -1824,7 +1824,7 @@ erDiagram
     sectors ||--o{ sector_rotation_flows : "destination sector"
     
     %% AI Analysis Chain
-    metrics_snapshot ||--o{ ai_market_regime_analysis : "regime analysis"
+    metrics_snapshot ||--o{ ai_regime_analysis : "regime analysis"
     metrics_snapshot ||--o{ ai_sector_analysis : "sector analysis"
     metrics_snapshot ||--o{ ai_cross_sector_analysis : "cross-sector analysis"
     metrics_snapshot ||--o{ ai_watchlist_analysis : "watchlist analysis"
@@ -1833,7 +1833,7 @@ erDiagram
     metrics_snapshot ||--o{ ai_trading_signals : "trading signals"
     
     %% AI Models
-    ai_models ||--o{ ai_market_regime_analysis : "analyzes regime"
+    ai_models ||--o{ ai_regime_analysis : "analyzes regime"
     ai_models ||--o{ ai_sector_analysis : "analyzes sectors"
     ai_models ||--o{ ai_cross_sector_analysis : "cross-sector analysis"
     ai_models ||--o{ ai_watchlist_analysis : "analyzes watchlists"
@@ -1879,8 +1879,8 @@ CREATE INDEX idx_metrics_snapshot_time ON metrics_snapshot(snapshot_time DESC);
 
 -- JSONB Indexes for AI Analysis
 CREATE INDEX idx_extended_metrics_gin ON metrics_snapshot USING GIN(extended_metrics);
-CREATE INDEX idx_analysis_data_gin ON ai_market_regime_analysis USING GIN(analysis_data);
-CREATE INDEX idx_key_levels_gin ON ai_market_regime_analysis USING GIN(key_levels);
+CREATE INDEX idx_analysis_data_gin ON ai_regime_analysis USING GIN(analysis_data);
+CREATE INDEX idx_key_levels_gin ON ai_regime_analysis USING GIN(key_levels);
 ```
 
 ### **Data Constraints:**

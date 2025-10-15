@@ -30,7 +30,7 @@ class TimeframeEnum(enum.Enum):
     ONE_WEEK = "1w"
     ONE_MONTH = "1M"
 
-class MarketRegime(enum.Enum):
+class Regime(enum.Enum):
     BULL = "Bull"
     BEAR = "Bear"
     SIDEWAYS = "Sideways"

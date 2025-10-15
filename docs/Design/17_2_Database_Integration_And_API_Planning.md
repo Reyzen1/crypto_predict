@@ -47,7 +47,7 @@ GET /api/v1/macro/current-snapshot
 # Response: MacroSnapshotResponse
 
 GET /api/v1/macro/market-regime
-# Source: ai_market_regime_analysis table (latest analysis)
+# Source: ai_regime_analysis table (latest analysis)
 # Includes: Current regime, confidence score, transition probability, regime duration
 # Auth: Optional
 # Response: MarketRegimeResponse
@@ -653,9 +653,9 @@ GET /api/v1/ai/training-jobs
 
 # AI Analysis Endpoints
 GET /api/v1/ai/market-regime
-# Source: ai_market_regime_analysis table (latest)
+# Source: ai_regime_analysis table (latest)
 # Includes: Current regime, confidence, transition probability
-# Response: MarketRegimeAnalysisResponse
+# Response: RegimeAnalysisResponse
 
 GET /api/v1/ai/sector-analysis
 # Source: ai_sector_analysis table with cross-sector data
@@ -876,12 +876,12 @@ users → notifications, signal_alerts, user_feedback
 
 💰 Asset Data Flow:
 assets → price_data → technical_indicators (JSON)
-assets → ai_suggestions, ai_market_regime_analysis
+assets → ai_suggestions, ai_regime_analysis
 price_data → price_data_archive (historical)
 
 🤖 AI/ML Flow:
 ai_models → model_predictions, model_performance
-ai_models → ai_market_regime_analysis, ai_sector_analysis
+ai_models → ai_regime_analysis, ai_sector_analysis
 ai_models → ai_watchlist_analysis, ai_portfolio_analysis
 
 🔔 Notification Flow:

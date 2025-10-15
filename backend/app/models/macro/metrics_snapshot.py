@@ -220,4 +220,4 @@ class MetricsSnapshot(BaseModel, CreatedAtMixin, DataQualityMixin, ValidationMix
         }
     
     # Relationships (defined here to avoid circular imports)
-    regime_analyses = relationship("AIMarketRegimeAnalysis", back_populates="metrics_snapshot")
+    regime_analyses = relationship("AIRegimeAnalysis", back_populates="metrics_snapshot")

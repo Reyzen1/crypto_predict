@@ -68,7 +68,7 @@ class AIModel(BaseModel, TimestampMixin, ActiveMixin):
     # Relationships (Updated for new schema)
     performance_evaluations = relationship("ModelPerformance", back_populates="model", cascade="all, delete-orphan")
     jobs = relationship("ModelJob", back_populates="model", cascade="all, delete-orphan")
-    regime_analyses = relationship("AIMarketRegimeAnalysis", back_populates="ai_model", cascade="all, delete-orphan")
+    regime_analyses = relationship("AIRegimeAnalysis", back_populates="ai_model", cascade="all, delete-orphan")
     
     # 📋 Enhanced Constraints & Indexes (ERD Compliant)
     __table_args__ = (

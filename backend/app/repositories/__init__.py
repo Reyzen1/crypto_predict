@@ -1,32 +1,24 @@
 # backend/app/repositories/__init__.py
 # Repository package initialization - exports all repositories
 
-from .base import BaseRepository
+from .base_repository import BaseRepository
 
 # AI Repositories
-from .ai import (
-    AIModelRepository,
-    ModelPerformanceRepository,
-    ModelJobRepository
-)
+from .ai.ai_model_repository import AIModelRepository
+from .ai.model_performance_repository import ModelPerformanceRepository
+from .ai.model_job_repository import ModelJobRepository
 
 # Asset Repositories  
-from .asset import (
-    AssetRepository,
-    PriceDataRepository,
-    PriceDataArchiveRepository
-)
+from .asset.asset_repository import AssetRepository
+from .asset.price_data_repository import PriceDataRepository
+from .asset.price_data_archive_repository import PriceDataArchiveRepository
 
 # Macro Repositories
-from .macro import (
-    MetricsSnapshotRepository,
-    AIMarketRegimeAnalysisRepository
-)
+from .macro.metrics_snapshot_repository import MetricsSnapshotRepository
+from .macro.ai_regime_analysis_repository import AIRegimeAnalysisRepository
 
 # User Repositories
-from .user import (
-    UserRepository
-)
+from .user.user_repository import UserRepository
 
 
 __all__ = [
@@ -45,7 +37,7 @@ __all__ = [
     
     # Macro
     "MetricsSnapshotRepository",
-    "AIMarketRegimeAnalysisRepository",
+    "AIRegimeAnalysisRepository",
     
     # User
     "UserRepository",

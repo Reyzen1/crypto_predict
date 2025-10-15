@@ -105,7 +105,7 @@ class RegimeAnalysisTimeframes:
         return TimeframeEnum.ONE_DAY.value
 
 
-class AIMarketRegimeAnalysis(BaseModel, TimestampMixin, AIAnalysisMixin, ValidationMixin):
+class AIRegimeAnalysis(BaseModel, TimestampMixin, AIAnalysisMixin, ValidationMixin):
     """
     AI Market Regime Analysis Model
     
@@ -116,7 +116,7 @@ class AIMarketRegimeAnalysis(BaseModel, TimestampMixin, AIAnalysisMixin, Validat
     - Trading implications and risk assessment
     - Historical context and statistical analysis
     """
-    __tablename__ = "ai_market_regime_analysis"
+    __tablename__ = "ai_regime_analysis"
     
     # Primary key
     id = Column(Integer, primary_key=True, nullable=False)
@@ -431,7 +431,7 @@ class AIMarketRegimeAnalysis(BaseModel, TimestampMixin, AIAnalysisMixin, Validat
     )
     
     def __repr__(self):
-        return f"<AIMarketRegimeAnalysis(id={self.id}, regime={self.current_regime}, confidence={self.regime_confidence}, time={self.analysis_time})>"
+        return f"<AIRegimeAnalysis(id={self.id}, regime={self.current_regime}, confidence={self.regime_confidence}, time={self.analysis_time})>"
     
     @property
     def is_bullish_regime(self) -> bool:

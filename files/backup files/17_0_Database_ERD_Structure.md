@@ -135,7 +135,7 @@ erDiagram
     }
 
     %% Layer 1: Macro Analysis
-    market_regime_analysis {
+    regime_analysis {
         int id PK "Primary key for market regime analysis"
         varchar regime "bull/bear/sideways" 
         numeric confidence_score "AI confidence score for regime classification (0-1)"
@@ -643,7 +643,7 @@ erDiagram
 
 ### **🌍 Layer 1: Macro Analysis (4 tables):**
 ```
-1. market_regime_analysis - Bull/bear/sideways market classification
+1. regime_analysis - Bull/bear/sideways market classification
 2. market_sentiment_data  - Fear & Greed Index and social sentiment
 3. dominance_data        - BTC/ETH/ALT market dominance tracking
 4. macro_indicators      - VIX, DXY and other macro indicators

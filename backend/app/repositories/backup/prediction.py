@@ -8,7 +8,7 @@ from sqlalchemy import desc, asc, func, and_, or_
 from decimal import Decimal
 
 from app.models import Prediction
-from app.repositories.base import BaseRepository
+from backend.app.repositories.base_repository import BaseRepository
 from app.schemas.prediction import PredictionCreate, PredictionUpdate
 
 

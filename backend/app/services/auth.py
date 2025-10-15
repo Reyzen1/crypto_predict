@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 
 from app.models import User
 from app.schemas.user import UserRegister, UserLogin, Token
-from app.repositories.user.user import UserRepository
+from backend.app.repositories.user.user_repository import UserRepository
 from app.core.security import security
 import logging
 

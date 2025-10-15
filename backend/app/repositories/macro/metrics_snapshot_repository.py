@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 import logging
 
-from ..base import BaseRepository
+from ..base_repository import BaseRepository
 from ...models.macro.metrics_snapshot import MetricsSnapshot
 
 # Setup logger

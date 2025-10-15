@@ -37,7 +37,7 @@ backend/app/models/
 ├── macro/                         # Layer 1: Market-wide Analysis
 │   ├── __init__.py
 │   ├── metrics_snapshot.py       # MetricsSnapshot model
-│   └── regime_analysis.py        # AIMarketRegimeAnalysis model
+│   └── regime_analysis.py        # AIRegimeAnalysis model
 ├── sector/                        # Layer 2: Sector Analysis  
 │   ├── __init__.py
 │   ├── sector.py                 # Sector, SectorHistory, SectorMapping
@@ -82,7 +82,7 @@ backend/app/models/
 
 | Layer | شاخه | مسئولیت | مدل‌های کلیدی |
 |-------|------|----------|----------------|
-| **Layer 1** | `macro/` | تحلیل کلان بازار | MetricsSnapshot, AIMarketRegimeAnalysis |
+| **Layer 1** | `macro/` | تحلیل کلان بازار | MetricsSnapshot, AIRegimeAnalysis |
 | **Layer 2** | `sector/` | تحلیل سکتوری | Sector, AISectorAnalysis, AICrossSectorAnalysis |
 | **Layer 3** | `selection/` | انتخاب و مدیریت دارایی | Watchlist, Portfolio, Analysis |
 | **Layer 4** | `trading/` | عملیات معاملاتی | AITradingSignal, TradeAction |
@@ -573,7 +573,7 @@ class AIModel(BaseModel):
     evaluations = relationship("ModelEvaluation", back_populates="model", lazy='dynamic')
     training_jobs = relationship("ModelTrainingJob", back_populates="model", lazy='dynamic')
     prediction_jobs = relationship("ModelPredictionJob", back_populates="model", lazy='dynamic')
-    regime_analyses = relationship("AIMarketRegimeAnalysis", back_populates="ai_model", lazy='dynamic')
+    regime_analyses = relationship("AIRegimeAnalysis", back_populates="ai_model", lazy='dynamic')
     
     # Constraints & Indexes
     __table_args__ = (
@@ -677,7 +677,7 @@ class MetricsSnapshot(BaseModel, ValidationMixin):
     collection_duration_ms = Column(Integer, nullable=True)
     
     # Relationships
-    regime_analyses = relationship("AIMarketRegimeAnalysis", back_populates="metrics_snapshot", lazy='dynamic')
+    regime_analyses = relationship("AIRegimeAnalysis", back_populates="metrics_snapshot", lazy='dynamic')
     sector_analyses = relationship("AISectorAnalysis", back_populates="metrics_snapshot", lazy='dynamic')
     
     # Constraints & Indexes
@@ -713,9 +713,9 @@ class MetricsSnapshot(BaseModel, ValidationMixin):
 # AIModel → ModelEvaluation (1:N)
 # AIModel → ModelTrainingJob (1:N)
 # AIModel → ModelPredictionJob (1:N)
-# AIModel → AIMarketRegimeAnalysis (1:N)
+# AIModel → AIRegimeAnalysis (1:N)
 
-# MetricsSnapshot → AIMarketRegimeAnalysis (1:N)
+# MetricsSnapshot → AIRegimeAnalysis (1:N)
 # MetricsSnapshot → AISectorAnalysis (1:N)
 # MetricsSnapshot → AICrossSectorAnalysis (1:N)
 
@@ -736,7 +736,7 @@ class MetricsSnapshot(BaseModel, ValidationMixin):
 2. ✅ **user/**: User management models  
 3. ✅ **asset/**: Asset models & price data
 4. ✅ **ai/**: AI models framework
-5. ✅ **macro/**: MetricsSnapshot, AIMarketRegimeAnalysis
+5. ✅ **macro/**: MetricsSnapshot, AIRegimeAnalysis
 
 ### Phase 2: Extended Analysis (Layer 2 & 3)
 1. 🔄 **sector/**: Sector models & analysis
@@ -791,7 +791,7 @@ class MetricsSnapshot(BaseModel, ValidationMixin):
 ## 📋 Next Steps
 
 1. **Create base infrastructure** (base.py, mixins.py, enums.py)
-2. **Implement Layer 1 models** (User, Asset, AIModel, MetricsSnapshot, AIMarketRegimeAnalysis)
+2. **Implement Layer 1 models** (User, Asset, AIModel, MetricsSnapshot, AIRegimeAnalysis)
 3. **Set up Alembic migrations**
 4. **Create model tests**
 5. **Add serialization methods**

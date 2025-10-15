@@ -254,9 +254,9 @@ CREATE INDEX idx_metrics_snapshot_time_timeframe ON metrics_snapshot(snapshot_ti
 CREATE INDEX idx_metrics_snapshot_btc_price ON metrics_snapshot(btc_price_usd);
 
 -- ===============================================
--- 5. AI_MARKET_REGIME_ANALYSIS TABLE - AI-powered market regime analysis
+-- 5. AI_REGIME_ANALYSIS TABLE - AI-powered market regime analysis
 -- ===============================================
-CREATE TABLE IF NOT EXISTS ai_market_regime_analysis (
+CREATE TABLE IF NOT EXISTS ai_regime_analysis (
     id BIGSERIAL PRIMARY KEY,
     metrics_snapshot_id BIGINT NOT NULL REFERENCES metrics_snapshot(id) ON DELETE CASCADE,
     ai_model_id INTEGER NOT NULL, -- Will reference ai_models(id)
@@ -361,12 +361,12 @@ CREATE TABLE IF NOT EXISTS ai_market_regime_analysis (
     CONSTRAINT chk_regime_duration_positive CHECK (regime_duration_days IS NULL OR regime_duration_days >= 0)
 );
 
--- Indexes for ai_market_regime_analysis table
-CREATE INDEX idx_regime_analysis_snapshot ON ai_market_regime_analysis(metrics_snapshot_id);
-CREATE INDEX idx_regime_analysis_model ON ai_market_regime_analysis(ai_model_id);
-CREATE INDEX idx_regime_analysis_time ON ai_market_regime_analysis(analysis_time DESC);
-CREATE INDEX idx_regime_analysis_current_regime ON ai_market_regime_analysis(current_regime);
-CREATE INDEX idx_regime_analysis_timeframe ON ai_market_regime_analysis(analysis_timeframe);
+-- Indexes for ai_regime_analysis table
+CREATE INDEX idx_regime_analysis_snapshot ON ai_regime_analysis(metrics_snapshot_id);
+CREATE INDEX idx_regime_analysis_model ON ai_regime_analysis(ai_model_id);
+CREATE INDEX idx_regime_analysis_time ON ai_regime_analysis(analysis_time DESC);
+CREATE INDEX idx_regime_analysis_current_regime ON ai_regime_analysis(current_regime);
+CREATE INDEX idx_regime_analysis_timeframe ON ai_regime_analysis(analysis_timeframe);
 
 -- ===============================================
 -- 6. AI_MODELS TABLE - AI model management and versioning  
@@ -628,8 +628,8 @@ CREATE INDEX idx_model_jobs_parent_child ON model_jobs(parent_job_id, job_status
 -- ADD FOREIGN KEY CONSTRAINT FOR AI MODEL REFERENCES
 -- ===============================================
 -- Add the foreign key constraint after ai_models table is created
-ALTER TABLE ai_market_regime_analysis 
-ADD CONSTRAINT fk_ai_market_regime_analysis_model 
+ALTER TABLE ai_regime_analysis 
+ADD CONSTRAINT fk_ai_regime_analysis_model 
 FOREIGN KEY (ai_model_id) REFERENCES ai_models(id) ON DELETE RESTRICT;
 
 -- ===============================================
@@ -648,7 +648,7 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECU
 CREATE TRIGGER update_assets_updated_at BEFORE UPDATE ON assets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_price_data_updated_at BEFORE UPDATE ON price_data FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_metrics_snapshot_updated_at BEFORE UPDATE ON metrics_snapshot FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_ai_market_regime_analysis_updated_at BEFORE UPDATE ON ai_market_regime_analysis FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_ai_regime_analysis_updated_at BEFORE UPDATE ON ai_regime_analysis FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_ai_models_updated_at BEFORE UPDATE ON ai_models FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_model_performance_updated_at BEFORE UPDATE ON model_performance FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_model_jobs_updated_at BEFORE UPDATE ON model_jobs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -718,7 +718,7 @@ COMMENT ON TABLE users IS 'Core user management table for authentication and use
 COMMENT ON TABLE assets IS 'Master table for all supported cryptocurrencies and assets';
 COMMENT ON TABLE price_data IS 'Historical and real-time OHLCV price data with technical indicators';
 COMMENT ON TABLE metrics_snapshot IS 'Market-wide macro analysis snapshots at different timeframes';
-COMMENT ON TABLE ai_market_regime_analysis IS 'AI-powered market regime analysis and predictions';
+COMMENT ON TABLE ai_regime_analysis IS 'AI-powered market regime analysis and predictions';
 COMMENT ON TABLE ai_models IS 'AI/ML model management with versioning and performance tracking';
 COMMENT ON TABLE model_performance IS 'Model performance evaluation results and metrics with job traceability';
 COMment ON TABLE model_jobs IS 'Unified model job management for training, prediction, evaluation, and optimization';

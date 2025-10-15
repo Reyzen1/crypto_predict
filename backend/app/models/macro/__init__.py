@@ -2,9 +2,9 @@
 # Layer 1: Macro Analysis Models - Market-wide analysis and regime detection
 
 from .metrics_snapshot import MetricsSnapshot
-from .regime_analysis import AIMarketRegimeAnalysis
+from .regime_analysis import AIRegimeAnalysis
 
 __all__ = [
     "MetricsSnapshot",
-    "AIMarketRegimeAnalysis"
+    "AIRegimeAnalysis"
 ]

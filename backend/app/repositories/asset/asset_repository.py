@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func, text
 from datetime import datetime, timedelta
 
-from ..base import BaseRepository
+from ..base_repository import BaseRepository
 from ...models.asset import Asset
 
 

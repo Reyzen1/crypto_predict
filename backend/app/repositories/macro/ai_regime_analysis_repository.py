@@ -8,51 +8,51 @@ from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime, timedelta
 import logging
 
-from ..base import BaseRepository
-from ...models.macro.regime_analysis import AIMarketRegimeAnalysis
+from ..base_repository import BaseRepository
+from ...models.macro.regime_analysis import AIRegimeAnalysis
 
 # Setup logger
 logger = logging.getLogger(__name__)
 
 
-class AIMarketRegimeAnalysisRepository(BaseRepository):
+class AIRegimeAnalysisRepository(BaseRepository):
     """
     Repository for AI-driven market regime analysis
     """
     
     def __init__(self, db: Session):
-        super().__init__(AIMarketRegimeAnalysis, db)
+        super().__init__(AIRegimeAnalysis, db)
     
-    def get_latest_analysis(self) -> Optional[AIMarketRegimeAnalysis]:
+    def get_latest_analysis(self) -> Optional[AIRegimeAnalysis]:
         """Get the most recent regime analysis"""
         try:
-            return self.db.query(AIMarketRegimeAnalysis).order_by(
-                AIMarketRegimeAnalysis.analysis_timestamp.desc()
+            return self.db.query(AIRegimeAnalysis).order_by(
+                AIRegimeAnalysis.analysis_timestamp.desc()
             ).first()
         except SQLAlchemyError as e:
             logger.error(f"Error getting latest analysis: {str(e)}")
             return None
     
-    def get_by_regime(self, regime: str) -> List[AIMarketRegimeAnalysis]:
+    def get_by_regime(self, regime: str) -> List[AIRegimeAnalysis]:
         """Get analyses for specific market regime"""
         try:
             if not regime or not regime.strip():
                 return []
-            return self.db.query(AIMarketRegimeAnalysis).filter(
-                AIMarketRegimeAnalysis.detected_regime == regime.strip()
-            ).order_by(AIMarketRegimeAnalysis.analysis_timestamp.desc()).all()
+            return self.db.query(AIRegimeAnalysis).filter(
+                AIRegimeAnalysis.detected_regime == regime.strip()
+            ).order_by(AIRegimeAnalysis.analysis_timestamp.desc()).all()
         except SQLAlchemyError as e:
             logger.error(f"Error getting analyses by regime '{regime}': {str(e)}")
             return []
     
-    def get_high_confidence_analyses(self, min_confidence: float = 0.8) -> List[AIMarketRegimeAnalysis]:
+    def get_high_confidence_analyses(self, min_confidence: float = 0.8) -> List[AIRegimeAnalysis]:
         """Get high confidence regime analyses"""
         try:
             if min_confidence < 0 or min_confidence > 1:
                 min_confidence = 0.8
-            return self.db.query(AIMarketRegimeAnalysis).filter(
-                AIMarketRegimeAnalysis.confidence_score >= min_confidence
-            ).order_by(AIMarketRegimeAnalysis.analysis_timestamp.desc()).all()
+            return self.db.query(AIRegimeAnalysis).filter(
+                AIRegimeAnalysis.confidence_score >= min_confidence
+            ).order_by(AIRegimeAnalysis.analysis_timestamp.desc()).all()
         except SQLAlchemyError as e:
             logger.error(f"Error getting high confidence analyses: {str(e)}")
             return []
@@ -63,9 +63,9 @@ class AIMarketRegimeAnalysisRepository(BaseRepository):
             if days <= 0 or days > 1095:  # Max 3 years
                 days = 90
             cutoff_date = datetime.utcnow() - timedelta(days=days)
-            analyses = self.db.query(AIMarketRegimeAnalysis).filter(
-                AIMarketRegimeAnalysis.analysis_timestamp >= cutoff_date
-            ).order_by(AIMarketRegimeAnalysis.analysis_timestamp.asc()).all()
+            analyses = self.db.query(AIRegimeAnalysis).filter(
+                AIRegimeAnalysis.analysis_timestamp >= cutoff_date
+            ).order_by(AIRegimeAnalysis.analysis_timestamp.asc()).all()
             
             if len(analyses) < 2:
                 return []
@@ -93,16 +93,16 @@ class AIMarketRegimeAnalysisRepository(BaseRepository):
             logger.error(f"Error getting regime changes: {str(e)}")
             return []
     
-    def get_by_model(self, model_name: str, limit: int = 100) -> List[AIMarketRegimeAnalysis]:
+    def get_by_model(self, model_name: str, limit: int = 100) -> List[AIRegimeAnalysis]:
         """Get analyses by specific AI model"""
         try:
             if not model_name or not model_name.strip():
                 return []
             if limit <= 0 or limit > 1000:
                 limit = 100
-            return self.db.query(AIMarketRegimeAnalysis).filter(
-                AIMarketRegimeAnalysis.model_name == model_name.strip()
-            ).order_by(AIMarketRegimeAnalysis.analysis_timestamp.desc()).limit(limit).all()
+            return self.db.query(AIRegimeAnalysis).filter(
+                AIRegimeAnalysis.model_name == model_name.strip()
+            ).order_by(AIRegimeAnalysis.analysis_timestamp.desc()).limit(limit).all()
         except SQLAlchemyError as e:
             logger.error(f"Error getting analyses by model '{model_name}': {str(e)}")
             return []
@@ -116,16 +116,16 @@ class AIMarketRegimeAnalysisRepository(BaseRepository):
         
             # Get recent analyses grouped by regime
             regime_counts = self.db.query(
-                AIMarketRegimeAnalysis.detected_regime,
-                func.count(AIMarketRegimeAnalysis.id).label('count'),
-                func.avg(AIMarketRegimeAnalysis.confidence_score).label('avg_confidence'),
-                func.max(AIMarketRegimeAnalysis.analysis_timestamp).label('latest')
+                AIRegimeAnalysis.detected_regime,
+                func.count(AIRegimeAnalysis.id).label('count'),
+                func.avg(AIRegimeAnalysis.confidence_score).label('avg_confidence'),
+                func.max(AIRegimeAnalysis.analysis_timestamp).label('latest')
             ).filter(
-                AIMarketRegimeAnalysis.analysis_timestamp >= cutoff_time
+                AIRegimeAnalysis.analysis_timestamp >= cutoff_time
             ).group_by(
-                AIMarketRegimeAnalysis.detected_regime
+                AIRegimeAnalysis.detected_regime
             ).order_by(
-                func.count(AIMarketRegimeAnalysis.id).desc()
+                func.count(AIRegimeAnalysis.id).desc()
             ).all()
         
             if not regime_counts:
@@ -164,14 +164,14 @@ class AIMarketRegimeAnalysisRepository(BaseRepository):
             cutoff_date = datetime.utcnow() - timedelta(days=days)
         
             stats = self.db.query(
-                func.count(AIMarketRegimeAnalysis.id).label('total_analyses'),
-                func.avg(AIMarketRegimeAnalysis.confidence_score).label('avg_confidence'),
-                func.max(AIMarketRegimeAnalysis.confidence_score).label('max_confidence'),
-                func.min(AIMarketRegimeAnalysis.confidence_score).label('min_confidence'),
-                func.avg(AIMarketRegimeAnalysis.processing_time_sec).label('avg_processing_time')
+                func.count(AIRegimeAnalysis.id).label('total_analyses'),
+                func.avg(AIRegimeAnalysis.confidence_score).label('avg_confidence'),
+                func.max(AIRegimeAnalysis.confidence_score).label('max_confidence'),
+                func.min(AIRegimeAnalysis.confidence_score).label('min_confidence'),
+                func.avg(AIRegimeAnalysis.processing_time_sec).label('avg_processing_time')
             ).filter(
-                AIMarketRegimeAnalysis.model_name == model_name,
-                AIMarketRegimeAnalysis.analysis_timestamp >= cutoff_date
+                AIRegimeAnalysis.model_name == model_name,
+                AIRegimeAnalysis.analysis_timestamp >= cutoff_date
             ).first()
         
             if not stats:
@@ -206,15 +206,15 @@ class AIMarketRegimeAnalysisRepository(BaseRepository):
             cutoff_date = datetime.utcnow() - timedelta(days=days)
             
             distribution = self.db.query(
-                AIMarketRegimeAnalysis.detected_regime,
-                func.count(AIMarketRegimeAnalysis.id).label('count'),
-                func.avg(AIMarketRegimeAnalysis.confidence_score).label('avg_confidence')
+                AIRegimeAnalysis.detected_regime,
+                func.count(AIRegimeAnalysis.id).label('count'),
+                func.avg(AIRegimeAnalysis.confidence_score).label('avg_confidence')
             ).filter(
-                AIMarketRegimeAnalysis.analysis_timestamp >= cutoff_date
+                AIRegimeAnalysis.analysis_timestamp >= cutoff_date
             ).group_by(
-                AIMarketRegimeAnalysis.detected_regime
+                AIRegimeAnalysis.detected_regime
             ).order_by(
-                func.count(AIMarketRegimeAnalysis.id).desc()
+                func.count(AIRegimeAnalysis.id).desc()
             ).all()
             
             total = sum(d.count for d in distribution)
@@ -248,8 +248,8 @@ class AIMarketRegimeAnalysisRepository(BaseRepository):
                 
             cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
             
-            deleted_count = self.db.query(AIMarketRegimeAnalysis).filter(
-                AIMarketRegimeAnalysis.analysis_timestamp < cutoff_date
+            deleted_count = self.db.query(AIRegimeAnalysis).filter(
+                AIRegimeAnalysis.analysis_timestamp < cutoff_date
             ).delete()
             
             self.db.commit()
