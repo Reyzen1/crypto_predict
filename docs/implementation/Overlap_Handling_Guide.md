@@ -18,7 +18,7 @@ You fetched 30 days of cryptocurrency data from CoinGecko a week ago. Now you wa
 ```
 Timeline: [37 days ago] -------- [30 days ago] -------- [Today]
 Your data:     [========== 37 days of hourly data ==========]
-CoinGecko:                 [===== 30 days hourly =====] [7 days overlap]
+CoinGecko:     [===== 30 days hourly =====]  [7 days overlap]
 ```
 
 ## Solution Architecture
