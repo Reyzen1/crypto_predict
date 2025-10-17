@@ -38,6 +38,9 @@ class Regime(enum.Enum):
     ACCUMULATION = "Accumulation"
     DISTRIBUTION = "Distribution"
 
+# Alias for backward compatibility
+MarketRegime = Regime
+
 class JobStatus(enum.Enum):
     PENDING = "pending"
     RUNNING = "running"

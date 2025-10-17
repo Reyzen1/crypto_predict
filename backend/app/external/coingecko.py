@@ -236,30 +236,91 @@ class CoinGeckoClient:
         interval: str = "daily"
     ) -> Dict[str, List[List[float]]]:
         """
-        Get historical price data for a cryptocurrency
+        Get historical price data for a cryptocurrency (hourly-normalized)
+        
+        This is a wrapper around get_market_chart for backward compatibility.
+        New code should use get_market_chart directly.
+        
+        Note: All data returned is hourly-normalized regardless of the interval parameter.
         
         Args:
             crypto_id: CoinGecko cryptocurrency ID (e.g., 'bitcoin')
             vs_currency: VS currency (default: 'usd')
-            days: Number of days back (1-365, or 'max' for all data)
-            interval: Data interval ('daily' for >90 days, 'hourly' for <=90 days)
+            days: Number of days back (1-365)
+            interval: Data interval ('daily', 'hourly') - note: output is always hourly-normalized
             
         Returns:
-            dict: Historical data with prices, market_caps, total_volumes
+            dict: Historical data with hourly-normalized timestamps
             
         Example:
             data = await client.get_historical_data('bitcoin', days=7)
-            # Returns: {'prices': [[timestamp, price], ...], 'market_caps': [...], 'total_volumes': [...]}
+            # Returns: {'prices': [[hourly_timestamp, price], ...], 'market_caps': [...], 'total_volumes': [...]}
+        """
+        return await self.get_market_chart(
+            crypto_id=crypto_id,
+            vs_currency=vs_currency,
+            days=days,
+            interval=interval
+        )
+    
+    async def get_market_chart(
+        self,
+        crypto_id: str,
+        vs_currency: str = "usd",
+        days: int = 30,
+        interval: str = "daily"
+    ) -> Dict[str, List[List[float]]]:
+        """
+        Get market chart data for a cryptocurrency (prices, market_caps, total_volumes)
+        
+        This is the core method that both get_historical_data and price_data_service use.
+        All returned data is automatically normalized to hourly boundaries for consistency.
+        
+        Args:
+            crypto_id: CoinGecko cryptocurrency ID (e.g., 'bitcoin')
+            vs_currency: VS currency (default: 'usd')
+            days: Number of days back (1-365 for free tier)
+            interval: Data interval ('daily' for >90 days, 'hourly' for <=90 days, 'minutely' for <=1 day)
+            
+        Returns:
+            dict: Market chart data with hourly-normalized timestamps
+            Format: {
+                'prices': [[hourly_timestamp_ms, price], ...],
+                'market_caps': [[hourly_timestamp_ms, market_cap], ...], 
+                'total_volumes': [[hourly_timestamp_ms, volume], ...]
+            }
+            
+        Note:
+            All timestamps are aligned to hourly boundaries (00:00, 01:00, 02:00, etc.)
+            This ensures consistent behavior across all timeframe operations.
+            
+        Example:
+            data = await client.get_market_chart('bitcoin', days=7, interval='hourly')
+            # All timestamps will be aligned to exact hours
         """
         # Validate parameters
-        if days < 1 or days > 365:
-            raise ValueError("Days must be between 1 and 365")
+        if days < 1:
+            raise ValueError("Days must be at least 1")
+        
+        if days > 365:
+            logger.warning(f"Days ({days}) > 365 may not work with free tier")
+        
+        # Auto-select interval based on days if not specified appropriately
+        if days <= 1 and interval == "daily":
+            interval = "hourly"
+            logger.info(f"Auto-switched to hourly interval for {days} day(s)")
+        elif days > 90 and interval in ["hourly", "minutely"]:
+            interval = "daily" 
+            logger.info(f"Auto-switched to daily interval for {days} day(s)")
         
         params = {
             "vs_currency": vs_currency,
-            "days": str(days),
-            "interval": interval
+            "days": str(days)
         }
+        
+        # Add interval parameter (CoinGecko auto-selects if not provided)
+        if interval in ["hourly", "daily"]:
+            params["interval"] = interval
         
         endpoint = f"coins/{crypto_id}/market_chart"
         data = await self._make_request(endpoint, params)
@@ -267,13 +328,33 @@ class CoinGeckoClient:
         # Validate response structure
         required_keys = ["prices", "market_caps", "total_volumes"]
         if not all(key in data for key in required_keys):
-            raise CoinGeckoAPIError(f"Invalid historical data format. Expected keys: {required_keys}")
+            raise CoinGeckoAPIError(f"Invalid market chart data format. Expected keys: {required_keys}")
         
-        # Validate data types
+        # Validate data types and content
         for key in required_keys:
             if not isinstance(data[key], list):
-                raise CoinGeckoAPIError(f"Invalid {key} data format")
+                raise CoinGeckoAPIError(f"Invalid {key} data format - expected list")
+            
+            # Check each data point format
+            for i, item in enumerate(data[key][:5]):  # Check first 5 items
+                if not isinstance(item, list) or len(item) != 2:
+                    raise CoinGeckoAPIError(f"Invalid {key} item format at index {i} - expected [timestamp, value]")
+                
+                timestamp, value = item
+                if not isinstance(timestamp, (int, float)) or not isinstance(value, (int, float)):
+                    raise CoinGeckoAPIError(f"Invalid {key} data types at index {i}")
+                
+                if value < 0:
+                    logger.warning(f"Negative {key} value at index {i}: {value}")
         
+        # Normalize all data to hourly boundaries for consistency
+        original_count = len(data['prices'])
+        data['prices'] = normalize_data_to_hourly(data['prices'])
+        data['market_caps'] = normalize_data_to_hourly(data['market_caps'])
+        data['total_volumes'] = normalize_data_to_hourly(data['total_volumes'])
+        normalized_count = len(data['prices'])
+        
+        logger.info(f"Retrieved market chart for {crypto_id}: {original_count} -> {normalized_count} hourly-normalized data points")
         return data
     
     async def search_cryptocurrencies(self, query: str) -> List[Dict[str, Any]]:
@@ -333,8 +414,292 @@ class CoinGeckoClient:
         """Async context manager exit"""
         await self.close()
 
+    async def get_price_data_by_timeframe(
+        self,
+        crypto_id: str,
+        timeframe: str = "1d",
+        limit: int = 100,
+        vs_currency: str = "usd"
+    ) -> Dict[str, List[List[float]]]:
+        """
+        Get price data with timeframe support optimized for our price_data_service
+        
+        Args:
+            crypto_id: CoinGecko cryptocurrency ID 
+            timeframe: Our timeframe format ('1h', '4h', '1d')
+            limit: Maximum number of data points to return
+            vs_currency: VS currency (default: 'usd')
+            
+        Returns:
+            dict: Market data filtered by timeframe
+            
+        Example:
+            # Get last 24 4-hourly data points
+            data = await client.get_price_data_by_timeframe('bitcoin', '4h', 24)
+        """
+        # Calculate days needed
+        days = calculate_days_for_timeframe(timeframe, limit)
+        
+        # Get CoinGecko interval - optimize for timeframe
+        interval = timeframe_to_coingecko_interval(timeframe)
+        
+        # For 1d timeframe with small limits, use hourly to get more precision
+        if timeframe == '1d' and limit <= 7:
+            interval = 'hourly'
+            days = max(days, 7)  # Get at least a week of hourly data
+        
+        # Fetch market chart data (already normalized to hourly in get_market_chart)
+        data = await self.get_market_chart(
+            crypto_id=crypto_id,
+            vs_currency=vs_currency,
+            days=days,
+            interval=interval
+        )
+        
+        # Apply timeframe filtering to the already-normalized hourly data
+        normalized_count = len(data['prices'])
+        data['prices'] = filter_data_by_timeframe(data['prices'], timeframe)
+        data['market_caps'] = filter_data_by_timeframe(data['market_caps'], timeframe) 
+        data['total_volumes'] = filter_data_by_timeframe(data['total_volumes'], timeframe)
+        filtered_count = len(data['prices'])
+        
+        logger.info(f"Filtered to {timeframe}: {normalized_count} -> {filtered_count} points")
+        
+        # Limit the results to requested number of points
+        for key in ['prices', 'market_caps', 'total_volumes']:
+            if len(data[key]) > limit:
+                data[key] = data[key][-limit:]  # Take the most recent data points
+        
+        return data
+
 
 # Utility functions for data conversion and validation
+
+def timeframe_to_coingecko_interval(timeframe: str) -> str:
+    """
+    Convert our timeframe format to CoinGecko interval format
+    
+    Args:
+        timeframe: Our timeframe format ('1h', '4h', '1d')
+        
+    Returns:
+        str: CoinGecko interval format ('hourly', 'daily')
+        
+    Note:
+        - For '1h': Use 'hourly' directly
+        - For '4h': Use 'hourly' and filter every 4th point
+        - For '1d': Use 'daily' when possible, 'hourly' for small ranges
+    """
+    timeframe_mapping = {
+        '1h': 'hourly',
+        '4h': 'hourly',  # Get hourly and filter every 4th
+        '1d': 'daily'    # Prefer daily, but may use hourly for small ranges
+    }
+    
+    return timeframe_mapping.get(timeframe, 'daily')
+
+
+def calculate_days_for_timeframe(timeframe: str, limit: int) -> int:
+    """
+    Calculate number of days to request based on timeframe and desired data points
+    
+    Args:
+        timeframe: Our timeframe format ('1h', '4h', '1d')
+        limit: Number of data points desired
+        
+    Returns:
+        int: Number of days to request from CoinGecko
+    """
+    if timeframe == '1h':
+        # 1 day = 24 hourly points
+        return max(1, (limit + 23) // 24)  # Round up
+    elif timeframe == '4h':
+        # 1 day = 6 four-hourly points  
+        return max(1, (limit + 5) // 6)  # Round up
+    elif timeframe == '1d':
+        # 1 day = 1 daily point
+        return limit
+    else:
+        return limit
+
+
+def filter_data_by_timeframe(data: List[List[float]], timeframe: str) -> List[List[float]]:
+    """
+    Filter hourly-normalized data to match the specified timeframe
+    
+    This is much simpler now that all data is guaranteed to be hourly-aligned.
+    
+    Args:
+        data: Hourly-normalized data [[timestamp_ms, value], ...]
+        timeframe: Target timeframe ('1h', '4h', '1d')
+        
+    Returns:
+        List: Filtered data for the specified timeframe
+    """
+    if not data or timeframe == '1h':
+        return data
+    
+    if timeframe == '4h':
+        return filter_to_4hourly(data)
+    elif timeframe == '1d':
+        return filter_to_daily(data)
+    else:
+        return data  # Unknown timeframe
+
+
+def filter_to_4hourly(data: List[List[float]]) -> List[List[float]]:
+    """
+    Filter hourly data to 4-hourly intervals (00:00, 04:00, 08:00, 12:00, 16:00, 20:00)
+    
+    Args:
+        data: Hourly-normalized data
+        
+    Returns:
+        List: 4-hourly filtered data
+    """
+    filtered_data = []
+    
+    for timestamp_ms, value in data:
+        # Convert to datetime to check hour
+        import datetime
+        dt = datetime.datetime.fromtimestamp(timestamp_ms / 1000, tz=datetime.timezone.utc)
+        
+        # Keep only timestamps at 4-hour boundaries
+        if dt.hour % 4 == 0:
+            filtered_data.append([timestamp_ms, value])
+    
+    return filtered_data
+
+
+def filter_to_daily(data: List[List[float]]) -> List[List[float]]:
+    """
+    Filter hourly data to daily intervals (00:00 UTC)
+    
+    Args:
+        data: Hourly-normalized data
+        
+    Returns:
+        List: Daily filtered data
+    """
+    filtered_data = []
+    
+    for timestamp_ms, value in data:
+        # Convert to datetime to check hour
+        import datetime
+        dt = datetime.datetime.fromtimestamp(timestamp_ms / 1000, tz=datetime.timezone.utc)
+        
+        # Keep only timestamps at midnight (00:00 UTC)
+        if dt.hour == 0:
+            filtered_data.append([timestamp_ms, value])
+    
+    return filtered_data
+
+
+def align_timestamp_to_4h(timestamp_ms: int) -> int:
+    """
+    Align timestamp to 4-hour boundaries (0:00, 4:00, 8:00, 12:00, 16:00, 20:00 UTC)
+    
+    Args:
+        timestamp_ms: Timestamp in milliseconds
+        
+    Returns:
+        int: Aligned timestamp in milliseconds
+    """
+    import datetime
+    
+    # Convert to datetime
+    dt = datetime.datetime.fromtimestamp(timestamp_ms / 1000, tz=datetime.timezone.utc)
+    
+    # Align to 4-hour boundary
+    aligned_hour = (dt.hour // 4) * 4
+    aligned_dt = dt.replace(hour=aligned_hour, minute=0, second=0, microsecond=0)
+    
+    # Convert back to milliseconds
+    return int(aligned_dt.timestamp() * 1000)
+
+
+def align_timestamp_to_daily(timestamp_ms: int) -> int:
+    """
+    Align timestamp to daily boundaries (00:00 UTC)
+    
+    Args:
+        timestamp_ms: Timestamp in milliseconds
+        
+    Returns:
+        int: Aligned timestamp in milliseconds
+    """
+    import datetime
+    
+    # Convert to datetime
+    dt = datetime.datetime.fromtimestamp(timestamp_ms / 1000, tz=datetime.timezone.utc)
+    
+    # Align to daily boundary (00:00 UTC)
+    aligned_dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Convert back to milliseconds
+    return int(aligned_dt.timestamp() * 1000)
+
+
+def align_timestamp_to_hourly(timestamp_ms: int) -> int:
+    """
+    Align timestamp to hourly boundaries (nearest hour)
+    
+    Args:
+        timestamp_ms: Timestamp in milliseconds
+        
+    Returns:
+        int: Aligned timestamp in milliseconds
+    """
+    import datetime
+    
+    # Convert to datetime
+    dt = datetime.datetime.fromtimestamp(timestamp_ms / 1000, tz=datetime.timezone.utc)
+    
+    # Round to nearest hour
+    if dt.minute >= 30:
+        # Round up to next hour
+        aligned_dt = dt.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
+    else:
+        # Round down to current hour
+        aligned_dt = dt.replace(minute=0, second=0, microsecond=0)
+    
+    # Convert back to milliseconds
+    return int(aligned_dt.timestamp() * 1000)
+
+
+def normalize_data_to_hourly(data: List[List[float]]) -> List[List[float]]:
+    """
+    Normalize all data points to hourly boundaries
+    
+    This function aligns all timestamps to the nearest hour and removes duplicates.
+    This makes subsequent filtering operations much simpler and more reliable.
+    
+    Args:
+        data: Raw data [[timestamp_ms, value], ...]
+        
+    Returns:
+        List: Normalized hourly data
+    """
+    if not data:
+        return data
+    
+    # Align all timestamps to hourly boundaries
+    normalized_data = []
+    seen_timestamps = set()
+    
+    for timestamp_ms, value in data:
+        aligned_timestamp = align_timestamp_to_hourly(timestamp_ms)
+        
+        # Avoid duplicate timestamps (keep first occurrence)
+        if aligned_timestamp not in seen_timestamps:
+            normalized_data.append([aligned_timestamp, value])
+            seen_timestamps.add(aligned_timestamp)
+    
+    # Sort by timestamp to ensure chronological order
+    normalized_data.sort(key=lambda x: x[0])
+    
+    return normalized_data
+
 
 def coingecko_id_to_symbol(coingecko_id: str) -> str:
     """
