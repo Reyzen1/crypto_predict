@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.models import User
-from backend.app.repositories.base_repository import BaseRepository
+from ..base_repository import BaseRepository
 
 
 class UserRepository(BaseRepository[User, dict, dict]):

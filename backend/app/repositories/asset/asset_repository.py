@@ -7,7 +7,7 @@ from sqlalchemy import and_, or_, desc, func, text
 from datetime import datetime, timedelta
 
 from ..base_repository import BaseRepository
-from ...models.asset import Asset
+from app.models.asset import Asset
 
 
 class AssetRepository(BaseRepository):

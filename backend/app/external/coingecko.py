@@ -386,6 +386,81 @@ class CoinGeckoClient:
         
         return coins
     
+    async def get_detailed_market_data(self, coingecko_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch detailed market data from CoinGecko coins endpoint
+        
+        Args:
+            coingecko_id: CoinGecko cryptocurrency ID
+            
+        Returns:
+            Dictionary with detailed market data or None if failed
+        """
+        try:
+            # Use CoinGecko coins/{id} endpoint for detailed data
+            endpoint = f"coins/{coingecko_id}"
+            params = {
+                "localization": "false",
+                "tickers": "false", 
+                "market_data": "true",
+                "community_data": "false",
+                "developer_data": "false",
+                "sparkline": "false"
+            }
+            
+            data = await self._make_request(endpoint, params)
+            
+            if not data or 'market_data' not in data:
+                return None
+            
+            market_data = data['market_data']
+            
+            # Extract relevant fields
+            detailed_data = {}
+            
+            # Basic market data
+            if 'market_cap_rank' in market_data:
+                detailed_data['market_cap_rank'] = market_data['market_cap_rank']
+            
+            # Supply data
+            if 'circulating_supply' in market_data:
+                detailed_data['circulating_supply'] = market_data['circulating_supply']
+            
+            if 'total_supply' in market_data:
+                detailed_data['total_supply'] = market_data['total_supply']
+            
+            if 'max_supply' in market_data:
+                detailed_data['max_supply'] = market_data['max_supply']
+            
+            # Price change percentages
+            if 'price_change_percentage_24h' in market_data:
+                detailed_data['price_change_percentage_24h'] = market_data['price_change_percentage_24h']
+            
+            if 'price_change_percentage_7d_in_currency' in market_data:
+                detailed_data['price_change_percentage_7d_in_currency'] = market_data['price_change_percentage_7d_in_currency'].get('usd')
+            
+            if 'price_change_percentage_30d_in_currency' in market_data:
+                detailed_data['price_change_percentage_30d_in_currency'] = market_data['price_change_percentage_30d_in_currency'].get('usd')
+            
+            # ATH/ATL data
+            if 'ath' in market_data:
+                detailed_data['ath'] = market_data['ath']
+            
+            if 'ath_date' in market_data:
+                detailed_data['ath_date'] = market_data['ath_date']
+            
+            if 'atl' in market_data:
+                detailed_data['atl'] = market_data['atl']
+            
+            if 'atl_date' in market_data:
+                detailed_data['atl_date'] = market_data['atl_date']
+            
+            return detailed_data
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch detailed market data for {coingecko_id}: {e}")
+            return None
+
     async def ping(self) -> bool:
         """
         Test API connectivity

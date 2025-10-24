@@ -101,6 +101,16 @@ erDiagram
                             Keys = timeframe codes (e.g., '1m', '5m', '1h', '1d')
                             Values = integer usage counts.
                             Example:{'1m': 5, '5m': 12, '1h': 120, '4h': 45, '1d': 100}"
+        
+        jsonb timeframe_data "PERFORMANCE CACHE: Aggregation status for each timeframe.
+                            Optimizes get_aggregation_status queries by avoiding expensive COUNT() operations.
+                            Keys = timeframe codes, Values = {count, earliest, latest}
+                            Example: {
+                                '1h': {'count': 720, 'earliest': '2025-09-23T00:00:00Z', 'latest': '2025-10-23T12:00:00Z'},
+                                '1d': {'count': 30, 'earliest': '2025-09-23T00:00:00Z', 'latest': '2025-10-23T00:00:00Z'}
+                            }
+                            Updated automatically via price_data triggers and repository methods."
+        
         timestamp last_accessed_at "Last time this asset was accessed by any user"
         int access_count "NOT NULL; default: 0; Total number of times this asset has been accessed"
         boolean is_active "NOT NULL; default: true; Whether this asset is active in our system"
@@ -1390,110 +1400,6 @@ erDiagram
         CONSTRAINT chk_prediction_count_positive CHECK (prediction_count >= 0)
     }
 
-    model_performance {
-        int id PK "NOT NULL; Unique identifier for evaluation record"
-        int model_id FK "NOT NULL; Foreign key to ai_models (specific model version)"
-        int source_job_id FK "Foreign key to model_jobs - links evaluation to the job that triggered it"
-        
-        -- � NOTE: Configuration, timing, and job details are accessed via source_job_id relationship
-        -- Use JOIN with model_jobs to get: job_params, started_at, completed_at, execution_time, etc.
-        
-        -- �📊 Evaluation Metadata (Non-redundant with model_jobs)
-        timestamp evaluation_date "NOT NULL; When this evaluation was performed"
-        varchar(50) evaluation_type "NOT NULL; Type: 'backtesting', 'forward_testing', 'cross_validation', 'live_performance', 'job_triggered'"
-        
-        -- 📈 Core Performance Metrics (کلیدی‌ترین metrics)
-        numeric(8,6) accuracy "Classification accuracy (0-1)"
-        numeric(8,6) precision_score "Precision score (0-1)"
-        numeric(8,6) recall "Recall score (0-1)"
-        numeric(8,6) f1_score "F1 score (0-1)"
-        
-        -- 💰 Trading Performance (مهم‌ترین برای crypto)
-        numeric(8,6) win_rate "Win rate percentage (0-1)"
-        numeric(10,4) profit_factor "Profit factor (gross profit / gross loss)"
-        numeric(10,6) sharpe_ratio "Risk-adjusted returns"
-        numeric(8,6) max_drawdown "Maximum drawdown percentage (0-1)"
-        numeric(10,4) total_return "Total return percentage"
-        
-        -- � Statistical Metrics
-        numeric mse "Mean Squared Error"
-        numeric mae "Mean Absolute Error"
-        numeric r2_score "R-squared score"
-        
-        -- 🔍 Evaluation Quality & Details
-        int sample_count "Number of samples/predictions evaluated"
-        numeric(6,4) confidence_avg "Average confidence score of predictions"
-        numeric(6,4) confidence_std "Standard deviation of confidence scores"
-        int true_positives "Count of true positive predictions"
-        int false_positives "Count of false positive predictions"
-        int true_negatives "Count of true negative predictions"
-        int false_negatives "Count of false negative predictions"
-        
-        -- 📊 Market Condition Context
-        varchar(20) market_regime "Market regime during evaluation: 'bull', 'bear', 'sideways', 'volatile'"
-        numeric(8,6) market_volatility "Average market volatility during period (0-1)"
-        numeric(10,4) btc_correlation "Correlation with BTC during evaluation period"
-        
-        -- 📝 Evaluation-Specific Details (Not available in model_jobs)
-        jsonb detailed_metrics "Detailed breakdown of all computed metrics and intermediate results"
-        jsonb evaluation_metadata "Evaluation-specific metadata (test dataset info, evaluation conditions, etc.)"
-        
-        -- 🎯 Pass/Fail Status & Grading
-        boolean meets_threshold "Whether performance meets minimum business thresholds"
-        varchar(2) performance_grade "Performance grade: 'A', 'B', 'C', 'D', 'F'"
-        numeric(6,4) overall_score "Computed overall performance score (0-1)"
-        varchar(20) evaluation_status "Status: 'completed', 'failed', 'partial', 'invalidated'"
-        
-        -- 📋 Analysis & Notes
-        text evaluation_notes "Detailed notes about this evaluation run"
-        text recommendations "Recommendations based on evaluation results"
-        
-        timestamp created_at "NOT NULL; default: Now(); Evaluation record creation time"
-        
-        -- � High-Performance Indexes
-        INDEX idx_perf_model_recent (model_id, evaluation_date DESC)
-        INDEX idx_perf_grade_threshold (performance_grade, meets_min_threshold, composite_score DESC)
-        INDEX idx_perf_trading_metrics (win_rate DESC, sharpe_ratio DESC, profit_factor DESC) WHERE meets_min_threshold = true
-        INDEX idx_perf_job_source (source_job_id, evaluation_date DESC) WHERE source_job_id IS NOT NULL
-        INDEX idx_perf_trigger_status (evaluation_trigger, evaluation_status, evaluation_date DESC)
-        INDEX idx_perf_quality_samples (total_samples DESC, valid_predictions DESC) WHERE evaluation_status = 'completed'
-        
-        -- ✅ Comprehensive Validation Constraints
-        CONSTRAINT chk_perf_ml_metrics CHECK (
-            accuracy IS NULL OR (accuracy >= 0 AND accuracy <= 1) AND
-            precision_score IS NULL OR (precision_score >= 0 AND precision_score <= 1) AND
-            recall IS NULL OR (recall >= 0 AND recall <= 1) AND
-            f1_score IS NULL OR (f1_score >= 0 AND f1_score <= 1) AND
-            auc_score IS NULL OR (auc_score >= 0 AND auc_score <= 1)
-        )
-        CONSTRAINT chk_perf_trading_metrics CHECK (
-            win_rate IS NULL OR (win_rate >= 0 AND win_rate <= 1) AND
-            max_drawdown IS NULL OR (max_drawdown >= 0 AND max_drawdown <= 1) AND
-            profit_factor IS NULL OR profit_factor >= 0
-        )
-        CONSTRAINT chk_perf_statistical_metrics CHECK (
-            r2_score IS NULL OR (r2_score >= -1 AND r2_score <= 1) AND
-            mse IS NULL OR mse >= 0 AND
-            mae IS NULL OR mae >= 0
-        )
-        CONSTRAINT chk_perf_sample_counts CHECK (
-            total_samples IS NULL OR total_samples > 0 AND
-            valid_predictions IS NULL OR (valid_predictions >= 0 AND valid_predictions <= total_samples)
-        )
-        CONSTRAINT chk_perf_confidence_metrics CHECK (
-            confidence_mean IS NULL OR (confidence_mean >= 0 AND confidence_mean <= 1) AND
-            confidence_std IS NULL OR confidence_std >= 0
-        )
-        CONSTRAINT chk_perf_composite_score CHECK (composite_score IS NULL OR (composite_score >= 0 AND composite_score <= 1))
-        CONSTRAINT chk_perf_market_volatility CHECK (market_volatility IS NULL OR (market_volatility >= 0 AND market_volatility <= 1))
-        
-        -- 🏷️ Enum Value Constraints
-        CONSTRAINT chk_perf_evaluation_trigger CHECK (evaluation_trigger IN ('job_completion', 'manual', 'scheduled', 'api_request'))
-        CONSTRAINT chk_perf_grade_valid CHECK (performance_grade IS NULL OR performance_grade IN ('A', 'B', 'C', 'D', 'F'))
-        CONSTRAINT chk_perf_market_regime CHECK (market_regime IS NULL OR market_regime IN ('bull', 'bear', 'sideways', 'volatile'))
-        CONSTRAINT chk_perf_status_valid CHECK (evaluation_status IN ('completed', 'failed', 'partial', 'invalidated'))
-    }
-
     %% 🔗 OPTIMIZED DESIGN: model_jobs ↔ model_performance
     %% ✅ model_jobs: Complete job lifecycle, configuration, execution, resources
     %% ✅ model_performance: Pure evaluation results, metrics, grading
@@ -1661,7 +1567,111 @@ erDiagram
         INDEX idx_model_jobs_recurring (is_recurring, next_run_time ASC) WHERE is_recurring = true
         INDEX idx_model_jobs_monitoring (job_status, progress_percentage, updated_at DESC) WHERE job_status IN ('pending', 'running')
     }
-    
+
+    model_performance {
+        int id PK "NOT NULL; Unique identifier for evaluation record"
+        int model_id FK "NOT NULL; Foreign key to ai_models (specific model version)"
+        int source_job_id FK "Foreign key to model_jobs - links evaluation to the job that triggered it"
+        
+        -- � NOTE: Configuration, timing, and job details are accessed via source_job_id relationship
+        -- Use JOIN with model_jobs to get: job_params, started_at, completed_at, execution_time, etc.
+        
+        -- �📊 Evaluation Metadata (Non-redundant with model_jobs)
+        timestamp evaluation_date "NOT NULL; When this evaluation was performed"
+        varchar(50) evaluation_type "NOT NULL; Type: 'backtesting', 'forward_testing', 'cross_validation', 'live_performance', 'job_triggered'"
+        
+        -- 📈 Core Performance Metrics (کلیدی‌ترین metrics)
+        numeric(8,6) accuracy "Classification accuracy (0-1)"
+        numeric(8,6) precision_score "Precision score (0-1)"
+        numeric(8,6) recall "Recall score (0-1)"
+        numeric(8,6) f1_score "F1 score (0-1)"
+        
+        -- 💰 Trading Performance (مهم‌ترین برای crypto)
+        numeric(8,6) win_rate "Win rate percentage (0-1)"
+        numeric(10,4) profit_factor "Profit factor (gross profit / gross loss)"
+        numeric(10,6) sharpe_ratio "Risk-adjusted returns"
+        numeric(8,6) max_drawdown "Maximum drawdown percentage (0-1)"
+        numeric(10,4) total_return "Total return percentage"
+        
+        -- � Statistical Metrics
+        numeric mse "Mean Squared Error"
+        numeric mae "Mean Absolute Error"
+        numeric r2_score "R-squared score"
+        
+        -- 🔍 Evaluation Quality & Details
+        int sample_count "Number of samples/predictions evaluated"
+        numeric(6,4) confidence_avg "Average confidence score of predictions"
+        numeric(6,4) confidence_std "Standard deviation of confidence scores"
+        int true_positives "Count of true positive predictions"
+        int false_positives "Count of false positive predictions"
+        int true_negatives "Count of true negative predictions"
+        int false_negatives "Count of false negative predictions"
+        
+        -- 📊 Market Condition Context
+        varchar(20) market_regime "Market regime during evaluation: 'bull', 'bear', 'sideways', 'volatile'"
+        numeric(8,6) market_volatility "Average market volatility during period (0-1)"
+        numeric(10,4) btc_correlation "Correlation with BTC during evaluation period"
+        
+        -- 📝 Evaluation-Specific Details (Not available in model_jobs)
+        jsonb detailed_metrics "Detailed breakdown of all computed metrics and intermediate results"
+        jsonb evaluation_metadata "Evaluation-specific metadata (test dataset info, evaluation conditions, etc.)"
+        
+        -- 🎯 Pass/Fail Status & Grading
+        boolean meets_threshold "Whether performance meets minimum business thresholds"
+        varchar(2) performance_grade "Performance grade: 'A', 'B', 'C', 'D', 'F'"
+        numeric(6,4) overall_score "Computed overall performance score (0-1)"
+        varchar(20) evaluation_status "Status: 'completed', 'failed', 'partial', 'invalidated'"
+        
+        -- 📋 Analysis & Notes
+        text evaluation_notes "Detailed notes about this evaluation run"
+        text recommendations "Recommendations based on evaluation results"
+        
+        timestamp created_at "NOT NULL; default: Now(); Evaluation record creation time"
+        
+        -- � High-Performance Indexes
+        INDEX idx_perf_model_recent (model_id, evaluation_date DESC)
+        INDEX idx_perf_grade_threshold (performance_grade, meets_min_threshold, composite_score DESC)
+        INDEX idx_perf_trading_metrics (win_rate DESC, sharpe_ratio DESC, profit_factor DESC) WHERE meets_min_threshold = true
+        INDEX idx_perf_job_source (source_job_id, evaluation_date DESC) WHERE source_job_id IS NOT NULL
+        INDEX idx_perf_trigger_status (evaluation_trigger, evaluation_status, evaluation_date DESC)
+        INDEX idx_perf_quality_samples (total_samples DESC, valid_predictions DESC) WHERE evaluation_status = 'completed'
+        
+        -- ✅ Comprehensive Validation Constraints
+        CONSTRAINT chk_perf_ml_metrics CHECK (
+            accuracy IS NULL OR (accuracy >= 0 AND accuracy <= 1) AND
+            precision_score IS NULL OR (precision_score >= 0 AND precision_score <= 1) AND
+            recall IS NULL OR (recall >= 0 AND recall <= 1) AND
+            f1_score IS NULL OR (f1_score >= 0 AND f1_score <= 1) AND
+            auc_score IS NULL OR (auc_score >= 0 AND auc_score <= 1)
+        )
+        CONSTRAINT chk_perf_trading_metrics CHECK (
+            win_rate IS NULL OR (win_rate >= 0 AND win_rate <= 1) AND
+            max_drawdown IS NULL OR (max_drawdown >= 0 AND max_drawdown <= 1) AND
+            profit_factor IS NULL OR profit_factor >= 0
+        )
+        CONSTRAINT chk_perf_statistical_metrics CHECK (
+            r2_score IS NULL OR (r2_score >= -1 AND r2_score <= 1) AND
+            mse IS NULL OR mse >= 0 AND
+            mae IS NULL OR mae >= 0
+        )
+        CONSTRAINT chk_perf_sample_counts CHECK (
+            total_samples IS NULL OR total_samples > 0 AND
+            valid_predictions IS NULL OR (valid_predictions >= 0 AND valid_predictions <= total_samples)
+        )
+        CONSTRAINT chk_perf_confidence_metrics CHECK (
+            confidence_mean IS NULL OR (confidence_mean >= 0 AND confidence_mean <= 1) AND
+            confidence_std IS NULL OR confidence_std >= 0
+        )
+        CONSTRAINT chk_perf_composite_score CHECK (composite_score IS NULL OR (composite_score >= 0 AND composite_score <= 1))
+        CONSTRAINT chk_perf_market_volatility CHECK (market_volatility IS NULL OR (market_volatility >= 0 AND market_volatility <= 1))
+        
+        -- 🏷️ Enum Value Constraints
+        CONSTRAINT chk_perf_evaluation_trigger CHECK (evaluation_trigger IN ('job_completion', 'manual', 'scheduled', 'api_request'))
+        CONSTRAINT chk_perf_grade_valid CHECK (performance_grade IS NULL OR performance_grade IN ('A', 'B', 'C', 'D', 'F'))
+        CONSTRAINT chk_perf_market_regime CHECK (market_regime IS NULL OR market_regime IN ('bull', 'bear', 'sideways', 'volatile'))
+        CONSTRAINT chk_perf_status_valid CHECK (evaluation_status IN ('completed', 'failed', 'partial', 'invalidated'))
+    }
+
 
     %% ❌ model_audit_logs - حذف شد برای MVP
     %% 📝 فاز 2: اضافه می‌شود برای compliance و enterprise features

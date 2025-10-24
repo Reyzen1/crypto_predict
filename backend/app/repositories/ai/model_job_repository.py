@@ -7,8 +7,8 @@ from sqlalchemy import and_, or_, desc, func, text
 from datetime import datetime, timedelta
 
 from ..base_repository import BaseRepository
-from ...models.ai.job import ModelJob
-from ...models.enums import JobStatus, JobCategory, Priority
+from app.models.ai.job import ModelJob
+from app.models.enums import JobStatus, JobCategory, Priority
 
 
 class ModelJobRepository(BaseRepository):

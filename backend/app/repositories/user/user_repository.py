@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import logging
 
 from ..base_repository import BaseRepository
-from ...models.user.user import User
+from app.models.user.user import User
 
 # Setup logger
 logger = logging.getLogger(__name__)

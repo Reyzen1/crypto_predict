@@ -1,6 +1,7 @@
 # backend/app/models/asset/asset.py
 # Asset model - Cryptocurrency and financial assets
 
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, Integer, Text, Numeric, DateTime, CheckConstraint, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
@@ -59,6 +60,9 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
     # Usage and Metrics
     metrics_details = Column(JSON, nullable=True, default={})
     timeframe_usage = Column(JSON, nullable=True, default={})
+    
+    # Timeframe Data Cache (Performance Optimization)
+    timeframe_data = Column(JSON, nullable=True, default={}, comment="Cache of available timeframes with count, earliest/latest timestamps")
     
     # System Flags
     is_supported = Column(Boolean, nullable=False, default=True)
@@ -196,6 +200,181 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         if not self.external_ids:
             return None
         return self.external_ids.get(provider)
+    
+    def update_timeframe_data(self, timeframe: str, count: int = None, 
+                            earliest: str = None, latest: str = None):
+        """
+        Update timeframe data cache for performance optimization
+        
+        Args:
+            timeframe: Timeframe identifier (e.g., '1h', '1d')
+            count: Number of records for this timeframe
+            earliest: Earliest timestamp in ISO format
+            latest: Latest timestamp in ISO format
+        """
+        if not self.timeframe_data:
+            self.timeframe_data = {}
+        
+        if timeframe not in self.timeframe_data:
+            self.timeframe_data[timeframe] = {}
+        
+        if count is not None:
+            self.timeframe_data[timeframe]['count'] = count
+        if earliest is not None:
+            self.timeframe_data[timeframe]['earliest'] = earliest
+        if latest is not None:
+            self.timeframe_data[timeframe]['latest'] = latest
+        
+        # Mark as modified for SQLAlchemy
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(self, 'timeframe_data')
+    
+    def get_timeframe_info(self, timeframe: str) -> dict:
+        """
+        Get timeframe information from cache
+        
+        Args:
+            timeframe: Timeframe identifier
+            
+        Returns:
+            Dictionary with count, earliest, latest
+        """
+        if not self.timeframe_data:
+            return {'count': 0, 'earliest': None, 'latest': None}
+        
+        return self.timeframe_data.get(timeframe, {
+            'count': 0, 
+            'earliest': None, 
+            'latest': None
+        })
+    
+    def get_all_timeframe_data(self) -> dict:
+        """
+        Get all timeframe data with aggregatable information
+        
+        Returns:
+            Dictionary with all timeframe data and aggregation capabilities
+        """
+        from ...repositories.asset.price_data_repository import PriceDataRepository
+        
+        # Get timeframe hierarchy
+        hierarchy = {
+            '1m': {'minutes': 1, 'base_timeframe': None},
+            '5m': {'minutes': 5, 'base_timeframe': '1m'},
+            '15m': {'minutes': 15, 'base_timeframe': '5m'},
+            '1h': {'minutes': 60, 'base_timeframe': '15m'},
+            '4h': {'minutes': 240, 'base_timeframe': '1h'},
+            '1d': {'minutes': 1440, 'base_timeframe': '4h'},
+            '1w': {'minutes': 10080, 'base_timeframe': '1d'},
+            '1M': {'minutes': 43200, 'base_timeframe': '1w'}
+        }
+        
+        # Function to get aggregatable timeframes
+        def get_aggregatable_timeframes(source_timeframe: str) -> list:
+            source_minutes = hierarchy.get(source_timeframe, {}).get('minutes', 0)
+            if not source_minutes:
+                return []
+            
+            aggregatable = []
+            for tf, info in hierarchy.items():
+                tf_minutes = info['minutes']
+                if tf_minutes > source_minutes and tf_minutes % source_minutes == 0:
+                    aggregatable.append(tf)
+            
+            return sorted(aggregatable, key=lambda x: hierarchy[x]['minutes'])
+        
+        # Build result with cached data and aggregation info
+        result = {}
+        for timeframe in hierarchy.keys():
+            info = self.get_timeframe_info(timeframe)
+            result[timeframe] = {
+                'count': info['count'],
+                'latest_time': info['latest'],
+                'earliest_time': info['earliest'],
+                'can_aggregate_to': get_aggregatable_timeframes(timeframe)
+            }
+        
+        return result
+    
+    def reset_timeframe_cache(self):
+        """Reset timeframe data cache"""
+        self.timeframe_data = {}
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(self, 'timeframe_data')
+    
+    def get_timeframe_data(self, timeframe: str = None):
+        """Get timeframe data cache"""
+        if not self.timeframe_data:
+            return {} if timeframe is None else None
+        
+        if timeframe:
+            return self.timeframe_data.get(timeframe)
+        return self.timeframe_data
+    
+    def update_timeframe_data(self, timeframe: str, count: int, 
+                            earliest_time: str = None, latest_time: str = None):
+        """Update timeframe data cache"""
+        if not self.timeframe_data:
+            self.timeframe_data = {}
+        
+        self.timeframe_data[timeframe] = {
+            'count': count,
+            'earliest_time': earliest_time,
+            'latest_time': latest_time,
+            'last_updated': datetime.now(timezone.utc).isoformat()
+        }
+    
+    def remove_timeframe_data(self, timeframe: str):
+        """Remove timeframe from data cache"""
+        if self.timeframe_data and timeframe in self.timeframe_data:
+            del self.timeframe_data[timeframe]
+    
+    def refresh_timeframe_data_from_db(self, session):
+        """Refresh timeframe_data cache from price_data table"""
+        from .price_data import PriceData
+        from sqlalchemy import func
+        
+        # Query all timeframes with their stats
+        timeframe_stats = session.query(
+            PriceData.timeframe,
+            func.count(PriceData.id).label('count'),
+            func.min(PriceData.candle_time).label('earliest'),
+            func.max(PriceData.candle_time).label('latest')
+        ).filter(
+            PriceData.asset_id == self.id
+        ).group_by(PriceData.timeframe).all()
+        
+        # Update cache
+        self.timeframe_data = {}
+        for stat in timeframe_stats:
+            self.timeframe_data[stat.timeframe] = {
+                'count': stat.count,
+                'earliest_time': stat.earliest.isoformat() if stat.earliest else None,
+                'latest_time': stat.latest.isoformat() if stat.latest else None,
+                'last_updated': datetime.now(timezone.utc).isoformat()
+            }
+    
+    @property
+    def available_timeframes(self):
+        """Get list of available timeframes"""
+        if not self.timeframe_data:
+            return []
+        return [tf for tf, data in self.timeframe_data.items() if data.get('count', 0) > 0]
+    
+    @property
+    def timeframe_summary(self):
+        """Get summary of timeframe data"""
+        if not self.timeframe_data:
+            return {'total_timeframes': 0, 'total_records': 0}
+        
+        total_records = sum(data.get('count', 0) for data in self.timeframe_data.values())
+        active_timeframes = len([tf for tf, data in self.timeframe_data.items() if data.get('count', 0) > 0])
+        
+        return {
+            'total_timeframes': active_timeframes,
+            'total_records': total_records,
+            'timeframes': list(self.timeframe_data.keys()) if self.timeframe_data else []
+        }
     
     @classmethod
     def get_by_symbol(cls, session, symbol: str):

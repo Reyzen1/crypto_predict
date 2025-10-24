@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import logging
 
 from ..base_repository import BaseRepository
-from ...models.macro.regime_analysis import AIRegimeAnalysis
+from app.models.macro.regime_analysis import AIRegimeAnalysis
 
 # Setup logger
 logger = logging.getLogger(__name__)

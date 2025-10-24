@@ -40,8 +40,16 @@ class DataQualityMixin:
     Usage: assets table (track data quality from external APIs)
     """
     data_quality_score = Column(Integer, nullable=False, default=100)
-    collection_duration_ms = Column(Integer, nullable=True)
     data_source = Column(String(50), nullable=False, default='internal')
+
+class PerformanceTrackingMixin:
+    """Mixin for performance and timing tracking
+    
+    Usage: metrics_snapshot table (track data collection performance)
+    """
+    collection_duration_ms = Column(Integer, nullable=True)
+    data_collection_started = Column(DateTime(timezone=True), nullable=True)
+    data_collection_completed = Column(DateTime(timezone=True), nullable=True)
 
 class AccessTrackingMixin:
     """Mixin for tracking access patterns

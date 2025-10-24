@@ -5,10 +5,10 @@ from sqlalchemy import Column, String, Integer, Numeric, DateTime, Boolean, Chec
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 from ..base import BaseModel, CreatedAtMixin
-from ..mixins import DataQualityMixin, ValidationMixin
+from ..mixins import DataQualityMixin, PerformanceTrackingMixin, ValidationMixin
 
 
-class MetricsSnapshot(BaseModel, CreatedAtMixin, DataQualityMixin, ValidationMixin):
+class MetricsSnapshot(BaseModel, CreatedAtMixin, PerformanceTrackingMixin, ValidationMixin):
     """
     Metrics snapshot for market-wide data collection
     
@@ -106,7 +106,7 @@ class MetricsSnapshot(BaseModel, CreatedAtMixin, DataQualityMixin, ValidationMix
         Index('idx_metrics_created_at', 'created_at'),
         Index('idx_metrics_fear_greed', 'fear_greed_index'),
         Index('idx_metrics_dominance', 'btc_dominance'),
-        Index('idx_metrics_quality_score', 'data_quality_score'),
+        # Index('idx_metrics_quality_score', 'data_quality_score'),  # Field not available in this model
         Index('idx_metrics_has_anomalies', 'has_anomalies'),
         Index('idx_metrics_time_range', 'snapshot_time', 'timeframe', 'btc_price_usd'),
         Index('idx_metrics_correlation_btc_eth', 'btc_eth_correlation_30d'),
@@ -135,7 +135,9 @@ class MetricsSnapshot(BaseModel, CreatedAtMixin, DataQualityMixin, ValidationMix
     @property
     def is_high_quality(self) -> bool:
         """Check if snapshot has high data quality"""
-        return self.data_quality_score >= 90 and not self.has_anomalies
+        # Since we don't have data_quality_score field in this model,
+        # use other indicators for quality assessment
+        return not self.has_anomalies and self.btc_price_usd is not None
     
     @property
     def collection_time_ms(self) -> int:
@@ -195,11 +197,11 @@ class MetricsSnapshot(BaseModel, CreatedAtMixin, DataQualityMixin, ValidationMix
         ).order_by(cls.snapshot_time.asc()).all()
     
     @classmethod
-    def get_high_quality_snapshots(cls, session, min_quality_score: int = 90):
+    def get_high_quality_snapshots(cls, session):
         """Get high quality snapshots"""
         return session.query(cls).filter(
-            cls.data_quality_score >= min_quality_score,
-            cls.has_anomalies == False
+            cls.has_anomalies == False,
+            cls.btc_price_usd.isnot(None)
         ).order_by(cls.snapshot_time.desc()).all()
     
     def to_dict(self) -> dict:
@@ -214,7 +216,7 @@ class MetricsSnapshot(BaseModel, CreatedAtMixin, DataQualityMixin, ValidationMix
             'btc_dominance': float(self.btc_dominance) if self.btc_dominance else None,
             'market_regime': self.market_regime_simple,
             'stress_level': self.market_stress_level,
-            'data_quality_score': self.data_quality_score,
+            'is_high_quality': self.is_high_quality,
             'has_anomalies': self.has_anomalies,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

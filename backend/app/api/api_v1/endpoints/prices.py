@@ -581,7 +581,7 @@ async def fetch_asset_price_data(
         price_service = get_price_data_service(db)
         
         # Populate asset price data
-        result = await price_service.populate_asset_price_data(
+        result = await price_service.populate_price_data(
             asset_id=asset_id,
             days=days,
             timeframe=timeframe,
@@ -686,7 +686,6 @@ def get_asset_data_quality(
         # Get quality report
         quality_report = price_service.get_data_quality_report(
             asset_id=asset_id,
-            timeframe=timeframe,
             days=days
         )
         

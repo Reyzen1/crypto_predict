@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
 from app.models import Cryptocurrency, PriceData
-from backend.app.repositories.base_repository import BaseRepository
+from ..base_repository import BaseRepository
 
 
 class CryptocurrencyRepository(BaseRepository[Cryptocurrency, dict, dict]):

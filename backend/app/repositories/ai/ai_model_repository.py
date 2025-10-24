@@ -7,8 +7,8 @@ from sqlalchemy import and_, or_, desc, func
 from datetime import datetime, timedelta
 
 from ..base_repository import BaseRepository
-from ...models.ai.model import AIModel
-from ...models.enums import ModelStatus, ModelType
+from app.models.ai.model import AIModel
+from app.models.enums import ModelStatus, ModelType
 
 
 class AIModelRepository(BaseRepository):

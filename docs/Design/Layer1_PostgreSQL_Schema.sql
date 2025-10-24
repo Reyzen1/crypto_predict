@@ -94,6 +94,10 @@ CREATE TABLE IF NOT EXISTS assets (
     
     -- Usage tracking
     timeframe_usage JSONB DEFAULT '{}',
+    
+    -- Performance optimization cache
+    timeframe_data JSONB DEFAULT '{}',
+    
     last_accessed_at TIMESTAMP WITH TIME ZONE,
     access_count INTEGER NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT true,
@@ -120,6 +124,8 @@ CREATE INDEX idx_assets_type_active ON assets(asset_type, is_active);
 CREATE INDEX idx_assets_market_cap_rank ON assets(market_cap_rank) WHERE market_cap_rank IS NOT NULL;
 CREATE INDEX idx_assets_last_accessed ON assets(last_accessed_at) WHERE last_accessed_at IS NOT NULL;
 CREATE INDEX idx_assets_data_source ON assets(data_source);
+-- GIN index for fast JSON queries on timeframe_data cache
+CREATE INDEX idx_assets_timeframe_data ON assets USING GIN (timeframe_data) WHERE timeframe_data IS NOT NULL;
 
 -- ===============================================
 -- 3. PRICE_DATA TABLE - Historical and real-time price data
@@ -425,7 +431,6 @@ CREATE TABLE IF NOT EXISTS ai_models (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- 📋 Enhanced Constraints
-    CONSTRAINT unique_active_model UNIQUE (name, model_type) WHERE is_active = true,
     CONSTRAINT chk_confidence_threshold CHECK (min_confidence_threshold BETWEEN 0 AND 1),
     CONSTRAINT chk_prediction_count_positive CHECK (prediction_count >= 0),
     CONSTRAINT chk_model_size_positive CHECK (model_size_mb IS NULL OR model_size_mb > 0),
@@ -444,7 +449,96 @@ CREATE INDEX idx_ai_models_active ON ai_models(is_active);
 CREATE INDEX idx_ai_models_created_at ON ai_models(created_at DESC);
 
 -- ===============================================
--- 7. MODEL_PERFORMANCE TABLE - Model performance evaluations
+-- 7. MODEL_JOBS TABLE - Unified model job management (training, prediction, evaluation, etc.)
+-- ===============================================
+CREATE TABLE IF NOT EXISTS model_jobs (
+    id BIGSERIAL PRIMARY KEY,
+    model_id INTEGER NOT NULL REFERENCES ai_models(id) ON DELETE CASCADE,
+    
+    -- Job Classification & Control
+    job_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    job_category VARCHAR(15) NOT NULL DEFAULT 'training',
+    job_type VARCHAR(25) NOT NULL DEFAULT 'batch',
+    job_name VARCHAR(30) NOT NULL DEFAULT 'Unnamed Job',
+    
+    -- Execution Tracking
+    progress_pct NUMERIC(5,2) NOT NULL DEFAULT 0,
+    current_phase VARCHAR(20),
+    total_steps INTEGER,
+    completed_steps INTEGER,
+    
+    -- Comprehensive Job Configuration
+    job_config JSONB NOT NULL DEFAULT '{}',
+    
+    -- Real-Time Job Metrics & Statistics
+    job_metrics JSONB DEFAULT '{}',
+    
+    -- Comprehensive Timing Information
+    queued_at TIMESTAMP WITH TIME ZONE,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    last_heartbeat TIMESTAMP WITH TIME ZONE,
+    execution_duration_sec INTEGER,
+    estimated_duration_sec INTEGER,
+    
+    -- Job Outputs & Results
+    job_outputs JSONB DEFAULT '{}',
+    
+    -- Scheduling & Automation
+    is_scheduled BOOLEAN DEFAULT false,
+    schedule_expression VARCHAR(50),
+    next_scheduled_run TIMESTAMP WITH TIME ZONE,
+    auto_retry_enabled BOOLEAN DEFAULT true,
+    
+    -- Job Management & Ownership
+    created_by INTEGER REFERENCES users(id),
+    assigned_to INTEGER REFERENCES users(id),
+    priority VARCHAR(10) DEFAULT 'normal',
+    queue_name VARCHAR(20),
+    
+    -- Error Handling & Retry Logic
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3,
+    error_message TEXT,
+    failure_details JSONB DEFAULT '{}',
+    
+    -- Resource Management & Limits
+    resource_allocation JSONB DEFAULT '{}',
+    
+    -- Job Logging & Monitoring
+    execution_log TEXT,
+    job_events JSONB DEFAULT '{}',
+    monitoring_webhook VARCHAR(50),
+    
+    -- Dependencies & Relationships
+    job_dependencies JSONB DEFAULT '{}',
+    parent_job_id BIGINT REFERENCES model_jobs(id),
+    blocks_other_jobs BOOLEAN DEFAULT false,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Enhanced Business Logic Constraints
+    CONSTRAINT chk_jobs_progress_range CHECK (progress_pct >= 0 AND progress_pct <= 100),
+    CONSTRAINT chk_jobs_retry_logic CHECK (retry_count >= 0 AND retry_count <= max_retries),
+    CONSTRAINT chk_jobs_max_retries CHECK (max_retries >= 0 AND max_retries <= 20),
+    CONSTRAINT chk_jobs_steps_logic CHECK (completed_steps IS NULL OR total_steps IS NULL OR completed_steps <= total_steps),
+    CONSTRAINT chk_jobs_timing_logic CHECK (started_at IS NULL OR completed_at IS NULL OR started_at <= completed_at),
+    CONSTRAINT chk_jobs_duration_positive CHECK (execution_duration_sec IS NULL OR execution_duration_sec >= 0),
+    CONSTRAINT chk_jobs_schedule_logic CHECK (schedule_expression IS NULL OR is_scheduled = true)
+);
+
+-- Optimized Indexes for model_jobs Performance
+CREATE INDEX idx_model_jobs_active ON model_jobs(job_status, priority DESC, created_at ASC) WHERE job_status IN ('pending', 'running');
+CREATE INDEX idx_model_jobs_model_category ON model_jobs(model_id, job_category, job_status, created_at DESC);
+CREATE INDEX idx_model_jobs_scheduled ON model_jobs(is_scheduled, next_scheduled_run ASC) WHERE is_scheduled = true;
+CREATE INDEX idx_model_jobs_monitoring ON model_jobs(job_status, progress_pct, last_heartbeat DESC) WHERE job_status = 'running';
+CREATE INDEX idx_model_jobs_user_jobs ON model_jobs(created_by, job_status, created_at DESC);
+CREATE INDEX idx_model_jobs_queue_management ON model_jobs(queue_name, priority DESC, queued_at ASC) WHERE job_status = 'pending';
+CREATE INDEX idx_model_jobs_parent_child ON model_jobs(parent_job_id, job_status) WHERE parent_job_id IS NOT NULL;
+
+-- ===============================================
+-- 8. MODEL_PERFORMANCE TABLE - Model performance evaluations
 -- ===============================================
 CREATE TABLE IF NOT EXISTS model_performance (
     id BIGSERIAL PRIMARY KEY,
@@ -536,98 +630,9 @@ CREATE INDEX idx_perf_job_source ON model_performance(source_job_id, evaluation_
 CREATE INDEX idx_perf_trigger_status ON model_performance(evaluation_trigger, evaluation_status, evaluation_date DESC);
 
 -- ===============================================
--- 8. MODEL_JOBS TABLE - Unified model job management (training, prediction, evaluation, etc.)
+-- ADD FOREIGN KEY CONSTRAINTS FOR FORWARD REFERENCES
 -- ===============================================
-CREATE TABLE IF NOT EXISTS model_jobs (
-    id BIGSERIAL PRIMARY KEY,
-    model_id INTEGER NOT NULL REFERENCES ai_models(id) ON DELETE CASCADE,
-    
-    -- Job Classification & Control
-    job_status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    job_category VARCHAR(15) NOT NULL DEFAULT 'training',
-    job_type VARCHAR(25) NOT NULL DEFAULT 'batch',
-    job_name VARCHAR(30) NOT NULL DEFAULT 'Unnamed Job',
-    
-    -- Execution Tracking
-    progress_pct NUMERIC(5,2) NOT NULL DEFAULT 0,
-    current_phase VARCHAR(20),
-    total_steps INTEGER,
-    completed_steps INTEGER,
-    
-    -- Comprehensive Job Configuration
-    job_config JSONB NOT NULL DEFAULT '{}',
-    
-    -- Real-Time Job Metrics & Statistics
-    job_metrics JSONB DEFAULT '{}',
-    
-    -- Comprehensive Timing Information
-    queued_at TIMESTAMP WITH TIME ZONE,
-    started_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    last_heartbeat TIMESTAMP WITH TIME ZONE,
-    execution_duration_sec INTEGER,
-    estimated_duration_sec INTEGER,
-    
-    -- Job Outputs & Results
-    job_outputs JSONB DEFAULT '{}',
-    
-    -- Scheduling & Automation
-    is_scheduled BOOLEAN DEFAULT false,
-    schedule_expression VARCHAR(50),
-    next_scheduled_run TIMESTAMP WITH TIME ZONE,
-    auto_retry_enabled BOOLEAN DEFAULT true,
-    
-    -- Job Management & Ownership
-    created_by INTEGER REFERENCES users(id),
-    assigned_to INTEGER REFERENCES users(id),
-    priority VARCHAR(10) DEFAULT 'normal',
-    queue_name VARCHAR(20),
-    
-    -- Error Handling & Retry Logic
-    retry_count INTEGER DEFAULT 0,
-    max_retries INTEGER DEFAULT 3,
-    error_message TEXT,
-    failure_details JSONB DEFAULT '{}',
-    
-    -- Resource Management & Limits
-    resource_allocation JSONB DEFAULT '{}',
-    
-    -- Job Logging & Monitoring
-    execution_log TEXT,
-    job_events JSONB DEFAULT '{}',
-    monitoring_webhook VARCHAR(50),
-    
-    -- Dependencies & Relationships
-    job_dependencies JSONB DEFAULT '{}',
-    parent_job_id BIGINT REFERENCES model_jobs(id),
-    blocks_other_jobs BOOLEAN DEFAULT false,
-    
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Enhanced Business Logic Constraints
-    CONSTRAINT chk_jobs_progress_range CHECK (progress_pct >= 0 AND progress_pct <= 100),
-    CONSTRAINT chk_jobs_retry_logic CHECK (retry_count >= 0 AND retry_count <= max_retries),
-    CONSTRAINT chk_jobs_max_retries CHECK (max_retries >= 0 AND max_retries <= 20),
-    CONSTRAINT chk_jobs_steps_logic CHECK (completed_steps IS NULL OR total_steps IS NULL OR completed_steps <= total_steps),
-    CONSTRAINT chk_jobs_timing_logic CHECK (started_at IS NULL OR completed_at IS NULL OR started_at <= completed_at),
-    CONSTRAINT chk_jobs_duration_positive CHECK (execution_duration_sec IS NULL OR execution_duration_sec >= 0),
-    CONSTRAINT chk_jobs_schedule_logic CHECK (schedule_expression IS NULL OR is_scheduled = true)
-);
-
--- Optimized Indexes for model_jobs Performance
-CREATE INDEX idx_model_jobs_active ON model_jobs(job_status, priority DESC, created_at ASC) WHERE job_status IN ('pending', 'running');
-CREATE INDEX idx_model_jobs_model_category ON model_jobs(model_id, job_category, job_status, created_at DESC);
-CREATE INDEX idx_model_jobs_scheduled ON model_jobs(is_scheduled, next_scheduled_run ASC) WHERE is_scheduled = true;
-CREATE INDEX idx_model_jobs_monitoring ON model_jobs(job_status, progress_pct, last_heartbeat DESC) WHERE job_status = 'running';
-CREATE INDEX idx_model_jobs_user_jobs ON model_jobs(created_by, job_status, created_at DESC);
-CREATE INDEX idx_model_jobs_queue_management ON model_jobs(queue_name, priority DESC, queued_at ASC) WHERE job_status = 'pending';
-CREATE INDEX idx_model_jobs_parent_child ON model_jobs(parent_job_id, job_status) WHERE parent_job_id IS NOT NULL;
-
--- ===============================================
--- ADD FOREIGN KEY CONSTRAINT FOR AI MODEL REFERENCES
--- ===============================================
--- Add the foreign key constraint after ai_models table is created
+-- Add foreign key constraints after all tables are created
 ALTER TABLE ai_regime_analysis 
 ADD CONSTRAINT fk_ai_regime_analysis_model 
 FOREIGN KEY (ai_model_id) REFERENCES ai_models(id) ON DELETE RESTRICT;
@@ -699,16 +704,17 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO assets (
     symbol,
     name,
-    asset_type
+    asset_type,
+    external_ids
 ) VALUES 
 -- Bitcoin (BTC)
-('BTC', 'Bitcoin', 'crypto'),
+('BTC', 'Bitcoin', 'crypto', '{"coingecko_id": "bitcoin", "coinmarketcap_id": "1"}'),
 
 -- Ethereum (ETH)  
-('ETH', 'Ethereum', 'crypto'),
+('ETH', 'Ethereum', 'crypto', '{"coingecko_id": "ethereum", "coinmarketcap_id": "1027"}'),
 
 -- Tether USD (USDT)
-('USDT', 'Tether USD', 'stablecoin')
+('USDT', 'Tether USD', 'stablecoin', '{"coingecko_id": "tether", "coinmarketcap_id": "825"}'),
 ON CONFLICT (symbol) DO NOTHING;
 
 -- ===============================================
@@ -716,6 +722,7 @@ ON CONFLICT (symbol) DO NOTHING;
 -- ===============================================
 COMMENT ON TABLE users IS 'Core user management table for authentication and user data';
 COMMENT ON TABLE assets IS 'Master table for all supported cryptocurrencies and assets';
+COMMENT ON COLUMN assets.timeframe_data IS 'Performance cache storing timeframe availability info. Format: {"1h": {"count": 720, "earliest": "2025-01-01T00:00:00Z", "latest": "2025-10-23T12:00:00Z"}, "1d": {...}}. Reduces aggregation_status queries from 8 to 1.';
 COMMENT ON TABLE price_data IS 'Historical and real-time OHLCV price data with technical indicators';
 COMMENT ON TABLE metrics_snapshot IS 'Market-wide macro analysis snapshots at different timeframes';
 COMMENT ON TABLE ai_regime_analysis IS 'AI-powered market regime analysis and predictions';

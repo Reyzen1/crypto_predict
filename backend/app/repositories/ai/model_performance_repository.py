@@ -7,7 +7,7 @@ from sqlalchemy import and_, or_, desc, func
 from datetime import datetime, timedelta
 
 from ..base_repository import BaseRepository
-from ...models.ai.performance import ModelPerformance
+from app.models.ai.performance import ModelPerformance
 
 
 class ModelPerformanceRepository(BaseRepository):

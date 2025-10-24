@@ -504,7 +504,7 @@ def fetch_daily_price_data(self, asset_id: int = None, timeframe: str = "1d") ->
             if not asset:
                 raise ValueError(f"Asset with ID {asset_id} not found")
             
-            result = price_service.populate_asset_price_data(
+            result = price_service.populate_price_data(
                 asset_id=asset_id,
                 timeframe=timeframe,
                 limit=1  # Just get latest data
@@ -524,7 +524,7 @@ def fetch_daily_price_data(self, asset_id: int = None, timeframe: str = "1d") ->
             
             for asset in active_assets:
                 try:
-                    result = price_service.populate_asset_price_data(
+                    result = price_service.populate_price_data(
                         asset_id=asset.id,
                         timeframe=timeframe,
                         limit=1  # Just get latest data
@@ -621,7 +621,7 @@ def fetch_historical_price_data(self, asset_id: int, timeframe: str = "1d", days
             limit = days
         
         # Fetch historical data
-        result = price_service.populate_asset_price_data(
+        result = price_service.populate_price_data(
             asset_id=asset_id,
             timeframe=timeframe,
             limit=limit

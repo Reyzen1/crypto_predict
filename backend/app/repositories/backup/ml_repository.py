@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 
 # Import existing models
 from app.models import Cryptocurrency, PriceData, Prediction, User
-from backend.app.repositories.base_repository import BaseRepository
+from ..base_repository import BaseRepository
 from app.repositories import prediction_repository  # Add this import
 from app.schemas.prediction import PredictionCreate, PredictionUpdate
 

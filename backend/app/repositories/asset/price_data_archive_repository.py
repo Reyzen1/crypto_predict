@@ -7,8 +7,8 @@ from sqlalchemy import and_, or_, desc, func
 from datetime import datetime, timedelta
 
 from ..base_repository import BaseRepository
-from ...models.asset.price_data_archive import PriceDataArchive
-from ...models.asset import Asset
+from app.models.asset.price_data_archive import PriceDataArchive
+from app.models.asset import Asset
 
 
 class PriceDataArchiveRepository(BaseRepository):

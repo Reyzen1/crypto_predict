@@ -911,4 +911,54 @@ portfolio_assets → signal_alerts (price targets)
 - Use database functions for complex aggregations
 - Implement pagination for all list endpoints
 - Background jobs for AI model training and data processing
+
+### **⚡ Timeframe Data Optimization:**
+```python
+# NEW: Optimized Aggregation Status using Asset Cache
+# Performance boost: 8 queries → 1 query for timeframe status
+
+# Before optimization:
+GET /api/v1/assets/{id}/aggregation-status
+# Required: 8 queries (one per timeframe: 1m, 5m, 15m, 1h, 4h, 1d, 1w, 1M)
+# Query pattern: SELECT COUNT(*), MIN(candle_time), MAX(candle_time) FROM price_data WHERE asset_id=? AND timeframe=?
+
+# After optimization:
+GET /api/v1/assets/{id}/aggregation-status
+# Required: 1 query (cached in assets.timeframe_data JSON field)
+# Query pattern: SELECT timeframe_data FROM assets WHERE id=?
+
+# Timeframe Cache Structure:
+{
+    "1h": {
+        "count": 720,
+        "earliest": "2025-09-23T00:00:00Z", 
+        "latest": "2025-10-23T12:00:00Z"
+    },
+    "1d": {
+        "count": 30,
+        "earliest": "2025-09-23T00:00:00Z",
+        "latest": "2025-10-23T00:00:00Z"
+    }
+}
+
+# Cache Maintenance Strategy:
+- Auto-update on bulk_insert() operations
+- Auto-update on bulk_aggregate_and_store() operations  
+- Manual refresh via _update_asset_timeframe_cache()
+- Fallback to price_data query if cache is empty
+```
+
+### **📊 Cache Update Triggers:**
+```python
+# Repository methods that update timeframe_data cache:
+price_data_repository.bulk_insert()           # Updates affected timeframes
+price_data_repository.bulk_aggregate_and_store()  # Updates target timeframes
+price_data_repository._update_asset_timeframe_cache()  # Manual refresh
+
+# Asset model methods for cache management:
+asset.update_timeframe_data(timeframe, count, earliest, latest)
+asset.get_timeframe_info(timeframe)  # Returns cached data
+asset.get_all_timeframe_data()       # Returns full cache with aggregation info
+asset.reset_timeframe_cache()        # Clears cache for rebuild
+```
 ```

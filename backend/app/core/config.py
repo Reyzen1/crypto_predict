@@ -61,7 +61,7 @@ class Settings(BaseSettings):
                                                      os.getenv("TOKEN_EXPIRE_MINUTES", "30")))
     
     # Database settings - AUTO-DETECT from environment
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:admin123@localhost:5433/cryptopredict")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:admin123@localhost:5433/test1")
     
     # Redis settings - AUTO-DETECT from environment
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")

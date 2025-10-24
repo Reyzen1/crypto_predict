@@ -24,8 +24,8 @@ class User(BaseModel, TimestampMixin, ActiveMixin, SoftDeleteMixin, UserPreferen
     # Basic Information
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    first_name = Column(String(100), nullable=True)
-    last_name = Column(String(100), nullable=True)
+    first_name = Column(String(50), nullable=True)  # Match DB schema
+    last_name = Column(String(50), nullable=True)   # Match DB schema
     role = Column(String(20), nullable=False, default=UserRole.PUBLIC)
     
     # Verification & Security
@@ -63,11 +63,11 @@ class User(BaseModel, TimestampMixin, ActiveMixin, SoftDeleteMixin, UserPreferen
     # Relationships
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
     activities = relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
-    portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
-    watchlists = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
+    # portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")  # TODO: Implement Portfolio model first
+    # watchlists = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")  # TODO: Implement Watchlist model first
     
-    # Self-referential relationship for referrals
-    referrer = relationship("User", remote_side=[id], backref="referred_users")
+    # Note: referred_by is just a foreign key field, no additional relationship needed
+    # Users can be accessed via: User.query.filter(User.referred_by == user_id).all()
     
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', role='{self.role}')>"

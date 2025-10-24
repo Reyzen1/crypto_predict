@@ -11,7 +11,9 @@ from datetime import datetime, timezone
 from app.core.database import get_db, get_redis, check_db_connection, check_redis_connection
 from app.core.config import settings
 from app.core.deps import get_current_active_user, get_optional_current_user
-from app.repositories import user_repository, cryptocurrency_repository, price_data_repository
+from app.repositories.user.user_repository import UserRepository
+from app.repositories.backup.cryptocurrency import cryptocurrency_repository
+from app.repositories.backup.price_data import price_data_repository
 from app.models import User
 
 
@@ -103,7 +105,7 @@ def get_system_metrics(
         db_session = next(get_db())
         try:
             # Get user count
-            user_count = user_repository.count(db_session)
+            user_count = UserRepository.count(db_session)
             
             # Get crypto count
             crypto_count = cryptocurrency_repository.count(db_session)
@@ -172,7 +174,7 @@ def database_health_check(
         
         try:
             # Get table counts
-            stats["statistics"]["users"] = user_repository.count(db)
+            stats["statistics"]["users"] = UserRepository.count(db)
             stats["statistics"]["cryptocurrencies"] = cryptocurrency_repository.count(db)
             stats["statistics"]["price_data_points"] = price_data_repository.count(db)
             
@@ -424,7 +426,7 @@ def startup_check() -> Any:
         db_session = next(get_db())
         try:
             # Try to query each main table
-            user_repository.count(db_session)
+            UserRepository.count(db_session)
             startup_status["initialization"]["database_tables"] = {
                 "status": "ready",
                 "message": "All database tables accessible"

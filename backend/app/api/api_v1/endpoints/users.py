@@ -15,7 +15,7 @@ from app.schemas.user import (
 from app.schemas.common import (
     SuccessResponse, PaginationParams, PaginatedResponse
 )
-from app.repositories import user_repository
+from app.repositories.user.user_repository import UserRepository
 from app.models import User
 
 
@@ -39,7 +39,7 @@ def list_users(
     try:
         if search:
             # Use search functionality from your existing repository
-            users = user_repository.search_users(
+            users = UserRepository.search_users(
                 db, 
                 search_term=search, 
                 skip=pagination.skip, 
@@ -49,24 +49,24 @@ def list_users(
         else:
             # Get users with optional filtering
             if is_active is not None:
-                users = user_repository.get_active_users(
+                users = UserRepository.get_active_users(
                     db, 
                     skip=pagination.skip, 
                     limit=pagination.limit
-                ) if is_active else user_repository.get_multi(
+                ) if is_active else UserRepository.get_multi(
                     db, 
                     skip=pagination.skip, 
                     limit=pagination.limit
                 )
             else:
-                users = user_repository.get_multi(
+                users = UserRepository.get_multi(
                     db, 
                     skip=pagination.skip, 
                     limit=pagination.limit
                 )
             
             # Get total count
-            total = user_repository.count_active_users(db) if is_active else len(user_repository.get_all(db))
+            total = UserRepository.count_active_users(db) if is_active else len(UserRepository.get_all(db))
         
         # Convert to summary format
         user_summaries = [
@@ -117,7 +117,7 @@ def create_user(
     
     try:
         # Check if user already exists
-        existing_user = user_repository.get_by_email(db, user_data.email)
+        existing_user = UserRepository.get_by_email(db, user_data.email)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -128,7 +128,7 @@ def create_user(
         password_hash = security.hash_password(user_data.password)
         
         # Create user using your existing repository
-        new_user = user_repository.create_user(
+        new_user = UserRepository.create_user(
             db,
             email=user_data.email,
             password_hash=password_hash,
@@ -239,7 +239,7 @@ def get_user_by_id(
                 detail="Not enough permissions"
             )
         
-        user = user_repository.get(db, user_id)
+        user = UserRepository.get(db, user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -279,7 +279,7 @@ def update_user(
     
     try:
         # Get user to update
-        user = user_repository.get(db, user_id)
+        user = UserRepository.get(db, user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -287,7 +287,7 @@ def update_user(
             )
         
         # Update user using your existing repository
-        updated_user = user_repository.update(db, db_obj=user, obj_in=user_update)
+        updated_user = UserRepository.update(db, db_obj=user, obj_in=user_update)
         
         return UserResponse(
             id=updated_user.id,
@@ -330,7 +330,7 @@ def delete_user(
     
     try:
         # Get user to delete
-        user = user_repository.get(db, user_id)
+        user = UserRepository.get(db, user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -338,7 +338,7 @@ def delete_user(
             )
         
         # Delete user using your existing repository
-        deleted_user = user_repository.delete(db, id=user_id)
+        deleted_user = UserRepository.delete(db, id=user_id)
         
         if not deleted_user:
             raise HTTPException(

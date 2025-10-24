@@ -13,7 +13,7 @@ from redis import Redis
 from app.core.database import get_db
 from app.core.config import settings
 from app.models import User
-from app.repositories import user_repository
+from app.repositories.user.user_repository import UserRepository
 
 # HTTP Bearer security scheme
 security = HTTPBearer(auto_error=False)
@@ -114,7 +114,7 @@ def get_current_user(
         )
     
     # Get user from database
-    user = user_repository.get(db=db, id=user_id)
+    user = UserRepository.get(db=db, id=user_id)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -196,7 +196,7 @@ def get_optional_current_user(
     
     # Get user from database
     try:
-        user = user_repository.get(db=db, id=user_id)
+        user = UserRepository.get(db=db, id=user_id)
         return user if user and user.is_active else None
     except Exception:
         return None

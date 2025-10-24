@@ -36,7 +36,7 @@ def test_price_service():
             print(f"Testing with asset: {asset.symbol} (ID: {asset.id})")
             
             # Test 2: Fetch latest price data
-            result = price_service.populate_asset_price_data(
+            result = price_service.populate_price_data(
                 asset_id=asset.id,
                 timeframe="1d",
                 limit=1

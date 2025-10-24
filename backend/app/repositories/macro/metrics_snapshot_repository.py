@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import logging
 
 from ..base_repository import BaseRepository
-from ...models.macro.metrics_snapshot import MetricsSnapshot
+from app.models.macro.metrics_snapshot import MetricsSnapshot
 
 # Setup logger
 logger = logging.getLogger(__name__)
