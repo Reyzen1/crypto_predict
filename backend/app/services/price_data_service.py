@@ -36,6 +36,17 @@ class PriceDataService:
         self.price_data_repo = PriceDataRepository(db)
         self.asset_repo = AssetRepository(db)
     
+    def _serialize_datetime_objects(self, obj):
+        """Convert datetime objects to ISO format strings in nested data structures"""
+        if isinstance(obj, dict):
+            return {k: self._serialize_datetime_objects(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._serialize_datetime_objects(item) for item in obj]
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        else:
+            return obj
+    
     async def populate_price_data(
         self,
         asset_id: int,
@@ -76,11 +87,12 @@ class PriceDataService:
                 coingecko_id, days, timeframe, vs_currency
             )
             if not price_history:
-                return {
+                result = {
                     'success': False,
                     'message': 'No data received from CoinGecko',
                     'records_inserted': 0
                 }
+                return self._serialize_datetime_objects(result)
             
             # Process and validate data
             processed_data = self._process_price_data(
@@ -89,24 +101,26 @@ class PriceDataService:
             
             # Bulk insert data
             bulk_result = self.price_data_repo.bulk_insert(processed_data)
-            
+
             if bulk_result.get('success', False):
+                if bulk_result.get('inserted_records', 0) > 0:
                 # Trigger aggregation for the asset after successful data insertion
-                try:
-                    aggregation_result = self.auto_aggregate_for_asset(
-                        asset_id=asset_id, 
-                        source_timeframe=timeframe
-                    )
-                    logger.info(f"Aggregation completed for asset {asset_id}: {aggregation_result}")
-                except Exception as e:
-                    logger.warning(f"Aggregation failed for asset {asset_id} after bulk insert: {e}")
+                    try:
+                        aggregation_result = self.auto_aggregate_for_asset(
+                            asset_id=asset_id, 
+                            source_timeframe=timeframe
+                        )
+                        print(f"Aggregation result for asset {asset_id}: {aggregation_result.get('results', {})}")
+                        logger.info(f"Aggregation completed for asset {asset_id}: {aggregation_result}")
+                    except Exception as e:
+                        logger.warning(f"Aggregation failed for asset {asset_id} after bulk insert: {e}")
                 
                 # Update asset metadata including market data
                 await self._update_asset_metadata(asset_id, timeframe, bulk_result.get('inserted_records', 0), coingecko_id)
 
                 logger.info(f"Successfully populated {bulk_result.get('inserted_records', 0)} records for asset {asset_id}")
                 
-                return {
+                result = {
                     'success': True,
                     'records_inserted': bulk_result.get('inserted_records', 0),
                     'records_updated': bulk_result.get('updated_records', 0),
@@ -118,22 +132,25 @@ class PriceDataService:
                     'data_range': bulk_result.get('data_range', {}),
                     'message': f'Successfully populated {bulk_result.get("inserted_records", 0)} new records, updated {bulk_result.get("updated_records", 0)}, skipped {bulk_result.get("skipped_records", 0)}'
                 }
+                return self._serialize_datetime_objects(result)
             else:
-                return {
+                result = {
                     'success': False,
                     'message': f'Failed to insert data into database: {bulk_result.get("error", "Unknown error")}',
                     'records_inserted': 0,
                     'error': bulk_result.get('error', 'Bulk insert failed')
                 }
+                return self._serialize_datetime_objects(result)
                 
         except Exception as e:
             logger.error(f"Error populating price data for asset {asset_id}: {str(e)}")
-            return {
+            result = {
                 'success': False,
                 'error': str(e),
                 'records_inserted': 0,
                 'message': f'Failed to populate price data: {str(e)}'
             }
+            return self._serialize_datetime_objects(result)
     
     async def fetch_and_update_latest_prices(
         self,
@@ -179,13 +196,14 @@ class PriceDataService:
                 failed_count += 1
                 errors.append(f"Asset {asset.id}: {str(e)}")
         
-        return {
+        result = {
             'success_count': success_count,
             'failed_count': failed_count,
             'total_assets': len(assets),
             'errors': errors,
             'timeframe': timeframe
         }
+        return self._serialize_datetime_objects(result)
     
     def get_price_data_gaps(
         self,
@@ -207,9 +225,10 @@ class PriceDataService:
         # Convert timeframe to minutes for gap detection
         timeframe_minutes = self._timeframe_to_minutes(timeframe)
         
-        return self.price_data_repo.get_missing_data_gaps(
+        result = self.price_data_repo.get_missing_data_gaps(
             asset_id, timeframe_minutes
         )
+        return self._serialize_datetime_objects(result)
     
     def get_data_quality_report(
         self,
@@ -226,7 +245,8 @@ class PriceDataService:
         Returns:
             dict: Data quality report
         """
-        return self.price_data_repo.get_data_quality_report(asset_id, days)
+        result = self.price_data_repo.get_data_quality_report(asset_id, days)
+        return self._serialize_datetime_objects(result)
     
     # Private helper methods
     
@@ -724,7 +744,7 @@ class PriceDataService:
             if r['status'] == 'success'
         )
         
-        return {
+        result = {
             'total_assets_processed': len(assets),
             'successful_optimizations': successful_optimizations,
             'total_records_removed': total_space_saved,
@@ -736,6 +756,7 @@ class PriceDataService:
                 'aggregation_strategy': 'old_data_to_higher_timeframes'
             }
         }
+        return self._serialize_datetime_objects(result)
 
 
     # Timeframe Aggregation Methods (moved from TimeframeAggregationService)
@@ -758,18 +779,19 @@ class PriceDataService:
             # Get asset info
             asset = self.asset_repo.get(asset_id)
             if not asset:
-                return {'error': f'Asset {asset_id} not found'}
+                return self._serialize_datetime_objects({'error': f'Asset {asset_id} not found'})
             
             # Check what timeframes we can aggregate to
             target_timeframes = self.price_data_repo.get_aggregatable_timeframes(source_timeframe)
             
             if not target_timeframes:
-                return {
+                result = {
                     'asset_id': asset_id,
                     'symbol': asset.symbol,
                     'message': f'No aggregatable timeframes for {source_timeframe}',
                     'aggregated_timeframes': []
                 }
+                return self._serialize_datetime_objects(result)
             
             # Get current status
             status_before = self.price_data_repo.get_aggregation_status(asset_id)
@@ -781,11 +803,12 @@ class PriceDataService:
             except (ValueError, TypeError):
                 source_data_count = 0
             if source_data_count == 0:
-                return {
+                result = {
                     'asset_id': asset_id,
                     'symbol': asset.symbol,
                     'error': f'No {source_timeframe} data available for aggregation'
                 }
+                return self._serialize_datetime_objects(result)
             
             # Calculate individual optimal aggregation windows for each target timeframe
             aggregation_results = {}
@@ -845,7 +868,7 @@ class PriceDataService:
             # Get status after aggregation and timeframe updates
             status_after = self.price_data_repo.get_aggregation_status(asset_id)
             
-            return {
+            result = {
                 'asset_id': asset_id,
                 'symbol': asset.symbol,
                 'source_timeframe': source_timeframe,
@@ -855,12 +878,14 @@ class PriceDataService:
                 'status_after': status_after,
                 'window_optimization': 'individual_timeframe_windows' if not force_refresh else 'force_refresh_all_data'
             }
+            return self._serialize_datetime_objects(result)
             
         except Exception as e:
-            return {
+            result = {
                 'asset_id': asset_id,
                 'error': f'Aggregation failed: {str(e)}'
             }
+            return self._serialize_datetime_objects(result)
 
     def _update_asset_timeframe_data(self, asset_id: int, aggregation_results: Dict[str, Any]) -> None:
         """
@@ -957,12 +982,13 @@ class PriceDataService:
             target_latest = target_info.get('latest_time')
             
             if not source_latest:
-                return {
+                result = {
                     'start_time': None,
                     'end_time': None,
                     'method': 'no_source_data',
                     'target_timeframe': target_timeframe
                 }
+                return self._serialize_datetime_objects(result)
             
             source_latest_dt = datetime.fromisoformat(source_latest.replace('Z', '+00:00'))
             target_latest_dt = None
@@ -1032,7 +1058,7 @@ class PriceDataService:
                 
                 start_time = target_latest_dt - timedelta(days=buffer_days)
             
-            return {
+            result = {
                 'start_time': start_time,
                 'end_time': end_time,
                 'method': 'timeframe_specific_optimization',
@@ -1046,15 +1072,17 @@ class PriceDataService:
                     'window_extension': 'extended' if target_latest_dt and (source_latest_dt - target_latest_dt).days > 7 else 'standard'
                 }
             }
+            return self._serialize_datetime_objects(result)
             
         except Exception as e:
-            return {
+            result = {
                 'start_time': None,
                 'end_time': None,
                 'method': 'error',
                 'target_timeframe': target_timeframe,
                 'error': str(e)
             }
+            return self._serialize_datetime_objects(result)
     
     def _calculate_data_points_needed(self, days: int, timeframe: str) -> int:
         """

@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS price_data (
     id BIGSERIAL PRIMARY KEY,
     asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     timeframe VARCHAR(10) NOT NULL,
+    candle_time TIMESTAMP WITH TIME ZONE NOT NULL,
     open_price NUMERIC(20,8) NOT NULL,
     high_price NUMERIC(20,8) NOT NULL,
     low_price NUMERIC(20,8) NOT NULL,
@@ -145,7 +146,6 @@ CREATE TABLE IF NOT EXISTS price_data (
     
     technical_indicators JSONB DEFAULT '{}',
     
-    candle_time TIMESTAMP WITH TIME ZONE NOT NULL,
     is_validated BOOLEAN NOT NULL DEFAULT false,
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

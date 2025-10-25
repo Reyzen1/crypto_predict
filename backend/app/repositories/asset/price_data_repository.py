@@ -132,7 +132,7 @@ class PriceDataRepository(BaseRepository):
             return []
         
         gaps = []
-        timestamps = [d.timestamp for d in reversed(recent_data)]
+        timestamps = [d.candle_time for d in reversed(recent_data)]
         expected_delta = timedelta(minutes=expected_interval_minutes)
         
         for i in range(1, len(timestamps)):

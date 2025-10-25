@@ -11,10 +11,23 @@ import sys
 import os
 import asyncio
 from pathlib import Path
+from datetime import datetime
+import json
 
 # Add backend to path
 backend_path = Path(__file__).parent.parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
+
+def format_datetime_in_dict(obj):
+    """Convert datetime objects to ISO format strings in nested dictionaries"""
+    if isinstance(obj, dict):
+        return {k: format_datetime_in_dict(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [format_datetime_in_dict(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    else:
+        return obj
 
 async def quick_bitcoin_test():
     """Quick Bitcoin data test function"""
@@ -78,31 +91,16 @@ async def quick_bitcoin_test():
             days=7,
             timeframe="1d"
         )
-        
-        if result.get('success'):
+        if result is None:
+            print("❌ Update failed: No result returned")
+        elif result.get('success'):
             print("✅ Update successful!")
             print(f"   📊 New records: {result.get('records_inserted', 0)}")
             print(f"   🔄 Updated records: {result.get('records_updated', 0)}")
         else:
             print(f"❌ Update failed: {result.get('message')}")
         
-        # Test aggregation
-        print("🔧 Testing aggregation...")
-        
-        agg_result = price_service.auto_aggregate_for_asset(
-            asset_id=bitcoin.id,
-            source_timeframe='1d'
-        )
-        
-        if 'error' not in agg_result:
-            print("✅ Aggregation successful!")
-            results = agg_result.get('results', {})
-            for tf, res in results.items():
-                if res.get('status') == 'success':
-                    print(f"   ✅ {tf}: {res.get('records', 0)} records")
-        else:
-            print(f"❌ Aggregation failed: {agg_result.get('error')}")
-        
+       
         session.close()
         db_module.engine.dispose()
         
