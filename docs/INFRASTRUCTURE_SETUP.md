@@ -93,7 +93,7 @@ createdb -h localhost -p 5433 -U postgres cryptopredict
 
 ```env
 # Docker Development Configuration
-DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/cryptopredict
+DATABASE_URL=postgresql://postgres:admin123@postgres:5432/cryptopredict
 REDIS_URL=redis://redis:6379/0
 ENVIRONMENT=development
 DEBUG=true
@@ -192,7 +192,7 @@ cryptopredict-mvp/
 
 | Variable | Description | Local Example | Docker Example |
 |----------|-------------|---------------|----------------|
-| `DATABASE_URL` | PostgreSQL connection | `postgresql://postgres:admin123@localhost:5433/cryptopredict` | `postgresql://postgres:postgres123@postgres:5432/cryptopredict` |
+| `DATABASE_URL` | PostgreSQL connection | `postgresql://postgres:admin123@localhost:5433/cryptopredict` | `postgresql://postgres:admin123@postgres:5432/cryptopredict` |
 | `REDIS_URL` | Redis connection | `redis://127.0.0.1:6379/0` | `redis://redis:6379/0` |
 | `ENVIRONMENT` | Environment mode | `development` | `development` |
 | `DEBUG` | Debug mode | `true` | `true` |

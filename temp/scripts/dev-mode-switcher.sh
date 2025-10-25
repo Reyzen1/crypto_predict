@@ -206,7 +206,7 @@ switch_to_docker() {
         
         while IFS= read -r line; do
             if [[ $line =~ ^DATABASE_URL= ]]; then
-                echo "DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/cryptopredict" >> "$temp_env"
+                echo "DATABASE_URL=postgresql://postgres:admin123@postgres:5432/cryptopredict" >> "$temp_env"
             elif [[ $line =~ ^REDIS_URL= ]]; then
                 echo "REDIS_URL=redis://redis:6379/0" >> "$temp_env"
             elif [[ $line =~ ^API_URL= ]]; then

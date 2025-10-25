@@ -714,7 +714,7 @@ INSERT INTO assets (
 ('ETH', 'Ethereum', 'crypto', '{"coingecko_id": "ethereum", "coinmarketcap_id": "1027"}'),
 
 -- Tether USD (USDT)
-('USDT', 'Tether USD', 'stablecoin', '{"coingecko_id": "tether", "coinmarketcap_id": "825"}'),
+('USDT', 'Tether USD', 'stablecoin', '{"coingecko_id": "tether", "coinmarketcap_id": "825"}')
 ON CONFLICT (symbol) DO NOTHING;
 
 -- ===============================================

@@ -39,7 +39,7 @@ class DataQualityService:
             Health report with recommendations
         """
         if asset_id:
-            assets_to_check = [self.asset_repo.get_by_id(asset_id)]
+            assets_to_check = [self.asset_repo.get(asset_id)]
             assets_to_check = [a for a in assets_to_check if a]
         else:
             assets_to_check = self.asset_repo.get_by_filters(
@@ -59,8 +59,20 @@ class DataQualityService:
             base_timeframes = ['1m', '5m', '15m', '1h']
             higher_timeframes = ['4h', '1d', '1w', '1M']
             
-            has_base_data = any(status.get(tf, {}).get('count', 0) > 0 for tf in base_timeframes)
-            has_aggregated_data = any(status.get(tf, {}).get('count', 0) > 0 for tf in higher_timeframes)
+            def safe_count_check(tf_dict, timeframes):
+                for tf in timeframes:
+                    tf_data = tf_dict.get(tf, {})
+                    count = tf_data.get('count', 0)
+                    try:
+                        count_int = int(count) if count is not None else 0
+                        if count_int > 0:
+                            return True
+                    except (ValueError, TypeError):
+                        continue
+                return False
+            
+            has_base_data = safe_count_check(status, base_timeframes)
+            has_aggregated_data = safe_count_check(status, higher_timeframes)
             
             health_score = 100
             issues = []
@@ -131,7 +143,11 @@ class DataQualityService:
             
             for tf in expected_timeframes:
                 tf_status = status.get(tf, {})
-                count = tf_status.get('count', 0)
+                count_raw = tf_status.get('count', 0)
+                try:
+                    count = int(count_raw) if count_raw is not None else 0
+                except (ValueError, TypeError):
+                    count = 0
                 latest = tf_status.get('latest_time')
                 
                 # Calculate expected record count for timeframe
@@ -191,13 +207,17 @@ class DataQualityService:
             status = self.price_repo.get_aggregation_status(asset_id)
             
             # Get asset info
-            asset = self.asset_repo.get_by_id(asset_id)
+            asset = self.asset_repo.get(asset_id)
             if not asset:
                 return {'error': f'Asset {asset_id} not found'}
             
             # Calculate expected vs actual records
             tf_status = status.get(timeframe, {})
-            actual_count = tf_status.get('count', 0)
+            actual_count_raw = tf_status.get('count', 0)
+            try:
+                actual_count = int(actual_count_raw) if actual_count_raw is not None else 0
+            except (ValueError, TypeError):
+                actual_count = 0
             latest_time_str = tf_status.get('latest_time')
             earliest_time_str = tf_status.get('earliest_time')
             

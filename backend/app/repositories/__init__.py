@@ -13,6 +13,10 @@ from .asset.asset_repository import AssetRepository
 from .asset.price_data_repository import PriceDataRepository
 from .asset.price_data_archive_repository import PriceDataArchiveRepository
 
+# Compatibility aliases for existing code
+cryptocurrency_repository = AssetRepository
+price_data_repository = PriceDataRepository
+
 # Macro Repositories
 from .macro.metrics_snapshot_repository import MetricsSnapshotRepository
 from .macro.ai_regime_analysis_repository import AIRegimeAnalysisRepository
@@ -41,5 +45,9 @@ __all__ = [
     
     # User
     "UserRepository",
+    
+    # Compatibility aliases
+    "cryptocurrency_repository",
+    "price_data_repository",
 ]
 

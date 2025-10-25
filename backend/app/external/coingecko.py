@@ -318,9 +318,12 @@ class CoinGeckoClient:
             "days": str(days)
         }
         
-        # Add interval parameter (CoinGecko auto-selects if not provided)
-        if interval in ["hourly", "daily"]:
-            params["interval"] = interval
+        # Add interval parameter only for free-tier compatible options
+        # Note: 'hourly' interval is Enterprise-only, but CoinGecko auto-provides 
+        # hourly data for days=2-90 range without explicit interval parameter
+        if interval == "daily" and days > 90:
+            params["interval"] = "daily"
+        # Skip adding interval for hourly - let CoinGecko auto-select based on days
         
         endpoint = f"coins/{crypto_id}/market_chart"
         data = await self._make_request(endpoint, params)
@@ -515,20 +518,25 @@ class CoinGeckoClient:
         # Calculate days needed
         days = calculate_days_for_timeframe(timeframe, limit)
         
-        # Get CoinGecko interval - optimize for timeframe
-        interval = timeframe_to_coingecko_interval(timeframe)
+        # For better granularity, ensure we get enough data points
+        # CoinGecko will auto-select appropriate interval based on days parameter
+        if timeframe == '1h':
+            # For hourly data, keep days as calculated
+            pass
+        elif timeframe == '4h':
+            # For 4-hourly, we need hourly data to filter from
+            days = max(days, 2)  # Ensure at least 2 days for filtering
+        elif timeframe == '1d':
+            # For daily with small limits, get more days for better filtering
+            if limit <= 7:
+                days = max(days, 14)  # Get 2 weeks of data
         
-        # For 1d timeframe with small limits, use hourly to get more precision
-        if timeframe == '1d' and limit <= 7:
-            interval = 'hourly'
-            days = max(days, 7)  # Get at least a week of hourly data
-        
-        # Fetch market chart data (already normalized to hourly in get_market_chart)
+        # Fetch market chart data (CoinGecko auto-selects interval based on days)
         data = await self.get_market_chart(
             crypto_id=crypto_id,
             vs_currency=vs_currency,
-            days=days,
-            interval=interval
+            days=days
+            # No interval parameter - let CoinGecko auto-select
         )
         
         # Apply timeframe filtering to the already-normalized hourly data

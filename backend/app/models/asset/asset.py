@@ -201,34 +201,6 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
             return None
         return self.external_ids.get(provider)
     
-    def update_timeframe_data(self, timeframe: str, count: int = None, 
-                            earliest: str = None, latest: str = None):
-        """
-        Update timeframe data cache for performance optimization
-        
-        Args:
-            timeframe: Timeframe identifier (e.g., '1h', '1d')
-            count: Number of records for this timeframe
-            earliest: Earliest timestamp in ISO format
-            latest: Latest timestamp in ISO format
-        """
-        if not self.timeframe_data:
-            self.timeframe_data = {}
-        
-        if timeframe not in self.timeframe_data:
-            self.timeframe_data[timeframe] = {}
-        
-        if count is not None:
-            self.timeframe_data[timeframe]['count'] = count
-        if earliest is not None:
-            self.timeframe_data[timeframe]['earliest'] = earliest
-        if latest is not None:
-            self.timeframe_data[timeframe]['latest'] = latest
-        
-        # Mark as modified for SQLAlchemy
-        from sqlalchemy.orm.attributes import flag_modified
-        flag_modified(self, 'timeframe_data')
-    
     def get_timeframe_info(self, timeframe: str) -> dict:
         """
         Get timeframe information from cache
@@ -237,15 +209,15 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
             timeframe: Timeframe identifier
             
         Returns:
-            Dictionary with count, earliest, latest
+            Dictionary with count, earliest_time, latest_time
         """
         if not self.timeframe_data:
-            return {'count': 0, 'earliest': None, 'latest': None}
+            return {'count': 0, 'earliest_time': None, 'latest_time': None}
         
         return self.timeframe_data.get(timeframe, {
             'count': 0, 
-            'earliest': None, 
-            'latest': None
+            'earliest_time': None, 
+            'latest_time': None
         })
     
     def get_all_timeframe_data(self) -> dict:
@@ -289,8 +261,8 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
             info = self.get_timeframe_info(timeframe)
             result[timeframe] = {
                 'count': info['count'],
-                'latest_time': info['latest'],
-                'earliest_time': info['earliest'],
+                'latest_time': info['latest_time'],
+                'earliest_time': info['earliest_time'],
                 'can_aggregate_to': get_aggregatable_timeframes(timeframe)
             }
         
@@ -311,18 +283,36 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
             return self.timeframe_data.get(timeframe)
         return self.timeframe_data
     
-    def update_timeframe_data(self, timeframe: str, count: int, 
+    def update_timeframe_data(self, timeframe: str, count, 
                             earliest_time: str = None, latest_time: str = None):
-        """Update timeframe data cache"""
+        """
+        Update timeframe data cache for performance optimization
+        
+        Args:
+            timeframe: Timeframe identifier (e.g., '1h', '1d')
+            count: Number of records for this timeframe (int or str)
+            earliest_time: Earliest timestamp in ISO format
+            latest_time: Latest timestamp in ISO format
+        """
         if not self.timeframe_data:
             self.timeframe_data = {}
         
+        # Ensure count is always an integer for consistent comparisons
+        try:
+            count_int = int(count) if count is not None else 0
+        except (ValueError, TypeError):
+            count_int = 0
+        
         self.timeframe_data[timeframe] = {
-            'count': count,
+            'count': count_int,
             'earliest_time': earliest_time,
             'latest_time': latest_time,
             'last_updated': datetime.now(timezone.utc).isoformat()
         }
+        
+        # Mark as modified for SQLAlchemy
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(self, 'timeframe_data')
     
     def remove_timeframe_data(self, timeframe: str):
         """Remove timeframe from data cache"""
@@ -359,7 +349,14 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         """Get list of available timeframes"""
         if not self.timeframe_data:
             return []
-        return [tf for tf, data in self.timeframe_data.items() if data.get('count', 0) > 0]
+        
+        def safe_count(data):
+            try:
+                return int(data.get('count', 0)) if data.get('count') is not None else 0
+            except (ValueError, TypeError):
+                return 0
+        
+        return [tf for tf, data in self.timeframe_data.items() if safe_count(data) > 0]
     
     @property
     def timeframe_summary(self):

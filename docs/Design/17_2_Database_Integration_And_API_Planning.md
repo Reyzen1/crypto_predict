@@ -956,7 +956,7 @@ price_data_repository.bulk_aggregate_and_store()  # Updates target timeframes
 price_data_repository._update_asset_timeframe_cache()  # Manual refresh
 
 # Asset model methods for cache management:
-asset.update_timeframe_data(timeframe, count, earliest, latest)
+asset.update_timeframe_data(timeframe, count, earliest_time, latest_time)
 asset.get_timeframe_info(timeframe)  # Returns cached data
 asset.get_all_timeframe_data()       # Returns full cache with aggregation info
 asset.reset_timeframe_cache()        # Clears cache for rebuild

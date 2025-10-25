@@ -500,7 +500,7 @@ def fetch_daily_price_data(self, asset_id: int = None, timeframe: str = "1d") ->
         
         if asset_id:
             # Fetch data for specific asset
-            asset = asset_repo.get_by_id(asset_id)
+            asset = asset_repo.get(asset_id)
             if not asset:
                 raise ValueError(f"Asset with ID {asset_id} not found")
             
@@ -608,7 +608,7 @@ def fetch_historical_price_data(self, asset_id: int, timeframe: str = "1d", days
         price_service = PriceDataService(asset_repo, price_data_repo)
         
         # Verify asset exists
-        asset = asset_repo.get_by_id(asset_id)
+        asset = asset_repo.get(asset_id)
         if not asset:
             raise ValueError(f"Asset with ID {asset_id} not found")
         

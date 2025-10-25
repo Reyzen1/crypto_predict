@@ -5,6 +5,9 @@ from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc, func, text
 from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
 
 from ..base_repository import BaseRepository
 from app.models.asset.price_data import PriceData
@@ -23,49 +26,63 @@ class PriceDataRepository(BaseRepository):
         """Get recent price data for an asset"""
         return self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id
-        ).order_by(PriceData.timestamp.desc()).limit(limit).all()
+        ).order_by(PriceData.candle_time.desc()).limit(limit).all()
     
     def get_by_symbol(self, symbol: str, limit: int = 100) -> List[PriceData]:
         """Get recent price data by symbol"""
         return self.db.query(PriceData).join(Asset).filter(
             Asset.symbol == symbol
-        ).order_by(PriceData.timestamp.desc()).limit(limit).all()
+        ).order_by(PriceData.candle_time.desc()).limit(limit).all()
     
     def get_price_range(self, asset_id: int, start_date: datetime, end_date: datetime) -> List[PriceData]:
         """Get price data within date range"""
         return self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= start_date,
-            PriceData.timestamp <= end_date
-        ).order_by(PriceData.timestamp.asc()).all()
+            PriceData.candle_time >= start_date,
+            PriceData.candle_time <= end_date
+        ).order_by(PriceData.candle_time.asc()).all()
     
     def get_latest_by_asset(self, asset_id: int) -> Optional[PriceData]:
         """Get latest price for an asset"""
         return self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id
-        ).order_by(PriceData.timestamp.desc()).first()
+        ).order_by(PriceData.candle_time.desc()).first()
+    
+    async def get_latest_price_data(self, asset_id: int) -> Optional[PriceData]:
+        """
+        Get latest price data for an asset (async version)
+        
+        Args:
+            asset_id: Asset ID to get latest price data for
+            
+        Returns:
+            Latest PriceData record or None if not found
+        """
+        return self.db.query(PriceData).filter(
+            PriceData.asset_id == asset_id
+        ).order_by(PriceData.candle_time.desc()).first()
     
     def get_ohlc_data(self, asset_id: int, hours: int = 24) -> List[PriceData]:
         """Get OHLC data for specified hours"""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
         return self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= cutoff_time
-        ).order_by(PriceData.timestamp.asc()).all()
+            PriceData.candle_time >= cutoff_time
+        ).order_by(PriceData.candle_time.asc()).all()
     
     def get_price_statistics(self, asset_id: int, days: int = 30) -> Dict[str, Any]:
         """Get price statistics for an asset"""
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
         stats = self.db.query(
-            func.max(PriceData.price).label('max_price'),
-            func.min(PriceData.price).label('min_price'),
-            func.avg(PriceData.price).label('avg_price'),
+            func.max(PriceData.high_price).label('max_price'),
+            func.min(PriceData.low_price).label('min_price'),
+            func.avg(PriceData.close_price).label('avg_price'),
             func.sum(PriceData.volume).label('total_volume'),
             func.count(PriceData.id).label('data_points')
         ).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= cutoff_date
+            PriceData.candle_time >= cutoff_date
         ).first()
         
         if not stats:
@@ -81,17 +98,21 @@ class PriceDataRepository(BaseRepository):
         }
     
     def _calculate_volatility(self, asset_id: int, days: int) -> float:
-        """Calculate price volatility"""
+        """
+        Calculate price volatility using percentage returns
+        
+        Uses close_price for volatility calculation based on daily returns
+        """
         cutoff_date = datetime.utcnow() - timedelta(days=days)
-        prices = self.db.query(PriceData.price).filter(
+        prices = self.db.query(PriceData.close_price).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= cutoff_date
-        ).order_by(PriceData.timestamp.asc()).all()
+            PriceData.candle_time >= cutoff_date
+        ).order_by(PriceData.candle_time.asc()).all()
         
         if len(prices) < 2:
             return 0.0
         
-        price_list = [float(p.price) for p in prices]
+        price_list = [float(p.close_price) for p in prices]
         returns = [(price_list[i] - price_list[i-1]) / price_list[i-1] for i in range(1, len(price_list))]
         
         if not returns:
@@ -103,9 +124,9 @@ class PriceDataRepository(BaseRepository):
     
     def get_missing_data_gaps(self, asset_id: int, expected_interval_minutes: int = 5) -> List[Dict[str, Any]]:
         """Identify gaps in price data"""
-        recent_data = self.db.query(PriceData.timestamp).filter(
+        recent_data = self.db.query(PriceData.candle_time).filter(
             PriceData.asset_id == asset_id
-        ).order_by(PriceData.timestamp.desc()).limit(1000).all()
+        ).order_by(PriceData.candle_time.desc()).limit(1000).all()
         
         if len(recent_data) < 2:
             return []
@@ -223,7 +244,7 @@ class PriceDataRepository(BaseRepository):
         cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
         
         deleted_count = self.db.query(PriceData).filter(
-            PriceData.timestamp < cutoff_date
+            PriceData.candle_time < cutoff_date
         ).delete()
         
         self.db.commit()
@@ -249,8 +270,8 @@ class PriceDataRepository(BaseRepository):
             past_time = datetime.utcnow() - timedelta(hours=timeframe_hours[tf])
             past_price = self.db.query(PriceData).filter(
                 PriceData.asset_id == asset_id,
-                PriceData.timestamp <= past_time
-            ).order_by(PriceData.timestamp.desc()).first()
+                PriceData.candle_time <= past_time
+            ).order_by(PriceData.candle_time.desc()).first()
             
             if past_price:
                 change = (float(current_price.price) - float(past_price.price)) / float(past_price.price) * 100
@@ -272,7 +293,7 @@ class PriceDataRepository(BaseRepository):
             func.count(PriceData.id).label('data_points')
         ).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= cutoff_date,
+            PriceData.candle_time >= cutoff_date,
             PriceData.volume.isnot(None)
         ).first()
         
@@ -283,14 +304,14 @@ class PriceDataRepository(BaseRepository):
         last_24h = datetime.utcnow() - timedelta(hours=24)
         recent_volume = self.db.query(func.avg(PriceData.volume)).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= last_24h
+            PriceData.candle_time >= last_24h
         ).scalar()
         
         prev_24h = last_24h - timedelta(hours=24)
         prev_volume = self.db.query(func.avg(PriceData.volume)).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= prev_24h,
-            PriceData.timestamp < last_24h
+            PriceData.candle_time >= prev_24h,
+            PriceData.candle_time < last_24h
         ).scalar()
         
         volume_trend = None
@@ -308,35 +329,44 @@ class PriceDataRepository(BaseRepository):
     
     def get_support_resistance_levels(self, asset_id: int, days: int = 30, 
                                     sensitivity: float = 0.02) -> Dict[str, List[float]]:
-        """Identify potential support and resistance levels"""
+        """
+        Identify potential support and resistance levels using high/low prices
+        
+        Uses percentage-based sensitivity for grouping similar levels together
+        """
         cutoff_date = datetime.utcnow() - timedelta(days=days)
-        
-        prices = self.db.query(PriceData.price).filter(
+
+        # Get high and low prices for better support/resistance detection
+        price_data = self.db.query(PriceData.high_price, PriceData.low_price, PriceData.close_price).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= cutoff_date
-        ).order_by(PriceData.timestamp.asc()).all()
+            PriceData.candle_time >= cutoff_date
+        ).order_by(PriceData.candle_time.asc()).all()
         
-        if len(prices) < 10:
+        if len(price_data) < 10:
             return {'support_levels': [], 'resistance_levels': []}
         
-        price_list = [float(p.price) for p in prices]
+        # Use close prices for pivot detection but consider high/low for accuracy
+        close_prices = [float(p.close_price) for p in price_data]
+        high_prices = [float(p.high_price) for p in price_data]
+        low_prices = [float(p.low_price) for p in price_data]
         
-        # Simple pivot point detection
+        # Enhanced pivot point detection using high/low prices
         supports = []
         resistances = []
         
-        for i in range(2, len(price_list) - 2):
-            current = price_list[i]
+        for i in range(2, len(close_prices) - 2):
+            current_low = low_prices[i]
+            current_high = high_prices[i]
             
-            # Check for local minimum (support)
-            if (price_list[i] < price_list[i-1] and price_list[i] < price_list[i+1] and
-                price_list[i] < price_list[i-2] and price_list[i] < price_list[i+2]):
-                supports.append(current)
+            # Check for local minimum (support) - use low prices
+            if (low_prices[i] < low_prices[i-1] and low_prices[i] < low_prices[i+1] and
+                low_prices[i] < low_prices[i-2] and low_prices[i] < low_prices[i+2]):
+                supports.append(current_low)
             
-            # Check for local maximum (resistance)
-            if (price_list[i] > price_list[i-1] and price_list[i] > price_list[i+1] and
-                price_list[i] > price_list[i-2] and price_list[i] > price_list[i+2]):
-                resistances.append(current)
+            # Check for local maximum (resistance) - use high prices  
+            if (high_prices[i] > high_prices[i-1] and high_prices[i] > high_prices[i+1] and
+                high_prices[i] > high_prices[i-2] and high_prices[i] > high_prices[i+2]):
+                resistances.append(current_high)
         
         # Group similar levels together
         def group_levels(levels, sensitivity_pct):
@@ -363,58 +393,82 @@ class PriceDataRepository(BaseRepository):
         }
     
     def get_correlation_data(self, asset1_id: int, asset2_id: int, days: int = 30) -> Dict[str, Any]:
-        """Calculate price correlation between two assets"""
+        """
+        Calculate price correlation between two assets using time-based alignment
+        
+        Uses tolerance-based timestamp matching for better correlation accuracy
+        """
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
         # Get aligned price data for both assets
-        prices1 = self.db.query(PriceData.timestamp, PriceData.price).filter(
+        prices1 = self.db.query(PriceData.candle_time, PriceData.close_price).filter(
             PriceData.asset_id == asset1_id,
-            PriceData.timestamp >= cutoff_date
-        ).order_by(PriceData.timestamp.asc()).all()
+            PriceData.candle_time >= cutoff_date
+        ).order_by(PriceData.candle_time.asc()).all()
         
-        prices2 = self.db.query(PriceData.timestamp, PriceData.price).filter(
+        prices2 = self.db.query(PriceData.candle_time, PriceData.close_price).filter(
             PriceData.asset_id == asset2_id,
-            PriceData.timestamp >= cutoff_date
-        ).order_by(PriceData.timestamp.asc()).all()
+            PriceData.candle_time >= cutoff_date
+        ).order_by(PriceData.candle_time.asc()).all()
         
         if len(prices1) < 10 or len(prices2) < 10:
             return {'correlation': None, 'data_points': 0}
         
-        # Align timestamps (simple approach - could be improved)
-        price1_dict = {p.timestamp: float(p.price) for p in prices1}
-        price2_dict = {p.timestamp: float(p.price) for p in prices2}
-        
+        # Create time-based alignment with tolerance for slight time differences
         aligned_prices1 = []
         aligned_prices2 = []
+        time_tolerance = timedelta(minutes=5)  # 5-minute tolerance for timestamp matching
         
-        for ts in price1_dict:
-            if ts in price2_dict:
-                aligned_prices1.append(price1_dict[ts])
-                aligned_prices2.append(price2_dict[ts])
+        for p1 in prices1:
+            # Find the closest timestamp in prices2
+            closest_p2 = None
+            min_time_diff = timedelta.max
+            
+            for p2 in prices2:
+                time_diff = abs(p1.candle_time - p2.candle_time)
+                if time_diff <= time_tolerance and time_diff < min_time_diff:
+                    min_time_diff = time_diff
+                    closest_p2 = p2
+            
+            if closest_p2:
+                aligned_prices1.append(float(p1.close_price))
+                aligned_prices2.append(float(closest_p2.close_price))
         
+        aligned_prices1 = []
         if len(aligned_prices1) < 10:
             return {'correlation': None, 'data_points': len(aligned_prices1)}
         
-        # Calculate Pearson correlation
+        # Calculate Pearson correlation coefficient
         import statistics
         
-        mean1 = statistics.mean(aligned_prices1)
-        mean2 = statistics.mean(aligned_prices2)
-        
-        numerator = sum((p1 - mean1) * (p2 - mean2) for p1, p2 in zip(aligned_prices1, aligned_prices2))
-        
-        sum_sq1 = sum((p1 - mean1) ** 2 for p1 in aligned_prices1)
-        sum_sq2 = sum((p2 - mean2) ** 2 for p2 in aligned_prices2)
-        
-        denominator = (sum_sq1 * sum_sq2) ** 0.5
-        
-        correlation = numerator / denominator if denominator != 0 else 0
-        
-        return {
-            'correlation': round(correlation, 4),
-            'data_points': len(aligned_prices1),
-            'period_days': days
-        }
+        try:
+            mean1 = statistics.mean(aligned_prices1)
+            mean2 = statistics.mean(aligned_prices2)
+            
+            numerator = sum((p1 - mean1) * (p2 - mean2) for p1, p2 in zip(aligned_prices1, aligned_prices2))
+            
+            sum_sq1 = sum((p1 - mean1) ** 2 for p1 in aligned_prices1)
+            sum_sq2 = sum((p2 - mean2) ** 2 for p2 in aligned_prices2)
+            
+            denominator = (sum_sq1 * sum_sq2) ** 0.5
+            
+            correlation = numerator / denominator if denominator != 0 else 0
+            
+            return {
+                'correlation': round(correlation, 4),
+                'data_points': len(aligned_prices1),
+                'period_days': days,
+                'time_tolerance_minutes': int(time_tolerance.total_seconds() / 60),
+                'alignment_method': 'time_based_with_tolerance'
+            }
+            
+        except (ZeroDivisionError, ValueError) as e:
+            return {
+                'correlation': None,
+                'data_points': len(aligned_prices1),
+                'period_days': days,
+                'error': f'Calculation error: {str(e)}'
+            }
     
     def get_data_quality_report(self, asset_id: int, days: int = 7) -> Dict[str, Any]:
         """Generate data quality report for an asset"""
@@ -422,27 +476,27 @@ class PriceDataRepository(BaseRepository):
         
         total_records = self.db.query(func.count(PriceData.id)).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= cutoff_date
+            PriceData.candle_time >= cutoff_date
         ).scalar()
         
         # Check for missing required fields
         missing_price = self.db.query(func.count(PriceData.id)).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= cutoff_date,
-            PriceData.price.is_(None)
+            PriceData.candle_time >= cutoff_date,
+            PriceData.close_price.is_(None)
         ).scalar()
         
         missing_volume = self.db.query(func.count(PriceData.id)).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= cutoff_date,
+            PriceData.candle_time >= cutoff_date,
             PriceData.volume.is_(None)
         ).scalar()
         
         # Check for suspicious values (e.g., zero prices)
         zero_prices = self.db.query(func.count(PriceData.id)).filter(
             PriceData.asset_id == asset_id,
-            PriceData.timestamp >= cutoff_date,
-            PriceData.price <= 0
+            PriceData.candle_time >= cutoff_date,
+            PriceData.close_price <= 0
         ).scalar()
         
         # Check data gaps
@@ -541,20 +595,16 @@ class PriceDataRepository(BaseRepository):
         if end_time:
             base_conditions.append(PriceData.candle_time <= end_time)
         
-        # SQL aggregation query with proper VWAP calculation
+        # Simplified approach: Use DISTINCT ON for first/last values
+        # This is more reliable than complex subqueries
+        
+        # First, get the main aggregation (everything except open/close)
+        period_start = func.date_trunc(interval_expression, PriceData.candle_time).label('period_start')
+        
         aggregation_query = self.db.query(
-            func.date_trunc(interval_expression, PriceData.candle_time).label('period_start'),
-            func.first_value(PriceData.open_price).over(
-                partition_by=func.date_trunc(interval_expression, PriceData.candle_time),
-                order_by=PriceData.candle_time.asc()
-            ).label('open_price'),
+            period_start,
             func.max(PriceData.high_price).label('high_price'),
             func.min(PriceData.low_price).label('low_price'),
-            func.last_value(PriceData.close_price).over(
-                partition_by=func.date_trunc(interval_expression, PriceData.candle_time),
-                order_by=PriceData.candle_time.asc(),
-                range_=(None, None)
-            ).label('close_price'),
             func.sum(PriceData.volume).label('volume'),
             func.avg(PriceData.market_cap).label('avg_market_cap'),
             func.sum(PriceData.trade_count).label('total_trades'),
@@ -565,30 +615,65 @@ class PriceDataRepository(BaseRepository):
         ).filter(
             and_(*base_conditions)
         ).group_by(
-            func.date_trunc(interval_expression, PriceData.candle_time)
+            period_start
         ).order_by(
-            func.date_trunc(interval_expression, PriceData.candle_time).asc()
+            period_start.asc()
         )
         
-        results = aggregation_query.all()
+        # Get main aggregation results
+        agg_results = aggregation_query.all()
         
-        # Convert to dictionary format
+        # Debug: Log the actual number of results
+        logger.info(f"DEBUG: Aggregation query returned {len(agg_results)} periods for {target_timeframe}")
+        for i, row in enumerate(agg_results):
+            logger.info(f"DEBUG: Period {i+1}: {row.period_start} (source_records: {row.source_records})")
+        
+        # Now get first/last values for each period using simpler queries
+        first_last_data = {}
+        for row in agg_results:
+            period = row.period_start
+            
+            # Get first record of this period (for open_price)
+            first_record = self.db.query(PriceData).filter(
+                PriceData.asset_id == asset_id,
+                PriceData.timeframe == source_timeframe,
+                func.date_trunc(interval_expression, PriceData.candle_time) == period,
+                *base_conditions
+            ).order_by(PriceData.candle_time.asc()).first()
+            
+            # Get last record of this period (for close_price)
+            last_record = self.db.query(PriceData).filter(
+                PriceData.asset_id == asset_id,
+                PriceData.timeframe == source_timeframe,
+                func.date_trunc(interval_expression, PriceData.candle_time) == period,
+                *base_conditions
+            ).order_by(PriceData.candle_time.desc()).first()
+            
+            first_last_data[period] = {
+                'first_open': first_record.open_price if first_record else 0,
+                'last_close': last_record.close_price if last_record else 0
+            }
+        
+        # Convert to dictionary format using first_last_data
         aggregated_data = []
-        for row in results:
+        for row in agg_results:
+            period_time = row.period_start
+            first_last = first_last_data.get(period_time, {'first_open': 0, 'last_close': 0})
+            
             aggregated_data.append({
                 'asset_id': asset_id,
                 'timeframe': target_timeframe,
-                'candle_time': row.period_start,
-                'open_price': float(row.open_price) if row.open_price else 0,
+                'candle_time': period_time,
+                'open_price': float(first_last['first_open']) if first_last['first_open'] else 0,
                 'high_price': float(row.high_price) if row.high_price else 0,
                 'low_price': float(row.low_price) if row.low_price else 0,
-                'close_price': float(row.close_price) if row.close_price else 0,
+                'close_price': float(first_last['last_close']) if first_last['last_close'] else 0,
                 'volume': float(row.volume) if row.volume else 0,
                 'market_cap': float(row.avg_market_cap) if row.avg_market_cap else None,
                 'trade_count': int(row.total_trades) if row.total_trades else None,
                 'vwap': float(row.vwap) if row.vwap else None,
-                'source_records': row.source_records,
                 'is_validated': False  # Aggregated data needs validation
+                # Note: source_records (row.source_records) is available for logging/debugging but not stored in PriceData model
             })
         
         return aggregated_data
@@ -707,8 +792,8 @@ class PriceDataRepository(BaseRepository):
                 asset.update_timeframe_data(
                     timeframe=timeframe,
                     count=count,
-                    earliest=earliest,
-                    latest=latest
+                    earliest_time=earliest,
+                    latest_time=latest
                 )
         
         # Commit cache updates
@@ -864,8 +949,8 @@ class PriceDataRepository(BaseRepository):
             asset.update_timeframe_data(
                 timeframe=timeframe,
                 count=count,
-                earliest=earliest,
-                latest=latest
+                earliest_time=earliest,
+                latest_time=latest
             )
             
             self.db.commit()
@@ -1004,7 +1089,7 @@ class PriceDataRepository(BaseRepository):
                 INSERT INTO price_data (
                     asset_id, timeframe, candle_time, open_price, high_price, 
                     low_price, close_price, volume, market_cap, trade_count, vwap, 
-                    source_records, is_validated
+                    is_validated
                 ) VALUES """
             
             # Add value placeholders
@@ -1015,7 +1100,7 @@ class PriceDataRepository(BaseRepository):
                 value_set = f"""(
                     :asset_id_{i}, :timeframe_{i}, :candle_time_{i}, :open_price_{i}, 
                     :high_price_{i}, :low_price_{i}, :close_price_{i}, :volume_{i}, 
-                    :market_cap_{i}, :trade_count_{i}, :vwap_{i}, :source_records_{i}, 
+                    :market_cap_{i}, :trade_count_{i}, :vwap_{i}, 
                     :is_validated_{i}
                 )"""
                 value_sets.append(value_set)
@@ -1038,7 +1123,6 @@ class PriceDataRepository(BaseRepository):
                     market_cap = EXCLUDED.market_cap,
                     trade_count = EXCLUDED.trade_count,
                     vwap = EXCLUDED.vwap,
-                    source_records = EXCLUDED.source_records,
                     is_validated = EXCLUDED.is_validated,
                     updated_at = CURRENT_TIMESTAMP
             """
@@ -1047,7 +1131,11 @@ class PriceDataRepository(BaseRepository):
             result = self.db.execute(text(sql), params)
             self.db.commit()
             
-            return len(aggregated_data)
+            # Return the actual number of rows affected by the SQL operation
+            # result.rowcount gives us the number of rows inserted/updated
+            actual_rows_affected = result.rowcount if result.rowcount is not None else len(aggregated_data)
+            
+            return actual_rows_affected
             
         except Exception as e:
             self.db.rollback()

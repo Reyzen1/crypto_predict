@@ -17,7 +17,7 @@ class AssetRepository(BaseRepository):
     
     def __init__(self, db: Session):
         super().__init__(Asset, db)
-    
+  
     def get_by_symbol(self, symbol: str) -> Optional[Asset]:
         """Get asset by symbol"""
         return self.db.query(Asset).filter(Asset.symbol == symbol).first()
