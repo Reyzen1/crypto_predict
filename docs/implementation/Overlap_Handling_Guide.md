@@ -115,7 +115,7 @@ analysis = await service._analyze_existing_data(asset_id=1, days_back=90)
 {
     'recommended_strategy': 'smart_overlap_resolution',
     'existing_coverage': {
-        '1h': {'count': 888, 'latest': datetime(...), 'overlap_days': 7},
+        '1h': {'count': 888, 'latest_time': datetime(...), 'overlap_days': 7},
         '1d': {'count': 0}
     },
     'overlap_zones': [{

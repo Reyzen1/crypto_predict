@@ -106,8 +106,8 @@ erDiagram
                             Optimizes get_aggregation_status queries by avoiding expensive COUNT() operations.
                             Keys = timeframe codes, Values = {count, earliest, latest}
                             Example: {
-                                '1h': {'count': 720, 'earliest': '2025-09-23T00:00:00Z', 'latest': '2025-10-23T12:00:00Z'},
-                                '1d': {'count': 30, 'earliest': '2025-09-23T00:00:00Z', 'latest': '2025-10-23T00:00:00Z'}
+                                '1h': {'count': 720, 'earliest_time': '2025-09-23T00:00:00Z', 'latest_time': '2025-10-23T12:00:00Z'},
+                                '1d': {'count': 30, 'earliest_time': '2025-09-23T00:00:00Z', 'latest_time': '2025-10-23T00:00:00Z'}
                             }
                             Updated automatically via price_data triggers and repository methods."
         

@@ -8,7 +8,9 @@ from sqlalchemy.orm import relationship
 from ..base import BaseModel, TimestampMixin
 from ..mixins import ActiveMixin, AccessTrackingMixin, DataQualityMixin, ExternalIdsMixin
 from ..enums import AssetType
+import logging
 
+logger = logging.getLogger(__name__)
 
 class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin, 
            DataQualityMixin, ExternalIdsMixin):
@@ -63,7 +65,14 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
     
     # Timeframe Data Cache (Performance Optimization)
     timeframe_data = Column(JSON, nullable=True, default={}, comment="Cache of available timeframes with count, earliest/latest timestamps")
-    
+    """                            
+                            Keys = timeframe codes, Values = {count, earliest, latest}
+                            Example: {
+                                '1h': {'count': 720, 'earliest_time': '2025-09-23T00:00:00Z', 'latest_time': '2025-10-23T12:00:00Z'},
+                                '1d': {'count': 30, 'earliest_time': '2025-09-23T00:00:00Z', 'latest_time': '2025-10-23T00:00:00Z'}
+                            }
+    """
+
     # System Flags
     is_supported = Column(Boolean, nullable=False, default=True)
     last_price_update = Column(DateTime(timezone=True), nullable=True)
@@ -299,10 +308,16 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         try:
             earliest_time_str = timeframe_info['earliest_time']
             if earliest_time_str:
-                return datetime.fromisoformat(earliest_time_str.replace('Z', '+00:00'))
-        except (ValueError, TypeError):
+                # Parse and ensure UTC timezone
+                dt = datetime.fromisoformat(earliest_time_str.replace('Z', '+00:00'))
+                # If somehow no timezone, add UTC
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Failed to parse earliest_time '{earliest_time_str}': {e}")
             return None
-        
+
         return None        
 
     def get_latest_candle_time(self, timeframe: str):
@@ -322,8 +337,14 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         try:
             latest_time_str = timeframe_info['latest_time']
             if latest_time_str:
-                return datetime.fromisoformat(latest_time_str.replace('Z', '+00:00'))
-        except (ValueError, TypeError):
+                # Parse and ensure UTC timezone
+                dt = datetime.fromisoformat(latest_time_str.replace('Z', '+00:00'))
+                # If somehow no timezone, add UTC
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Failed to parse latest_time '{latest_time_str}': {e}")
             return None
         
         return None
@@ -373,8 +394,8 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         timeframe_stats = session.query(
             PriceData.timeframe,
             func.count(PriceData.id).label('count'),
-            func.min(PriceData.candle_time).label('earliest'),
-            func.max(PriceData.candle_time).label('latest')
+            func.min(PriceData.candle_time).label('earliest_time'),
+            func.max(PriceData.candle_time).label('latest_time')
         ).filter(
             PriceData.asset_id == self.id
         ).group_by(PriceData.timeframe).all()

@@ -207,8 +207,12 @@ class PriceDataRepository(BaseRepository):
     def bulk_insert(self, asset: Asset, price_data_list: List[Dict[str, Any]], timeframe: str = '1h') -> Dict[str, Any]:
         """
         Bulk insert price data with conflict handling, cache update, and enhanced reporting
-        Only allows updates to the latest candle for each asset/timeframe combination.
-        Historical candles are immutable to ensure data integrity.
+        
+        Filtering Rules:
+        - Only processes data >= latest existing candle time in database
+        - Older data is completely filtered out (not inserted or updated)
+        - Only the latest candle (equal time) can be updated if it exists
+        - Historical candles are immutable to ensure data integrity
         
         Args:
             asset: Asset object (already loaded with cache data)
@@ -216,31 +220,44 @@ class PriceDataRepository(BaseRepository):
             timeframe: Target timeframe for optimization (default: '1h')
             
         Returns:
-            Dictionary with detailed results including statistics
+            Dictionary with detailed results including:
+            - total_input_records: Original count before filtering
+            - filtered_out_old_records: Count of old records filtered out
+            - latest_candle_time_filter: The filter timestamp used
         """
         try:
-            affected_assets = set()
-            affected_timeframes = set()
             inserted_count = 0
             updated_count = 0
             skipped_count = 0
             data_range = {'start': None, 'end': None}
             
-            # Track min and max times for reporting
-            candle_times = [data['candle_time'] for data in price_data_list if 'candle_time' in data]
-            
             # Get latest candle time to only allow updates to the most recent candle
             latest_candle_time = asset.get_latest_candle_time(timeframe) if asset else None
             
-            # Extract all candle times for bulk query optimization
-            candle_times_to_check = [data['candle_time'] for data in price_data_list if 'candle_time' in data]
+            # Filter out data older than the latest candle time (except for equal times which can be updated)
+            filtered_price_data_list = []
+            if latest_candle_time:
+                for data in price_data_list:
+                    data_candle_time = data.get('candle_time')
+                    if data_candle_time and data_candle_time >= latest_candle_time:
+                        filtered_price_data_list.append(data)
+                    # Skip older data completely
+            else:
+                # No existing data, process all
+                filtered_price_data_list = price_data_list
+            
+            # Track min and max times for reporting (from filtered data)
+            candle_times = [data['candle_time'] for data in filtered_price_data_list if 'candle_time' in data]
+            
+            # Extract all candle times for bulk query optimization (from filtered data)
+            candle_times_to_check = [data['candle_time'] for data in filtered_price_data_list if 'candle_time' in data]
              
             # Bulk query to check existing records - fetch all at once to avoid N+1 queries
             existing_records = self._get_existing_records(asset.id, timeframe, candle_times_to_check)
             
             # Track processed candle times to avoid duplicates within this batch
             
-            for data in price_data_list:
+            for data in filtered_price_data_list:
                 # Ensure data consistency - set asset_id and timeframe
                 data['asset_id'] = asset.id
                 data['timeframe'] = timeframe
@@ -255,8 +272,6 @@ class PriceDataRepository(BaseRepository):
                         self.db.add(price_data)
                         self.db.flush()  # Force DB to check constraints before commit
                         inserted_count += 1
-                        affected_assets.add(asset.id)
-                        affected_timeframes.add(timeframe)
                     except Exception as e:
                         # Handle duplicate key violation - record might have been inserted by another process
                         if "duplicate key value violates unique constraint" in str(e) or "UniqueViolation" in str(e):
@@ -275,8 +290,6 @@ class PriceDataRepository(BaseRepository):
                                         if key not in ['asset_id', 'timeframe', 'candle_time'] and hasattr(existing, key):
                                             setattr(existing, key, value)
                                     updated_count += 1
-                                    affected_assets.add(asset.id)
-                                    affected_timeframes.add(timeframe)
                                 except Exception:
                                     skipped_count += 1
                             else:
@@ -292,8 +305,6 @@ class PriceDataRepository(BaseRepository):
                             # Update existing record with new data
                             self._update_existing_record(existing, data)
                             updated_count += 1
-                            affected_assets.add(asset.id)
-                            affected_timeframes.add(timeframe)
                         else:
                             # Skip update if price data is identical
                             skipped_count += 1
@@ -316,52 +327,59 @@ class PriceDataRepository(BaseRepository):
                 self.db.rollback()
                 if "duplicate key value violates unique constraint" in str(commit_error) or "UniqueViolation" in str(commit_error):
                     # Log the duplicate key error but don't fail completely
+                    total_input_records = len(price_data_list)
+                    filtered_out_count = total_input_records - len(filtered_price_data_list)
                     return {
                         'status': 'partial_success',
-                        'total_processed': len(price_data_list),
+                        'total_input_records': total_input_records,
+                        'filtered_out_old_records': filtered_out_count,
+                        'total_processed': len(filtered_price_data_list),
                         'inserted_records': inserted_count,
                         'updated_records': updated_count,
-                        'skipped_records': skipped_count + (len(price_data_list) - inserted_count - updated_count - skipped_count),
-                        'affected_assets': len(affected_assets),
-                        'affected_timeframes': list(affected_timeframes),
+                        'skipped_records': skipped_count + (len(filtered_price_data_list) - inserted_count - updated_count - skipped_count),
                         'data_range': data_range,
+                        'latest_candle_time_filter': latest_candle_time.isoformat() if latest_candle_time else None,
                         'warning': f"Some records skipped due to constraint violations: {str(commit_error)}",
                         'success': True  # For backward compatibility
                     }
                 else:
                     raise
             
-            # Update timeframe caches for affected assets
-            for asset_id in affected_assets:
-                for timeframe in affected_timeframes:
-                    self._update_asset_timeframe_cache(asset_id, timeframe, 'refresh')
+            # Update timeframe cache
+            if inserted_count > 0 or updated_count > 0:
+                self._update_asset_timeframe_cache(asset.id, timeframe, 'refresh')
             
             total_processed = inserted_count + updated_count + skipped_count
+            total_input_records = len(price_data_list)
+            filtered_out_count = total_input_records - len(filtered_price_data_list)
             
             return {
                 'status': 'success',
+                'total_input_records': total_input_records,
+                'filtered_out_old_records': filtered_out_count,
                 'total_processed': total_processed,
                 'inserted_records': inserted_count,
                 'updated_records': updated_count,
                 'skipped_records': skipped_count,
-                'affected_assets': len(affected_assets),
-                'affected_timeframes': list(affected_timeframes),
                 'data_range': data_range,
+                'latest_candle_time_filter': latest_candle_time.isoformat() if latest_candle_time else None,
                 'success': True  # For backward compatibility
             }
             
         except Exception as e:
             self.db.rollback()
+            total_input_records = len(price_data_list)
             return {
                 'status': 'error',
                 'error': str(e),
+                'total_input_records': total_input_records,
+                'filtered_out_old_records': 0,
                 'total_processed': 0,
                 'inserted_records': 0,
                 'updated_records': 0,
                 'skipped_records': 0,
-                'affected_assets': 0,
-                'affected_timeframes': [],
                 'data_range': {'start': None, 'end': None},
+                'latest_candle_time_filter': None,
                 'success': False  # For backward compatibility
             }
     
@@ -895,8 +913,8 @@ class PriceDataRepository(BaseRepository):
         for timeframe in hierarchy.keys():
             data_stats = self.db.query(
                 func.count(PriceData.id).label('count'),
-                func.max(PriceData.candle_time).label('latest'),
-                func.min(PriceData.candle_time).label('earliest')
+                func.max(PriceData.candle_time).label('latest_time'),
+                func.min(PriceData.candle_time).label('earliest_time')
             ).filter(
                 PriceData.asset_id == asset_id,
                 PriceData.timeframe == timeframe
@@ -1061,8 +1079,8 @@ class PriceDataRepository(BaseRepository):
             # Refresh cache for specific timeframe
             data_stats = self.db.query(
                 func.count(PriceData.id).label('count'),
-                func.max(PriceData.candle_time).label('latest'),
-                func.min(PriceData.candle_time).label('earliest')
+                func.max(PriceData.candle_time).label('latest_time'),
+                func.min(PriceData.candle_time).label('earliest_time')
             ).filter(
                 PriceData.asset_id == asset_id,
                 PriceData.timeframe == timeframe

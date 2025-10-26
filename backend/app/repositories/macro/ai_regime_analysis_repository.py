@@ -119,7 +119,7 @@ class AIRegimeAnalysisRepository(BaseRepository):
                 AIRegimeAnalysis.detected_regime,
                 func.count(AIRegimeAnalysis.id).label('count'),
                 func.avg(AIRegimeAnalysis.confidence_score).label('avg_confidence'),
-                func.max(AIRegimeAnalysis.analysis_timestamp).label('latest')
+                func.max(AIRegimeAnalysis.analysis_timestamp).label('latest_time')
             ).filter(
                 AIRegimeAnalysis.analysis_timestamp >= cutoff_time
             ).group_by(

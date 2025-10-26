@@ -292,21 +292,27 @@ class PriceDataService:
                 logger.info(f"No existing data for asset {asset.id}, timeframe {timeframe}. Fetching {max_days} days")
                 return max_days
             
-            # Parse latest time from database
-            latest_time_str = timeframe_info['latest_time']
-            try:
-                if latest_time_str.endswith('Z'):
-                    latest_time_str = latest_time_str[:-1] + '+00:00'
-                latest_time = datetime.fromisoformat(latest_time_str)
-                if latest_time.tzinfo is None:
-                    from datetime import timezone
-                    latest_time = latest_time.replace(tzinfo=timezone.utc)
-            except Exception as e:
-                logger.warning(f"Failed to parse latest_time '{latest_time_str}': {e}")
+            # Get latest candle time from database
+            latest_time = asset.get_latest_candle_time(timeframe) if asset else None
+            
+            # Check if latest_time is valid
+            if not latest_time:
+                logger.info(f"No valid latest_time found for asset {asset.id}, timeframe {timeframe}. Fetching {max_days} days")
                 return max_days
             
-            # Calculate days since latest data
-            now = datetime.now(latest_time.tzinfo)
+            # Calculate days since latest data - ensure timezone compatibility
+            from datetime import timezone
+
+            # Ensure both datetimes have UTC timezone
+            if latest_time.tzinfo is None:
+                latest_time = latest_time.replace(tzinfo=timezone.utc)
+                logger.warning(f"latest_time had no timezone, assumed UTC: {latest_time}")
+
+            now = datetime.now(timezone.utc)
+            
+            logger.debug(f"Timezone comparison - latest_time: {latest_time} (tzinfo: {latest_time.tzinfo})")
+            logger.debug(f"Timezone comparison - now: {now} (tzinfo: {now.tzinfo})")
+
             days_since_latest = (now - latest_time).days
             
             # Add buffer for latest candle update (always fetch last candle + some buffer)
@@ -324,7 +330,7 @@ class PriceDataService:
                 f"Days since: {days_since_latest}, "
                 f"Will fetch: {days_to_fetch} days"
             )
-            
+
             return days_to_fetch
             
         except Exception as e:
