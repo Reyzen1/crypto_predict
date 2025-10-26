@@ -282,6 +282,51 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         if timeframe:
             return self.timeframe_data.get(timeframe)
         return self.timeframe_data
+
+    def get_earliest_candle_time(self, timeframe: str):
+        """
+        Get earliest candle time for a specific timeframe from cache
+        
+        Args:
+            timeframe: Target timeframe (e.g., '1h', '1d')
+        Returns:
+            datetime object or None if not found
+        """
+        timeframe_info = self.get_timeframe_data(timeframe)
+        if not timeframe_info or not timeframe_info.get('earliest_time'):
+            return None
+        
+        try:
+            earliest_time_str = timeframe_info['earliest_time']
+            if earliest_time_str:
+                return datetime.fromisoformat(earliest_time_str.replace('Z', '+00:00'))
+        except (ValueError, TypeError):
+            return None
+        
+        return None        
+
+    def get_latest_candle_time(self, timeframe: str):
+        """
+        Get latest candle time for a specific timeframe from cache
+        
+        Args:
+            timeframe: Target timeframe (e.g., '1h', '1d')
+            
+        Returns:
+            datetime object or None if not found
+        """
+        timeframe_info = self.get_timeframe_data(timeframe)
+        if not timeframe_info or not timeframe_info.get('latest_time'):
+            return None
+        
+        try:
+            latest_time_str = timeframe_info['latest_time']
+            if latest_time_str:
+                return datetime.fromisoformat(latest_time_str.replace('Z', '+00:00'))
+        except (ValueError, TypeError):
+            return None
+        
+        return None
     
     def update_timeframe_data(self, timeframe: str, count, 
                             earliest_time: str = None, latest_time: str = None):

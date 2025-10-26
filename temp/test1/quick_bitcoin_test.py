@@ -88,7 +88,7 @@ async def quick_bitcoin_test():
         
         result = await price_service.populate_price_data(
             asset_id=bitcoin.id,
-            days=7,
+            days=365,
             timeframe="1d"
         )
         if result is None:

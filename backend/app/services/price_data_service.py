@@ -50,7 +50,7 @@ class PriceDataService:
     async def populate_price_data(
         self,
         asset_id: int,
-        days: int = 30,
+        days: Optional[int] = None,
         timeframe: str = "1d",
         vs_currency: str = "usd"
     ) -> Dict[str, Any]:
@@ -59,7 +59,7 @@ class PriceDataService:
         
         Args:
             asset_id: Asset ID to populate data for
-            days: Number of days of historical data
+            days: Number of days of historical data (auto-calculated if None)
             timeframe: Data timeframe (1d, 1h, 5m, etc.)
             vs_currency: Base currency (default: usd)
             
@@ -82,6 +82,11 @@ class PriceDataService:
             if not coingecko_id:
                 raise ValueError(f"No CoinGecko ID found for asset {asset_id}")
             
+            # Auto-calculate days if not provided
+            if days is None:
+                days = await self._calculate_optimal_days(asset, timeframe)
+                logger.info(f"Auto-calculated days for asset {asset_id}, timeframe {timeframe}: {days} days")
+            
             # Fetch data from CoinGecko based on timeframe
             price_history = await self._fetch_price_history(
                 coingecko_id, days, timeframe, vs_currency
@@ -99,12 +104,12 @@ class PriceDataService:
                 asset_id, price_history, timeframe
             )
             
-            # Bulk insert data
-            bulk_result = self.price_data_repo.bulk_insert(processed_data)
+            # Bulk insert data - pass asset object instead of asset_id for optimization
+            bulk_result = self.price_data_repo.bulk_insert(asset, processed_data, timeframe)
 
             if bulk_result.get('success', False):
-                if bulk_result.get('inserted_records', 0) > 0:
-                # Trigger aggregation for the asset after successful data insertion
+                if bulk_result.get('inserted_records', 0) > 0 or bulk_result.get('updated_records', 0) > 0:
+                # Trigger aggregation for the asset after successful data insertion or update
                     try:
                         aggregation_result = self.auto_aggregate_for_asset(
                             asset_id=asset_id, 
@@ -249,6 +254,85 @@ class PriceDataService:
         return self._serialize_datetime_objects(result)
     
     # Private helper methods
+    
+    async def _calculate_optimal_days(self, asset: Asset, timeframe: str) -> int:
+        """
+        Calculate optimal number of days to fetch based on existing data
+        
+        Args:
+            asset: Asset object
+            timeframe: Target timeframe
+            
+        Returns:
+            Number of days to fetch from API
+        """
+        try:
+            # Refresh timeframe data from database to get latest information
+            # asset.refresh_timeframe_data_from_db(self.db)
+            
+            # Get timeframe info from cache
+            timeframe_info = asset.get_timeframe_data(timeframe)
+            
+            # Define maximum days available for each timeframe in CoinGecko
+            max_days_by_timeframe = {
+                '1m': 1,        # 1 minute: limited data
+                '5m': 1,        # 5 minutes: limited data  
+                '15m': 1,       # 15 minutes: limited data
+                '1h': 90,       # 1 hour: ~90 days
+                '4h': 90,       # 4 hours: ~90 days
+                '1d': 365,      # Daily: up to 1 year
+                '1w': 365 * 2,  # Weekly: up to 2 years
+                '1M': 365 * 2   # Monthly: up to 2 years
+            }
+            
+            max_days = max_days_by_timeframe.get(timeframe, 365)
+            
+            if not timeframe_info or not timeframe_info.get('latest_time'):
+                # No existing data - fetch maximum available
+                logger.info(f"No existing data for asset {asset.id}, timeframe {timeframe}. Fetching {max_days} days")
+                return max_days
+            
+            # Parse latest time from database
+            latest_time_str = timeframe_info['latest_time']
+            try:
+                if latest_time_str.endswith('Z'):
+                    latest_time_str = latest_time_str[:-1] + '+00:00'
+                latest_time = datetime.fromisoformat(latest_time_str)
+                if latest_time.tzinfo is None:
+                    from datetime import timezone
+                    latest_time = latest_time.replace(tzinfo=timezone.utc)
+            except Exception as e:
+                logger.warning(f"Failed to parse latest_time '{latest_time_str}': {e}")
+                return max_days
+            
+            # Calculate days since latest data
+            now = datetime.now(latest_time.tzinfo)
+            days_since_latest = (now - latest_time).days
+            
+            # Add buffer for latest candle update (always fetch last candle + some buffer)
+            buffer_days = 2  # Always fetch last 2 days to ensure latest candle is updated
+            
+            # Total days to fetch = days since latest + buffer, but not more than max
+            days_to_fetch = min(days_since_latest + buffer_days, max_days)
+            
+            # Minimum 1 day to always get some data
+            days_to_fetch = max(1, days_to_fetch)
+            
+            logger.info(
+                f"Asset {asset.id}, timeframe {timeframe}: "
+                f"Latest data: {latest_time.strftime('%Y-%m-%d %H:%M:%S')}, "
+                f"Days since: {days_since_latest}, "
+                f"Will fetch: {days_to_fetch} days"
+            )
+            
+            return days_to_fetch
+            
+        except Exception as e:
+            logger.error(f"Error calculating optimal days for asset {asset.id}: {e}")
+            # Fallback to reasonable default
+            default_days = 30 if timeframe in ['1d', '1h', '4h'] else 7
+            logger.info(f"Using fallback: {default_days} days")
+            return default_days
     
     def _get_coingecko_id(self, asset: Asset) -> Optional[str]:
         """

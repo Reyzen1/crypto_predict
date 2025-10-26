@@ -146,14 +146,74 @@ class PriceDataRepository(BaseRepository):
                 })
         
         return gaps
+
+    def _get_existing_records(self, asset_id: int, timeframe: str, candle_times: List) -> Dict:
+        """Get existing records for bulk comparison with timezone normalization"""
+        if not candle_times:
+            return {}
+        
+        existing_query = self.db.query(PriceData).filter(
+            PriceData.asset_id == asset_id,
+            PriceData.timeframe == timeframe,
+            PriceData.candle_time.in_(candle_times)
+        ).all()
+        
+        # Create lookup dictionary with timezone normalization
+        existing_records = {}
+        for record in existing_query:
+            normalized_time = record.candle_time
+            if normalized_time.tzinfo is not None:
+                normalized_time = normalized_time.replace(tzinfo=None)
+            existing_records[normalized_time] = record
+        
+        return existing_records
+
+    def _get_existing_record(self, existing_records: Dict, candle_time) -> Optional[PriceData]:
+        """Get existing record with timezone normalization"""
+        lookup_time = candle_time
+        if hasattr(lookup_time, 'tzinfo') and lookup_time.tzinfo is not None:
+            lookup_time = lookup_time.replace(tzinfo=None)
+        return existing_records.get(lookup_time)
+
+    def _should_update_existing_record(self, existing: PriceData, new_data: Dict) -> bool:
+        """Check if existing record should be updated based on price changes"""
+        def safe_compare(existing_val, new_val, tolerance=1e-8):
+            if existing_val is None and new_val is None:
+                return True
+            if existing_val is None or new_val is None:
+                return False
+            try:
+                existing_float = float(existing_val)
+                new_float = float(new_val)
+                return abs(existing_float - new_float) < tolerance
+            except (ValueError, TypeError):
+                return existing_val == new_val
+        
+        # Check if key price fields have changed
+        price_unchanged = (
+            safe_compare(existing.close_price, new_data.get('close_price')) and
+            safe_compare(existing.low_price, new_data.get('low_price')) and
+            safe_compare(existing.high_price, new_data.get('high_price'))
+        )
+        
+        return not price_unchanged
+
+    def _update_existing_record(self, existing: PriceData, new_data: Dict) -> None:
+        """Update existing record with new data"""
+        for key, value in new_data.items():
+            if key not in ['asset_id', 'timeframe', 'candle_time'] and hasattr(existing, key):
+                setattr(existing, key, value)
     
-    def bulk_insert(self, price_data_list: List[Dict[str, Any]], update_existing: bool = False) -> Dict[str, Any]:
+    def bulk_insert(self, asset: Asset, price_data_list: List[Dict[str, Any]], timeframe: str = '1h') -> Dict[str, Any]:
         """
         Bulk insert price data with conflict handling, cache update, and enhanced reporting
+        Only allows updates to the latest candle for each asset/timeframe combination.
+        Historical candles are immutable to ensure data integrity.
         
         Args:
+            asset: Asset object (already loaded with cache data)
             price_data_list: List of price data dictionaries
-            update_existing: Whether to update existing records or skip them (default: False)
+            timeframe: Target timeframe for optimization (default: '1h')
             
         Returns:
             Dictionary with detailed results including statistics
@@ -167,34 +227,80 @@ class PriceDataRepository(BaseRepository):
             data_range = {'start': None, 'end': None}
             
             # Track min and max times for reporting
-            candle_times = []
+            candle_times = [data['candle_time'] for data in price_data_list if 'candle_time' in data]
+            
+            # Get latest candle time to only allow updates to the most recent candle
+            latest_candle_time = asset.get_latest_candle_time(timeframe) if asset else None
+            
+            # Extract all candle times for bulk query optimization
+            candle_times_to_check = [data['candle_time'] for data in price_data_list if 'candle_time' in data]
+             
+            # Bulk query to check existing records - fetch all at once to avoid N+1 queries
+            existing_records = self._get_existing_records(asset.id, timeframe, candle_times_to_check)
+            
+            # Track processed candle times to avoid duplicates within this batch
             
             for data in price_data_list:
-                # Check for existing data to avoid duplicates based on asset_id, timeframe, and candle_time
-                existing = self.db.query(PriceData).filter(
-                    PriceData.asset_id == data['asset_id'],
-                    PriceData.timeframe == data.get('timeframe', '1h'),
-                    PriceData.candle_time == data['candle_time']
-                ).first()
+                # Ensure data consistency - set asset_id and timeframe
+                data['asset_id'] = asset.id
+                data['timeframe'] = timeframe
+                
+                # Get existing record using normalized lookup
+                existing = self._get_existing_record(existing_records, data['candle_time'])
                 
                 if not existing:
-                    # Insert new record
-                    price_data = PriceData(**data)
-                    self.db.add(price_data)
-                    inserted_count += 1
-                    affected_assets.add(data['asset_id'])
-                    affected_timeframes.add(data.get('timeframe', '1h'))
-                elif update_existing:
-                    # Update existing record with new data
-                    for key, value in data.items():
-                        if key not in ['asset_id', 'timeframe', 'candle_time'] and hasattr(existing, key):
-                            setattr(existing, key, value)
-                    updated_count += 1
-                    affected_assets.add(data['asset_id'])
-                    affected_timeframes.add(data.get('timeframe', '1h'))
+                    # Insert new record with duplicate check
+                    try:
+                        price_data = PriceData(**data)
+                        self.db.add(price_data)
+                        self.db.flush()  # Force DB to check constraints before commit
+                        inserted_count += 1
+                        affected_assets.add(asset.id)
+                        affected_timeframes.add(timeframe)
+                    except Exception as e:
+                        # Handle duplicate key violation - record might have been inserted by another process
+                        if "duplicate key value violates unique constraint" in str(e) or "UniqueViolation" in str(e):
+                            self.db.rollback()
+                            # Re-query to get the existing record
+                            existing = self.db.query(PriceData).filter(
+                                PriceData.asset_id == asset.id,
+                                PriceData.timeframe == timeframe,
+                                PriceData.candle_time == data['candle_time']
+                            ).first()
+                            
+                            if existing and latest_candle_time and data['candle_time'] == latest_candle_time:
+                                # Try to update the existing record if it's the latest candle
+                                try:
+                                    for key, value in data.items():
+                                        if key not in ['asset_id', 'timeframe', 'candle_time'] and hasattr(existing, key):
+                                            setattr(existing, key, value)
+                                    updated_count += 1
+                                    affected_assets.add(asset.id)
+                                    affected_timeframes.add(timeframe)
+                                except Exception:
+                                    skipped_count += 1
+                            else:
+                                skipped_count += 1
+                        else:
+                            # Re-raise if it's not a duplicate key error
+                            raise
                 else:
-                    # Skip existing record
-                    skipped_count += 1
+                    # Check if this candle is the latest one (only latest candle can be updated)
+                    # Only allow updates to the latest candle
+                    if latest_candle_time and data['candle_time'] == latest_candle_time:
+                        if self._should_update_existing_record(existing, data):
+                            # Update existing record with new data
+                            self._update_existing_record(existing, data)
+                            updated_count += 1
+                            affected_assets.add(asset.id)
+                            affected_timeframes.add(timeframe)
+                        else:
+                            # Skip update if price data is identical
+                            skipped_count += 1
+                    else:
+                        # Skip update for historical candles (not the latest one)
+                        skipped_count += 1
+
             
             # Calculate data range
             if candle_times:
@@ -203,7 +309,27 @@ class PriceDataRepository(BaseRepository):
                     'end': max(candle_times)
                 }
             
-            self.db.commit()
+            # Commit with error handling for any remaining constraint violations
+            try:
+                self.db.commit()
+            except Exception as commit_error:
+                self.db.rollback()
+                if "duplicate key value violates unique constraint" in str(commit_error) or "UniqueViolation" in str(commit_error):
+                    # Log the duplicate key error but don't fail completely
+                    return {
+                        'status': 'partial_success',
+                        'total_processed': len(price_data_list),
+                        'inserted_records': inserted_count,
+                        'updated_records': updated_count,
+                        'skipped_records': skipped_count + (len(price_data_list) - inserted_count - updated_count - skipped_count),
+                        'affected_assets': len(affected_assets),
+                        'affected_timeframes': list(affected_timeframes),
+                        'data_range': data_range,
+                        'warning': f"Some records skipped due to constraint violations: {str(commit_error)}",
+                        'success': True  # For backward compatibility
+                    }
+                else:
+                    raise
             
             # Update timeframe caches for affected assets
             for asset_id in affected_assets:
