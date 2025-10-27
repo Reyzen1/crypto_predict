@@ -52,8 +52,12 @@ class DataQualityService:
         health_data = {}
         recommendations = []
         
+        # Get aggregation status for all assets in one batch query to improve performance
+        asset_ids = [asset.id for asset in assets_to_check]
+        all_status_data = self.price_repo.get_bulk_aggregation_status(asset_ids)
+        
         for asset in assets_to_check:
-            status = self.price_repo.get_aggregation_status(asset.id)
+            status = all_status_data.get(asset.id, {})
             
             # Analyze health for this asset
             base_timeframes = ['1m', '5m', '15m', '1h']
@@ -134,8 +138,9 @@ class DataQualityService:
             Data quality assessment
         """
         try:
-            # Get aggregation status
-            status = self.price_repo.get_aggregation_status(asset_id)
+            # Get aggregation status (using bulk method for consistency)
+            bulk_status = self.price_repo.get_bulk_aggregation_status([asset_id])
+            status = bulk_status.get(asset_id, {})
             
             # Check data coverage across timeframes
             coverage_analysis = {}
@@ -203,8 +208,9 @@ class DataQualityService:
             Detailed completeness report
         """
         try:
-            # Get basic aggregation status
-            status = self.price_repo.get_aggregation_status(asset_id)
+            # Get basic aggregation status (using bulk method for consistency)
+            bulk_status = self.price_repo.get_bulk_aggregation_status([asset_id])
+            status = bulk_status.get(asset_id, {})
             
             # Get asset info
             asset = self.asset_repo.get(asset_id)

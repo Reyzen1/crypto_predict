@@ -25,18 +25,21 @@ class PriceDataRepository(BaseRepository):
     
     def get_by_asset(self, asset_id: int, limit: int = 100) -> List[PriceData]:
         """Get recent price data for an asset"""
+        print(f"Debug: return self.db.query(PriceData).filter(")
         return self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id
         ).order_by(PriceData.candle_time.desc()).limit(limit).all()
     
     def get_by_symbol(self, symbol: str, limit: int = 100) -> List[PriceData]:
         """Get recent price data by symbol"""
+        print(f"Debug: return self.db.query(PriceData).join(Asset).filter(")
         return self.db.query(PriceData).join(Asset).filter(
             Asset.symbol == symbol
         ).order_by(PriceData.candle_time.desc()).limit(limit).all()
     
     def get_price_range(self, asset_id: int, start_date: datetime, end_date: datetime) -> List[PriceData]:
         """Get price data within date range"""
+        print(f"Debug: return self.db.query(PriceData).filter(")
         return self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id,
             PriceData.candle_time >= start_date,
@@ -45,6 +48,7 @@ class PriceDataRepository(BaseRepository):
     
     def get_latest_by_asset(self, asset_id: int) -> Optional[PriceData]:
         """Get latest price for an asset"""
+        print(f"Debug: return self.db.query(PriceData).filter(")
         return self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id
         ).order_by(PriceData.candle_time.desc()).first()
@@ -59,6 +63,7 @@ class PriceDataRepository(BaseRepository):
         Returns:
             Latest PriceData record or None if not found
         """
+        print(f"Debug: self.db.query(PriceData).filter")
         return self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id
         ).order_by(PriceData.candle_time.desc()).first()
@@ -66,6 +71,7 @@ class PriceDataRepository(BaseRepository):
     def get_ohlc_data(self, asset_id: int, hours: int = 24) -> List[PriceData]:
         """Get OHLC data for specified hours"""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        print(f"Debug: return self.db.query(PriceData).filter(")
         return self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id,
             PriceData.candle_time >= cutoff_time
@@ -74,7 +80,8 @@ class PriceDataRepository(BaseRepository):
     def get_price_statistics(self, asset_id: int, days: int = 30) -> Dict[str, Any]:
         """Get price statistics for an asset"""
         cutoff_date = datetime.utcnow() - timedelta(days=days)
-        
+
+        print(f"Debug: stats = self.db.query(")
         stats = self.db.query(
             func.max(PriceData.high_price).label('max_price'),
             func.min(PriceData.low_price).label('min_price'),
@@ -105,6 +112,7 @@ class PriceDataRepository(BaseRepository):
         Uses close_price for volatility calculation based on daily returns
         """
         cutoff_date = datetime.utcnow() - timedelta(days=days)
+        print(f"Debug: prices = self.db.query(PriceData.close_price).filter(")
         prices = self.db.query(PriceData.close_price).filter(
             PriceData.asset_id == asset_id,
             PriceData.candle_time >= cutoff_date
@@ -125,6 +133,7 @@ class PriceDataRepository(BaseRepository):
     
     def get_missing_data_gaps(self, asset_id: int, expected_interval_minutes: int = 5) -> List[Dict[str, Any]]:
         """Identify gaps in price data"""
+        print(f"Debug: recent_data = self.db.query(PriceData.candle_time).filter(")
         recent_data = self.db.query(PriceData.candle_time).filter(
             PriceData.asset_id == asset_id
         ).order_by(PriceData.candle_time.desc()).limit(1000).all()
@@ -152,7 +161,8 @@ class PriceDataRepository(BaseRepository):
         """Get existing records for bulk comparison with timezone normalization"""
         if not candle_times:
             return {}
-        
+
+        print(f"Debug: existing_query = self.db.query(PriceData).filter")
         existing_query = self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id,
             PriceData.timeframe == timeframe,
@@ -280,6 +290,7 @@ class PriceDataRepository(BaseRepository):
                         for data in records_to_insert:
                             try:
                                 # Check if record was inserted by another process
+                                print("Debug:existing_check = self.db.query(PriceData).filter(")
                                 existing_check = self.db.query(PriceData).filter(
                                     PriceData.asset_id == data['asset_id'],
                                     PriceData.timeframe == data['timeframe'],
@@ -370,6 +381,7 @@ class PriceDataRepository(BaseRepository):
         """Remove old price data beyond retention period"""
         cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
         
+        print(f"Debug: deleted_count = self.db.query(PriceData).filter(")
         deleted_count = self.db.query(PriceData).filter(
             PriceData.candle_time < cutoff_date
         ).delete()
@@ -395,6 +407,7 @@ class PriceDataRepository(BaseRepository):
                 continue
             
             past_time = datetime.utcnow() - timedelta(hours=timeframe_hours[tf])
+            print(f"Debug: past_price = self.db.query(PriceData).filter(")
             past_price = self.db.query(PriceData).filter(
                 PriceData.asset_id == asset_id,
                 PriceData.candle_time <= past_time
@@ -412,6 +425,7 @@ class PriceDataRepository(BaseRepository):
         """Analyze volume patterns"""
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
+        print(f"Debug: volume_data = self.db.query(")
         volume_data = self.db.query(
             func.avg(PriceData.volume).label('avg_volume'),
             func.max(PriceData.volume).label('max_volume'),
@@ -429,12 +443,14 @@ class PriceDataRepository(BaseRepository):
         
         # Calculate volume trend (last 24h vs previous period)
         last_24h = datetime.utcnow() - timedelta(hours=24)
+        print(f"Debug: recent_volume = self.db.query(func.avg(PriceData.volume)).filter(")
         recent_volume = self.db.query(func.avg(PriceData.volume)).filter(
             PriceData.asset_id == asset_id,
             PriceData.candle_time >= last_24h
         ).scalar()
         
         prev_24h = last_24h - timedelta(hours=24)
+        print(f"Debug: prev_volume = self.db.query(func.avg(PriceData.volume)).filter")
         prev_volume = self.db.query(func.avg(PriceData.volume)).filter(
             PriceData.asset_id == asset_id,
             PriceData.candle_time >= prev_24h,
@@ -464,6 +480,7 @@ class PriceDataRepository(BaseRepository):
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
         # Get high and low prices for better support/resistance detection
+        print(f"Debug: price_data = self.db.query(PriceData.high_price, PriceData.low_price, PriceData.close_price).filter(")
         price_data = self.db.query(PriceData.high_price, PriceData.low_price, PriceData.close_price).filter(
             PriceData.asset_id == asset_id,
             PriceData.candle_time >= cutoff_date
@@ -528,11 +545,13 @@ class PriceDataRepository(BaseRepository):
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
         # Get aligned price data for both assets
+        print(f"Debug: prices1 = self.db.query(PriceData.candle_time, PriceData.close_price).filter(")
         prices1 = self.db.query(PriceData.candle_time, PriceData.close_price).filter(
             PriceData.asset_id == asset1_id,
             PriceData.candle_time >= cutoff_date
         ).order_by(PriceData.candle_time.asc()).all()
-        
+
+        print(f"Debug: prices2 = self.db.query(PriceData.candle_time, PriceData.close_price).filter")
         prices2 = self.db.query(PriceData.candle_time, PriceData.close_price).filter(
             PriceData.asset_id == asset2_id,
             PriceData.candle_time >= cutoff_date
@@ -601,30 +620,24 @@ class PriceDataRepository(BaseRepository):
         """Generate data quality report for an asset"""
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
-        total_records = self.db.query(func.count(PriceData.id)).filter(
+        # Combined query for all quality metrics in one database call
+        from sqlalchemy import case
+        print(f"Debug: quality_stats = self.db.query(")
+        quality_stats = self.db.query(
+            func.count(PriceData.id).label('total_records'),
+            func.sum(case((PriceData.close_price.is_(None), 1), else_=0)).label('missing_price'),
+            func.sum(case((PriceData.volume.is_(None), 1), else_=0)).label('missing_volume'),
+            func.sum(case((PriceData.close_price <= 0, 1), else_=0)).label('zero_prices')
+        ).filter(
             PriceData.asset_id == asset_id,
             PriceData.candle_time >= cutoff_date
-        ).scalar()
+        ).first()
         
-        # Check for missing required fields
-        missing_price = self.db.query(func.count(PriceData.id)).filter(
-            PriceData.asset_id == asset_id,
-            PriceData.candle_time >= cutoff_date,
-            PriceData.close_price.is_(None)
-        ).scalar()
-        
-        missing_volume = self.db.query(func.count(PriceData.id)).filter(
-            PriceData.asset_id == asset_id,
-            PriceData.candle_time >= cutoff_date,
-            PriceData.volume.is_(None)
-        ).scalar()
-        
-        # Check for suspicious values (e.g., zero prices)
-        zero_prices = self.db.query(func.count(PriceData.id)).filter(
-            PriceData.asset_id == asset_id,
-            PriceData.candle_time >= cutoff_date,
-            PriceData.close_price <= 0
-        ).scalar()
+        # Extract results from the combined query
+        total_records = quality_stats.total_records or 0
+        missing_price = quality_stats.missing_price or 0
+        missing_volume = quality_stats.missing_volume or 0
+        zero_prices = quality_stats.zero_prices or 0
         
         # Check data gaps
         gaps = self.get_missing_data_gaps(asset_id, 5)
@@ -725,108 +738,98 @@ class PriceDataRepository(BaseRepository):
         # Simplified approach: Use DISTINCT ON for first/last values
         # This is more reliable than complex subqueries
         
-        # First, get the main aggregation (everything except open/close)
-        period_start = func.date_trunc(interval_expression, PriceData.candle_time).label('period_start')
+        # Single comprehensive query using CTE for all aggregation including open/close prices
+        from sqlalchemy import text
         
-        aggregation_query = self.db.query(
-            period_start,
-            func.max(PriceData.high_price).label('high_price'),
-            func.min(PriceData.low_price).label('low_price'),
-            func.sum(PriceData.volume).label('volume'),
-            func.avg(PriceData.market_cap).label('avg_market_cap'),
-            func.sum(PriceData.trade_count).label('total_trades'),
-            # Calculate volume-weighted average price properly
-            (func.sum(PriceData.close_price * PriceData.volume) / 
-             func.nullif(func.sum(PriceData.volume), 0)).label('vwap'),
-            func.count(PriceData.id).label('source_records')
-        ).filter(
-            and_(*base_conditions)
-        ).group_by(
-            period_start
-        ).order_by(
-            period_start.asc()
-        )
+        comprehensive_query = text(f"""
+            WITH period_aggregation AS (
+                SELECT 
+                    DATE_TRUNC('{interval_expression}', candle_time) as period_start,
+                    MAX(high_price) as high_price,
+                    MIN(low_price) as low_price,
+                    SUM(volume) as volume,
+                    AVG(market_cap) as avg_market_cap,
+                    SUM(trade_count) as total_trades,
+                    SUM(close_price * volume) / NULLIF(SUM(volume), 0) as vwap,
+                    COUNT(id) as source_records
+                FROM price_data 
+                WHERE asset_id = :asset_id 
+                    AND timeframe = :source_timeframe
+                    {' AND candle_time >= :start_time' if start_time else ''}
+                    {' AND candle_time <= :end_time' if end_time else ''}
+                GROUP BY DATE_TRUNC('{interval_expression}', candle_time)
+            ),
+            first_last_prices AS (
+                SELECT 
+                    DATE_TRUNC('{interval_expression}', candle_time) as period,
+                    FIRST_VALUE(open_price) OVER (
+                        PARTITION BY DATE_TRUNC('{interval_expression}', candle_time) 
+                        ORDER BY candle_time ASC 
+                        ROWS UNBOUNDED PRECEDING
+                    ) as first_open,
+                    FIRST_VALUE(close_price) OVER (
+                        PARTITION BY DATE_TRUNC('{interval_expression}', candle_time) 
+                        ORDER BY candle_time DESC 
+                        ROWS UNBOUNDED PRECEDING
+                    ) as last_close,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY DATE_TRUNC('{interval_expression}', candle_time) 
+                        ORDER BY candle_time ASC
+                    ) as rn
+                FROM price_data 
+                WHERE asset_id = :asset_id 
+                    AND timeframe = :source_timeframe
+                    {' AND candle_time >= :start_time' if start_time else ''}
+                    {' AND candle_time <= :end_time' if end_time else ''}
+            ),
+            period_open_close AS (
+                SELECT DISTINCT
+                    period,
+                    first_open,
+                    last_close
+                FROM first_last_prices
+                WHERE rn = 1
+            )
+            SELECT 
+                pa.period_start,
+                poc.first_open as open_price,
+                pa.high_price,
+                pa.low_price,
+                poc.last_close as close_price,
+                pa.volume,
+                pa.avg_market_cap,
+                pa.total_trades,
+                pa.vwap,
+                pa.source_records
+            FROM period_aggregation pa
+            JOIN period_open_close poc ON pa.period_start = poc.period
+            ORDER BY pa.period_start ASC
+        """)
         
-        # Get main aggregation results
-        agg_results = aggregation_query.all()
+        # Execute comprehensive query with parameters
+        query_params = {
+            'asset_id': asset_id,
+            'source_timeframe': source_timeframe
+        }
+        if start_time:
+            query_params['start_time'] = start_time
+        if end_time:
+            query_params['end_time'] = end_time
+            
+        print(f"Debug: agg_results = self.db.execute(comprehensive_query, query_params).fetchall()")
+        agg_results = self.db.execute(comprehensive_query, query_params).fetchall()
         
-        # Debug: Log the actual number of results
-        logger.info(f"DEBUG: Aggregation query returned {len(agg_results)} periods for {target_timeframe}")
-        for i, row in enumerate(agg_results):
-            logger.info(f"DEBUG: Period {i+1}: {row.period_start} (source_records: {row.source_records})")
-        
-        # Get first/last values for all periods using optimized bulk queries
-        first_last_data = {}
-        
-        if agg_results:
-            # Extract all periods for bulk processing
-            periods = [row.period_start for row in agg_results]
-            
-            # Single query to get all first records (open prices) using window function
-            first_records_query = self.db.query(
-                func.date_trunc(interval_expression, PriceData.candle_time).label('period'),
-                PriceData.open_price,
-                func.row_number().over(
-                    partition_by=func.date_trunc(interval_expression, PriceData.candle_time),
-                    order_by=PriceData.candle_time.asc()
-                ).label('row_num')
-            ).filter(
-                PriceData.asset_id == asset_id,
-                PriceData.timeframe == source_timeframe,
-                func.date_trunc(interval_expression, PriceData.candle_time).in_(periods),
-                *base_conditions
-            ).subquery()
-            
-            # Get first records (row_num = 1)
-            first_records = self.db.query(first_records_query).filter(
-                first_records_query.c.row_num == 1
-            ).all()
-            
-            # Single query to get all last records (close prices) using window function
-            last_records_query = self.db.query(
-                func.date_trunc(interval_expression, PriceData.candle_time).label('period'),
-                PriceData.close_price,
-                func.row_number().over(
-                    partition_by=func.date_trunc(interval_expression, PriceData.candle_time),
-                    order_by=PriceData.candle_time.desc()
-                ).label('row_num')
-            ).filter(
-                PriceData.asset_id == asset_id,
-                PriceData.timeframe == source_timeframe,
-                func.date_trunc(interval_expression, PriceData.candle_time).in_(periods),
-                *base_conditions
-            ).subquery()
-            
-            # Get last records (row_num = 1)
-            last_records = self.db.query(last_records_query).filter(
-                last_records_query.c.row_num == 1
-            ).all()
-            
-            # Build lookup dictionaries
-            first_prices = {record.period: record.open_price for record in first_records}
-            last_prices = {record.period: record.close_price for record in last_records}
-            
-            # Combine first and last data
-            for period in periods:
-                first_last_data[period] = {
-                    'first_open': first_prices.get(period, 0),
-                    'last_close': last_prices.get(period, 0)
-                }
-        
-        # Convert to dictionary format using first_last_data
+        # Convert comprehensive query results to dictionary format
         aggregated_data = []
         for row in agg_results:
-            period_time = row.period_start
-            first_last = first_last_data.get(period_time, {'first_open': 0, 'last_close': 0})
-            
             aggregated_data.append({
                 'asset_id': asset_id,
                 'timeframe': target_timeframe,
-                'candle_time': period_time,
-                'open_price': float(first_last['first_open']) if first_last['first_open'] else 0,
+                'candle_time': row.period_start,
+                'open_price': float(row.open_price) if row.open_price else 0,
                 'high_price': float(row.high_price) if row.high_price else 0,
                 'low_price': float(row.low_price) if row.low_price else 0,
-                'close_price': float(first_last['last_close']) if first_last['last_close'] else 0,
+                'close_price': float(row.close_price) if row.close_price else 0,
                 'volume': float(row.volume) if row.volume else 0,
                 'market_cap': float(row.avg_market_cap) if row.avg_market_cap else None,
                 'trade_count': int(row.total_trades) if row.total_trades else None,
@@ -919,11 +922,13 @@ class PriceDataRepository(BaseRepository):
             # Use provided asset object or fetch it
             asset = asset_object
             if not asset:
+                print(f"Debug: asset = self.db.query(Asset).filter(Asset.id == {asset_id}).first()")
                 asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
                 if not asset:
                     return False
             
             # Single bulk query for all timeframes to avoid N+1 problem
+            print(f"Debug: all_stats = self.db.query(")
             all_stats = self.db.query(
                 PriceData.timeframe,
                 func.count(PriceData.id).label('count'),
@@ -939,7 +944,8 @@ class PriceDataRepository(BaseRepository):
                 count = stat.count if stat.count else 0
                 latest = stat.latest.isoformat() if stat.latest else None
                 earliest = stat.earliest.isoformat() if stat.earliest else None
-                
+
+                print(f"Debug: asset.update_timeframe_data(")
                 asset.update_timeframe_data(
                     timeframe=stat.timeframe,
                     count=count,
@@ -969,7 +975,8 @@ class PriceDataRepository(BaseRepository):
         """
         try:
             from ...models.asset import Asset
-            
+
+            print(f"Debug: asset = self.db.query(Asset).filter(Asset.id == {asset_id}).first()")
             asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
             if not asset:
                 return False
@@ -980,6 +987,7 @@ class PriceDataRepository(BaseRepository):
                 return True
             
             # Refresh cache for specific timeframe
+            print(f"Debug: data_stats = self.db.query(")
             data_stats = self.db.query(
                 func.count(PriceData.id).label('count'),
                 func.max(PriceData.candle_time).label('latest'),
@@ -993,6 +1001,7 @@ class PriceDataRepository(BaseRepository):
             latest = data_stats.latest.isoformat() if data_stats.latest else None
             earliest = data_stats.earliest.isoformat() if data_stats.earliest else None
             
+            print(f"Debug: asset.update_timeframe_data(")
             asset.update_timeframe_data(
                 timeframe=timeframe,
                 count=count,
@@ -1021,6 +1030,7 @@ class PriceDataRepository(BaseRepository):
         from ...models.asset import Asset
         
         # Get asset with timeframe_data cache
+        print(f"Debug: asset = self.db.query(Asset).filter(Asset.id == {asset_id}).first()")
         asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
         
         if not asset:
@@ -1029,8 +1039,109 @@ class PriceDataRepository(BaseRepository):
         status = {} 
         # Use cached data if available
         if asset.timeframe_data:
+            print(f"Debug: asset.get_all_timeframe_data()")
             status = asset.get_all_timeframe_data()
         return status
+
+    def get_bulk_aggregation_status(self, asset_ids: List[int]) -> Dict[int, Dict[str, Dict[str, Any]]]:
+        """
+        Get aggregation status for multiple assets efficiently in one query
+        
+        Args:
+            asset_ids: List of asset IDs to get status for
+            
+        Returns:
+            Dictionary with asset_id -> timeframe -> {count, latest_time, earliest_time}
+        """
+        if not asset_ids:
+            return {}
+        
+        try:
+            from ...models.asset import Asset
+            
+            # Get all assets with cached data first
+            assets = self.db.query(Asset).filter(Asset.id.in_(asset_ids)).all()
+            
+            results = {}
+            assets_needing_query = []
+            
+            # Check cached data first
+            for asset in assets:
+                if asset.timeframe_data:
+                    # Use cached data
+                    results[asset.id] = asset.get_all_timeframe_data()
+                else:
+                    # Need to query database
+                    assets_needing_query.append(asset.id)
+                    results[asset.id] = {}
+            
+            # For assets without cached data, do bulk query
+            if assets_needing_query:
+                hierarchy = self.get_timeframe_hierarchy()
+                all_timeframes = list(hierarchy.keys())
+                
+                bulk_stats = self.db.query(
+                    PriceData.asset_id,
+                    PriceData.timeframe,
+                    func.count(PriceData.id).label('count'),
+                    func.max(PriceData.candle_time).label('latest_time'),
+                    func.min(PriceData.candle_time).label('earliest_time')
+                ).filter(
+                    PriceData.asset_id.in_(assets_needing_query),
+                    PriceData.timeframe.in_(all_timeframes)
+                ).group_by(
+                    PriceData.asset_id,
+                    PriceData.timeframe
+                ).all()
+                
+                # Initialize empty data for assets needing query
+                for asset_id in assets_needing_query:
+                    for timeframe in all_timeframes:
+                        results[asset_id][timeframe] = {
+                            'count': 0,
+                            'latest_time': None,
+                            'earliest_time': None,
+                            'can_aggregate_to': self.get_aggregatable_timeframes(timeframe)
+                        }
+                
+                # Fill in actual data from query results
+                for stat in bulk_stats:
+                    asset_id = stat.asset_id
+                    timeframe = stat.timeframe
+                    count = stat.count if stat.count else 0
+                    latest = stat.latest_time.isoformat() if stat.latest_time else None
+                    earliest = stat.earliest_time.isoformat() if stat.earliest_time else None
+                    
+                    if asset_id in results:
+                        results[asset_id][timeframe] = {
+                            'count': count,
+                            'latest_time': latest,
+                            'earliest_time': earliest,
+                            'can_aggregate_to': self.get_aggregatable_timeframes(timeframe)
+                        }
+                
+                # Update cache for assets that were queried
+                try:
+                    for asset in assets:
+                        if asset.id in assets_needing_query and asset.id in results:
+                            for timeframe, data in results[asset.id].items():
+                                if data['count'] > 0:
+                                    asset.update_timeframe_data(
+                                        timeframe=timeframe,
+                                        count=data['count'],
+                                        earliest_time=data['earliest_time'],
+                                        latest_time=data['latest_time']
+                                    )
+                    self.db.commit()
+                except Exception as cache_error:
+                    # Cache update failure shouldn't affect main operation
+                    self.db.rollback()
+            
+            return results
+            
+        except Exception as e:
+            # Return empty structure for all requested assets
+            return {asset_id: {} for asset_id in asset_ids}
 
     def optimize_storage_with_aggregation(self, asset_id: int, source_timeframe: str = '1h',
                                         keep_days: int = 30) -> Dict[str, Any]:
@@ -1062,6 +1173,7 @@ class PriceDataRepository(BaseRepository):
             aggregation_results.update(results)
         
         # Remove old source data after successful aggregation
+        print(f"Debug: deleted_count = self.db.query(PriceData).filter(")
         deleted_count = self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id,
             PriceData.timeframe == source_timeframe,
@@ -1151,16 +1263,19 @@ class PriceDataRepository(BaseRepository):
         try:
             from ...models.asset import Asset
             
+            print(f"Debug: asset = self.db.query(Asset).filter(Asset.id == {asset_id}).first()")    
             asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
             if not asset:
                 return False
             
             if operation == 'clear':
+                print(f"Debug: asset.reset_timeframe_cache()")
                 asset.reset_timeframe_cache()
                 self.db.commit()
                 return True
             
             # Refresh cache for specific timeframe
+            print(f"Debug: data_stats = self.db.query(")
             data_stats = self.db.query(
                 func.count(PriceData.id).label('count'),
                 func.max(PriceData.candle_time).label('latest'),
@@ -1174,6 +1289,7 @@ class PriceDataRepository(BaseRepository):
             latest = data_stats.latest.isoformat() if data_stats.latest else None
             earliest = data_stats.earliest.isoformat() if data_stats.earliest else None
             
+            print(f"Debug: asset.update_timeframe_data(")
             asset.update_timeframe_data(
                 timeframe=timeframe,
                 count=count,
@@ -1214,6 +1330,7 @@ class PriceDataRepository(BaseRepository):
         
         try:
             # Step 1: Get the latest candle_time for this asset and timeframe
+            print(f"Debug: latest_candle_record = self.db.query(PriceData.candle_t")
             latest_candle_record = self.db.query(PriceData.candle_time).filter(
                 PriceData.asset_id == asset_id,
                 PriceData.timeframe == target_timeframe
@@ -1260,6 +1377,7 @@ class PriceDataRepository(BaseRepository):
             updated_count = 0
             if records_to_update and latest_candle_time:
                 # Get the existing record to update using normalized time
+                print(f"Debug: existing_record = self.db.query(PriceData).filter")
                 existing_record = self.db.query(PriceData).filter(
                     PriceData.asset_id == asset_id,
                     PriceData.timeframe == target_timeframe,
@@ -1386,6 +1504,7 @@ class PriceDataRepository(BaseRepository):
             Tuple of (incomplete_updates, complete_skips)
         """
         # Get the latest timestamp from the database for this asset and target timeframe
+        print("DEBUG: Checking for incomplete periods before updating...")
         latest_db_record = self.db.query(PriceData.candle_time).filter(
             PriceData.asset_id == asset_id,
             PriceData.timeframe == target_timeframe
@@ -1565,6 +1684,7 @@ class PriceDataRepository(BaseRepository):
             timeframes_to_try = ['1h', '4h', '1d', '1w']
             
             # Get all records with market cap across different timeframes in one query
+            print(f"Debug: market_cap_records = self.db.query(PriceData).filter(")
             market_cap_records = self.db.query(PriceData).filter(
                 and_(
                     PriceData.asset_id == asset_id,
@@ -1623,6 +1743,7 @@ class PriceDataRepository(BaseRepository):
                 return {}
             
             # Single bulk query for all timeframes
+            print(f"Debug: latest_candles = self.db.query(PriceData).filter")
             latest_candles = self.db.query(PriceData).filter(
                 and_(
                     PriceData.asset_id == asset_id,
@@ -1694,6 +1815,7 @@ class PriceDataRepository(BaseRepository):
             }
             
             # Single query to get latest price data
+            print(f"Debug: latest_price_record = self.db.query(PriceData).filter")
             latest_price_record = self.db.query(PriceData).filter(
                 PriceData.asset_id == asset_id
             ).order_by(desc(PriceData.candle_time)).first()
@@ -1709,6 +1831,7 @@ class PriceDataRepository(BaseRepository):
                 metadata['latest_market_cap'] = float(latest_price_record.market_cap)
             else:
                 # Fallback: try other timeframes for market cap
+                print(f"Debug: market_cap_record = self.db.query(PriceData).filter(")
                 market_cap_record = self.db.query(PriceData).filter(
                     and_(
                         PriceData.asset_id == asset_id,
@@ -1756,6 +1879,7 @@ class PriceDataRepository(BaseRepository):
         """
         try:
             # Get the latest candle for the specified timeframe
+            print(f"Debug: latest_candle = self.db.query(PriceData).filter(")
             latest_candle = self.db.query(PriceData).filter(
                 and_(
                     PriceData.asset_id == asset_id,
@@ -1812,6 +1936,7 @@ class PriceDataRepository(BaseRepository):
         """
         try:
             # Get the last N candles
+            print(f"Debug: candles = self.db.query(PriceData).filter(")
             candles = self.db.query(PriceData).filter(
                 and_(
                     PriceData.asset_id == asset_id,
