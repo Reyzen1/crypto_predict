@@ -85,17 +85,19 @@ async def quick_bitcoin_test():
         
         # Test price data update
         print("🔄 Testing data update...")
+
+                
+        result = await price_service.populate_price_data(asset_id=bitcoin.id, timeframe="1d")
         
-        result = await price_service.populate_price_data(
-            asset_id=bitcoin.id,
-            timeframe="1d"
-        )
+        #result = price_service.auto_aggregate_for_asset(asset_id=1, source_timeframe="1d")
+
         if result is None:
             print("❌ Update failed: No result returned")
         elif result.get('success'):
             print("✅ Update successful!")
             print(f"   📊 New records: {result.get('records_inserted', 0)}")
             print(f"   🔄 Updated records: {result.get('records_updated', 0)}")
+            print(f"   🔄 aggregation result: {result.get('aggregation_result', {})}")
         else:
             print(f"❌ Update failed: {result.get('message')}")
         

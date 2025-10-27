@@ -11,6 +11,7 @@ import redis
 from redis import Redis
 
 from app.core.config import settings
+from app.utils.query_monitor import setup_query_monitoring
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -26,6 +27,8 @@ if "sqlite" in DATABASE_URL:
         connect_args={"check_same_thread": False},
         poolclass=NullPool
     )
+    # Setup query monitoring for SQLite
+    setup_query_monitoring(engine)
 else:
     # PostgreSQL configuration for production
     engine = create_engine(
@@ -36,6 +39,15 @@ else:
         pool_recycle=3600,  # Recycle connections every hour
         echo=False  # Set to True for SQL query logging
     )
+
+# Setup query monitoring
+setup_query_monitoring(engine)
+
+# Auto-enable query monitoring globally
+from app.utils.query_monitor import query_monitor
+query_monitor.enabled = True
+query_monitor.start_time = __import__('time').time()
+logger.info("🔍 Query monitoring AUTO-ENABLED globally")
 
 # Create SessionLocal class for database sessions
 SessionLocal = sessionmaker(

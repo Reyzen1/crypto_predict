@@ -8,6 +8,7 @@ from sqlalchemy.orm import relationship
 from ..base import BaseModel, TimestampMixin
 from ..mixins import ActiveMixin, AccessTrackingMixin, DataQualityMixin, ExternalIdsMixin
 from ..enums import AssetType
+from ...utils.datetime_utils import normalize_datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -299,7 +300,7 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         Args:
             timeframe: Target timeframe (e.g., '1h', '1d')
         Returns:
-            datetime object or None if not found
+            Normalized naive datetime object or None if not found
         """
         timeframe_info = self.get_timeframe_data(timeframe)
         if not timeframe_info or not timeframe_info.get('earliest_time'):
@@ -308,12 +309,9 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         try:
             earliest_time_str = timeframe_info['earliest_time']
             if earliest_time_str:
-                # Parse and ensure UTC timezone
+                # Parse and normalize to naive datetime for consistent comparison
                 dt = datetime.fromisoformat(earliest_time_str.replace('Z', '+00:00'))
-                # If somehow no timezone, add UTC
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                return dt
+                return normalize_datetime(dt)
         except (ValueError, TypeError) as e:
             logger.warning(f"Failed to parse earliest_time '{earliest_time_str}': {e}")
             return None
@@ -328,7 +326,7 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
             timeframe: Target timeframe (e.g., '1h', '1d')
             
         Returns:
-            datetime object or None if not found
+            Normalized naive datetime object or None if not found
         """
         timeframe_info = self.get_timeframe_data(timeframe)
         if not timeframe_info or not timeframe_info.get('latest_time'):
@@ -337,12 +335,9 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         try:
             latest_time_str = timeframe_info['latest_time']
             if latest_time_str:
-                # Parse and ensure UTC timezone
+                # Parse and normalize to naive datetime for consistent comparison
                 dt = datetime.fromisoformat(latest_time_str.replace('Z', '+00:00'))
-                # If somehow no timezone, add UTC
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                return dt
+                return normalize_datetime(dt)
         except (ValueError, TypeError) as e:
             logger.warning(f"Failed to parse latest_time '{latest_time_str}': {e}")
             return None

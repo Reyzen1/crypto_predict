@@ -13,6 +13,7 @@ from app.repositories.asset.price_data_repository import PriceDataRepository
 from app.repositories.asset.asset_repository import AssetRepository
 from app.models.asset.asset import Asset
 from app.models.asset.price_data import PriceData
+from app.utils.datetime_utils import normalize_datetime, compare_datetimes
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +89,12 @@ class PriceDataService:
                 logger.info(f"Auto-calculated days for asset {asset_id}, timeframe {timeframe}: {days} days")
             
             # Fetch data from CoinGecko based on timeframe
+            print(f"Fetching price history for asset {asset_id} ({coingecko_id}), days: {days}, timeframe: {timeframe}")
             price_history = await self._fetch_price_history(
                 coingecko_id, days, timeframe, vs_currency
             )
+            print(f"Fetched price history: {len(price_history)} records")
+
             if not price_history:
                 result = {
                     'success': False,
@@ -108,18 +112,18 @@ class PriceDataService:
             bulk_result = self.price_data_repo.bulk_insert(asset, processed_data, timeframe)
 
             if bulk_result.get('success', False):
+                aggregation_result = {}
                 if bulk_result.get('inserted_records', 0) > 0 or bulk_result.get('updated_records', 0) > 0:
                 # Trigger aggregation for the asset after successful data insertion or update
                     try:
                         aggregation_result = self.auto_aggregate_for_asset(
                             asset_id=asset_id, 
                             source_timeframe=timeframe
-                        )
-                        print(f"Aggregation result for asset {asset_id}: {aggregation_result.get('results', {})}")
+                        ).get('results', {})
                         logger.info(f"Aggregation completed for asset {asset_id}: {aggregation_result}")
                     except Exception as e:
                         logger.warning(f"Aggregation failed for asset {asset_id} after bulk insert: {e}")
-                
+
                 # Update asset metadata including market data
                 await self._update_asset_metadata(asset_id, timeframe, bulk_result.get('inserted_records', 0), coingecko_id)
 
@@ -131,6 +135,7 @@ class PriceDataService:
                     'records_updated': bulk_result.get('updated_records', 0),
                     'records_skipped': bulk_result.get('skipped_records', 0),
                     'total_processed': bulk_result.get('total_processed', 0),
+                    'aggregation_result': aggregation_result,
                     'asset_id': asset_id,
                     'timeframe': timeframe,
                     'period_days': days,
@@ -174,10 +179,10 @@ class PriceDataService:
         """
         logger.info(f"Starting batch price update, timeframe: {timeframe}")
         
-        # Get assets to update
+        # Get assets to update - BULK QUERY to avoid N+1 problem
         if asset_ids:
-            assets = [self.asset_repo.get(asset_id) for asset_id in asset_ids]
-            assets = [a for a in assets if a]  # Filter out None values
+            # Use bulk query instead of individual gets
+            assets = self.asset_repo.get_by_ids(asset_ids)  # Single bulk query
         else:
             assets = self.asset_repo.get_active_assets()
         
@@ -300,20 +305,17 @@ class PriceDataService:
                 logger.info(f"No valid latest_time found for asset {asset.id}, timeframe {timeframe}. Fetching {max_days} days")
                 return max_days
             
-            # Calculate days since latest data - ensure timezone compatibility
-            from datetime import timezone
+            # Calculate days since latest data using normalized datetime comparison
+            # Normalize latest_time to remove timezone info for consistent calculation
+            normalized_latest_time = normalize_datetime(latest_time)
+            if not normalized_latest_time:
+                logger.info(f"Failed to normalize latest_time for asset {asset.id}, timeframe {timeframe}. Fetching {max_days} days")
+                return max_days
 
-            # Ensure both datetimes have UTC timezone
-            if latest_time.tzinfo is None:
-                latest_time = latest_time.replace(tzinfo=timezone.utc)
-                logger.warning(f"latest_time had no timezone, assumed UTC: {latest_time}")
-
-            now = datetime.now(timezone.utc)
+            # Use current time as naive datetime for consistent comparison
+            now = normalize_datetime(datetime.now())
             
-            logger.debug(f"Timezone comparison - latest_time: {latest_time} (tzinfo: {latest_time.tzinfo})")
-            logger.debug(f"Timezone comparison - now: {now} (tzinfo: {now.tzinfo})")
-
-            days_since_latest = (now - latest_time).days
+            days_since_latest = (now - normalized_latest_time).days
             
             # Add buffer for latest candle update (always fetch last candle + some buffer)
             buffer_days = 2  # Always fetch last 2 days to ensure latest candle is updated
@@ -324,9 +326,15 @@ class PriceDataService:
             # Minimum 1 day to always get some data
             days_to_fetch = max(1, days_to_fetch)
             
+            print(
+                f"Asset {asset.id}, timeframe {timeframe}: "
+                f"Latest data: {normalized_latest_time.strftime('%Y-%m-%d %H:%M:%S')}, "
+                f"Days since: {days_since_latest}, "
+                f"Will fetch: {days_to_fetch} days"
+            )
             logger.info(
                 f"Asset {asset.id}, timeframe {timeframe}: "
-                f"Latest data: {latest_time.strftime('%Y-%m-%d %H:%M:%S')}, "
+                f"Latest data: {normalized_latest_time.strftime('%Y-%m-%d %H:%M:%S')}, "
                 f"Days since: {days_since_latest}, "
                 f"Will fetch: {days_to_fetch} days"
             )
@@ -499,45 +507,54 @@ class PriceDataService:
             asset.timeframe_usage[timeframe] = current_count + records_count
             
             # Get current price from the latest price data in database
-            latest_price_data = await self.price_data_repo.get_latest_price_data(asset_id)
+            # Get volume data from latest daily candle
+            # Get market cap from latest candle data
+            # For price changes, use latest aggregated candles
+            # ALL IN ONE BULK QUERY to avoid N+1 problem
+            metadata = await self.price_data_repo.get_asset_metadata_bulk(asset_id)
+            
+            # Update current price
+            latest_price_data = metadata.get('latest_price_data')
             if latest_price_data:
-                latest_price = float(latest_price_data.close_price)
+                latest_price = latest_price_data['close_price']
                 if latest_price > 0:
                     asset.update_price_data(price=latest_price)
                     updated_fields.append(f"current_price: ${latest_price:.8f}")
             
-            # Get volume data from latest daily candle
-            latest_daily_candle = await self.price_data_repo.get_latest_candle_data(asset_id, '1d')
+            # Update volume from daily candle
+            latest_daily_candle = metadata.get('latest_daily_candle')
             if latest_daily_candle and latest_daily_candle.get('volume'):
                 latest_volume = float(latest_daily_candle['volume'])
                 if latest_volume > 0:
                     asset.total_volume = latest_volume
                     updated_fields.append(f"total_volume: ${latest_volume:,.2f}")
             
-            # Get market cap from latest candle data
-            latest_market_cap = await self.price_data_repo.get_latest_market_cap(asset_id)
+            # Update market cap
+            latest_market_cap = metadata.get('latest_market_cap')
             if latest_market_cap:
                 asset.market_cap = latest_market_cap
                 updated_fields.append(f"market_cap_from_db: ${latest_market_cap:,.2f}")
             
-            # For price changes, use latest aggregated candles instead of time-based calculations
-            # This method is more accurate as it uses actual daily/weekly/monthly candle data
-            price_changes = await self.calculate_price_change_from_candles(asset_id)
+            # Calculate price changes from bulk candle data
+            candle_data = metadata.get('candle_data', {})
             
             # Update 24h change from daily candle
-            if price_changes['24h'] is not None:
-                asset.price_change_percentage_24h = price_changes['24h']
-                updated_fields.append(f"price_change_24h_candle: {price_changes['24h']:.2f}%")
+            daily_candle = candle_data.get('1d')
+            if daily_candle and daily_candle.get('price_change_percent') is not None:
+                asset.price_change_percentage_24h = daily_candle['price_change_percent']
+                updated_fields.append(f"price_change_24h_candle: {daily_candle['price_change_percent']:.2f}%")
             
             # Update 7d change from weekly candle
-            if price_changes['7d'] is not None:
-                asset.price_change_percentage_7d = price_changes['7d']
-                updated_fields.append(f"price_change_7d_candle: {price_changes['7d']:.2f}%")
+            weekly_candle = candle_data.get('1w')
+            if weekly_candle and weekly_candle.get('price_change_percent') is not None:
+                asset.price_change_percentage_7d = weekly_candle['price_change_percent']
+                updated_fields.append(f"price_change_7d_candle: {weekly_candle['price_change_percent']:.2f}%")
             
-            # Update 30d change from monthly candle or calculated from weekly candles
-            if price_changes['30d'] is not None:
-                asset.price_change_percentage_30d = price_changes['30d']
-                updated_fields.append(f"price_change_30d_candle: {price_changes['30d']:.2f}%")
+            # Update 30d change from monthly candle
+            monthly_candle = candle_data.get('1M')
+            if monthly_candle and monthly_candle.get('price_change_percent') is not None:
+                asset.price_change_percentage_30d = monthly_candle['price_change_percent']
+                updated_fields.append(f"price_change_30d_candle: {monthly_candle['price_change_percent']:.2f}%")
             
             # Update other metadata
             updates = {
@@ -754,20 +771,24 @@ class PriceDataService:
                 '30d': None
             }
             
-            # Get latest daily candle for 24h change
-            daily_candle = await self.price_data_repo.get_latest_candle_data(asset_id, '1d')
+            # Get all candle data in a single bulk query to avoid N+1 problem
+            candle_data = await self.price_data_repo.get_latest_candles_bulk(
+                asset_id, 
+                timeframes=['1d', '1w', '1M']
+            )
+            
+            # Extract price changes from bulk result
+            daily_candle = candle_data.get('1d')
             if daily_candle:
                 price_changes['24h'] = daily_candle.get('price_change_percent')
                 logger.debug(f"24h change from daily candle for asset {asset_id}: {price_changes['24h']:.2f}%")
             
-            # Get latest weekly candle for 7d change
-            weekly_candle = await self.price_data_repo.get_latest_candle_data(asset_id, '1w')
+            weekly_candle = candle_data.get('1w')
             if weekly_candle:
                 price_changes['7d'] = weekly_candle.get('price_change_percent')
                 logger.debug(f"7d change from weekly candle for asset {asset_id}: {price_changes['7d']:.2f}%")
             
-            # Get latest monthly candle for 30d change
-            monthly_candle = await self.price_data_repo.get_latest_candle_data(asset_id, '1M')
+            monthly_candle = candle_data.get('1M')
             if monthly_candle:
                 price_changes['30d'] = monthly_candle.get('price_change_percent')
                 logger.debug(f"30d change from monthly candle for asset {asset_id}: {price_changes['30d']:.2f}%")
@@ -885,7 +906,7 @@ class PriceDataService:
             
             # Get current status
             status_before = self.price_data_repo.get_aggregation_status(asset_id)
-            
+
             # Determine time range for aggregation
             source_data_count_raw = status_before.get(source_timeframe, {}).get('count', 0)
             try:
@@ -1070,7 +1091,8 @@ class PriceDataService:
             # Get latest times
             source_latest = source_info.get('latest_time')
             target_latest = target_info.get('latest_time')
-            
+            if not target_latest:
+                target_latest = source_info.get('earliest_time')
             if not source_latest:
                 result = {
                     'start_time': None,

@@ -22,6 +22,12 @@ class AssetRepository(BaseRepository):
         """Get asset by symbol"""
         return self.db.query(Asset).filter(Asset.symbol == symbol).first()
     
+    def get_by_ids(self, asset_ids: List[int]) -> List[Asset]:
+        """Get multiple assets by IDs in a single query to avoid N+1 problem"""
+        if not asset_ids:
+            return []
+        return self.db.query(Asset).filter(Asset.id.in_(asset_ids)).all()
+    
     def get_active_assets(self) -> List[Asset]:
         """Get all active assets"""
         return self.db.query(Asset).filter(
