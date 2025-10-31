@@ -126,6 +126,35 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self.db.refresh(db_obj)
         return db_obj
 
+    def update_no_obj_return(
+        self, 
+        *, 
+        db_obj: ModelType, 
+        obj_in: UpdateSchemaType | Dict[str, Any]
+    ) -> None:
+        """
+        Update an existing record
+        
+        Args:
+            db_obj: Existing model instance to update
+            obj_in: Pydantic schema or dict with update data
+            
+        Returns:
+            Updated model instance
+        """
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.model_dump(exclude_unset=True)
+        
+        for field, value in update_data.items():
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, value)
+        
+        self.db.add(db_obj)
+        self.db.commit()
+        return 
+
     def delete(self, *, id: int) -> Optional[ModelType]:
         """
         Delete a record by ID

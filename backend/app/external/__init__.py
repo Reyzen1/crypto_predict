@@ -16,10 +16,12 @@ Usage:
 """
 
 from app.external.coingecko import CoinGeckoClient
+from app.external.binance import BinanceClient
 
 # Export main API clients
 __all__ = [
     "CoinGeckoClient",
+    "BinanceClient",
 ]
 
 # Package metadata

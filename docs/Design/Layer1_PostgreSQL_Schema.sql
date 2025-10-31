@@ -708,13 +708,13 @@ INSERT INTO assets (
     external_ids
 ) VALUES 
 -- Bitcoin (BTC)
-('BTC', 'Bitcoin', 'crypto', '{"coingecko_id": "bitcoin", "coinmarketcap_id": "1"}'),
+('BTC', 'Bitcoin', 'crypto', '{"binance_id": "BTCUSDT", "coingecko_id": "bitcoin", "coinmarketcap_id": "1"}'),
 
 -- Ethereum (ETH)  
-('ETH', 'Ethereum', 'crypto', '{"coingecko_id": "ethereum", "coinmarketcap_id": "1027"}'),
+('ETH', 'Ethereum', 'crypto', '{"binance_id": "ETHUSDT", "coingecko_id": "ethereum", "coinmarketcap_id": "1027"}'),
 
 -- Tether USD (USDT)
-('USDT', 'Tether USD', 'stablecoin', '{"coingecko_id": "tether", "coinmarketcap_id": "825"}')
+('USDT', 'Tether USD', 'stablecoin', '{"binance_id": "USDT", "coingecko_id": "tether", "coinmarketcap_id": "825"}')
 ON CONFLICT (symbol) DO NOTHING;
 
 -- ===============================================

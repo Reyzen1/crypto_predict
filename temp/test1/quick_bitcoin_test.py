@@ -60,33 +60,11 @@ async def quick_bitcoin_test():
         
         print("✅ Connection established")
         
-        # Find Bitcoin
-        bitcoin_assets = asset_repo.get_by_filters(filters={'symbol': 'BTC'})
-        
-        if not bitcoin_assets:
-            print("❌ Bitcoin not found in database")
-            
-            # Create Bitcoin
-            bitcoin_data = {
-                'symbol': 'BTC',
-                'name': 'Bitcoin',
-                'asset_type': 'crypto',
-                'is_active': True,
-                'is_supported': True,
-                'external_ids': {'coingecko': 'bitcoin'}
-            }
-            
-            bitcoin = asset_repo.create(bitcoin_data)
-            session.commit()
-            print(f"✅ Bitcoin created - ID: {bitcoin.id}")
-        else:
-            bitcoin = bitcoin_assets[0]
-            print(f"✅ Bitcoin found - ID: {bitcoin.id}")
-        
+
         # Test price data update
         print("🔄 Testing data update...")
 
-                
+        bitcoin = asset_repo.get_by_symbol(symbol='BTC')
         result = await price_service.populate_price_data(asset_id=bitcoin.id, timeframe="1d")
         
         #result = price_service.auto_aggregate_for_asset(asset_id=1, source_timeframe="1d")

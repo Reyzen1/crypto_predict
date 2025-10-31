@@ -2,6 +2,7 @@
 # Asset model - Cryptocurrency and financial assets
 
 from datetime import datetime, timezone
+from typing import Optional
 from sqlalchemy import Column, String, Boolean, Integer, Text, Numeric, DateTime, CheckConstraint, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
@@ -206,10 +207,89 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         self.external_ids[provider] = external_id
     
     def get_external_id(self, provider: str):
-        """Get external ID for a provider"""
+        """
+        Get external ID for a provider with substring matching
+        
+        Checks if the provider name is a substring of any key in external_ids.
+                
+        Args:
+            provider: Provider name to search for
+            
+        Returns:
+            External ID string or None if not found
+        """
         if not self.external_ids:
             return None
-        return self.external_ids.get(provider)
+        
+        # First try exact match
+        if provider in self.external_ids:
+            return self.external_ids[provider]
+        
+        # Convert provider to lowercase for case-insensitive matching
+        provider_lower = provider.lower()
+        
+        # Check if provider is substring of any key
+        for key, value in self.external_ids.items():
+            if provider_lower in key.lower():
+                return value
+        
+        # No match found
+        return None
+    
+    def get_external_api_id(self, platform: str) -> Optional[str]:
+        """
+        Get external API ID from asset external_ids with enhanced platform support
+
+        This method provides more sophisticated external ID resolution than the basic
+        get_external_id method, with support for multiple ID formats and fallback strategies.
+
+        Supports multiple storage formats:
+        - JSON string: '{"coingecko_id": "bitcoin", "coinmarketcap_id": "1"}'
+        - Dict: {"binance": "BTCUSDT", "coingecko": "bitcoin"}
+
+        Args:
+            platform: Platform name (e.g., 'binance', 'coingecko', 'coinmarketcap')
+
+        Returns:
+            External API ID string or None if not found
+
+        Examples:
+            asset.get_external_api_id('binance')    # Returns 'BTCUSDT'
+            asset.get_external_api_id('coingecko')  # Returns 'bitcoin'
+        """
+        import json
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        if not self.external_ids:
+            return None
+        
+        try:
+            # Handle JSON string format
+            if isinstance(self.external_ids, str):
+                external_ids_dict = json.loads(self.external_ids)
+            elif isinstance(self.external_ids, dict):
+                external_ids_dict = self.external_ids
+            else:
+                logger.warning(f"Unsupported external_ids format for asset {self.id}: {type(self.external_ids)}")
+                return None
+
+            # Try with '_id' suffix first (e.g., 'binance_id')
+            key_with_suffix = f"{platform}_id"
+            if key_with_suffix in external_ids_dict and external_ids_dict[key_with_suffix]:
+                return str(external_ids_dict[key_with_suffix]).strip()
+            
+            # Fallback: try without suffix (e.g., 'binance')
+            if platform in external_ids_dict and external_ids_dict[platform]:
+                return str(external_ids_dict[platform]).strip()
+            
+            logger.warning(f"No external ID found for platform '{platform}' in asset {self.id}")
+            return None
+            
+        except (json.JSONDecodeError, TypeError, AttributeError) as e:
+            logger.error(f"Error parsing external_ids for asset {self.id}: {e}")
+            return None
     
     def get_timeframe_info(self, timeframe: str) -> dict:
         """
@@ -223,7 +303,6 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         """
         if not self.timeframe_data:
             return {'count': 0, 'earliest_time': None, 'latest_time': None}
-        
         return self.timeframe_data.get(timeframe, {
             'count': 0, 
             'earliest_time': None, 

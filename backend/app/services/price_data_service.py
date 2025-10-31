@@ -1,6 +1,7 @@
 # backend/app/services/price_data_service.py
 # Service for price data management with timeframe support
 
+from fileinput import close
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -9,11 +10,15 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.external.coingecko import CoinGeckoClient
+from app.external.binance import BinanceClient
+
 from app.repositories.asset.price_data_repository import PriceDataRepository
 from app.repositories.asset.asset_repository import AssetRepository
 from app.models.asset.asset import Asset
 from app.models.asset.price_data import PriceData
 from app.utils.datetime_utils import normalize_datetime, compare_datetimes
+from app.services import external_api
+from app.core.time_utils import normalize_candle_time, timeframe_to_minutes
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +39,11 @@ class PriceDataService:
     def __init__(self, db: Session):
         self.db = db
         self.coingecko_client = CoinGeckoClient()
+        self.binance_client = BinanceClient()
         self.price_data_repo = PriceDataRepository(db)
         self.asset_repo = AssetRepository(db)
+        self.platform = "binance"
+
     
     def _serialize_datetime_objects(self, obj):
         """Convert datetime objects to ISO format strings in nested data structures"""
@@ -71,47 +79,36 @@ class PriceDataService:
         
         try:
             # Get asset from database
+            print("**populate_price_data--> asset = self.asset_repo.get(asset_id)")
+            asset: Asset
             asset = self.asset_repo.get(asset_id)
             if not asset:
                 raise ValueError(f"Asset {asset_id} not found")
             
             if not asset.is_active or not asset.is_supported:
                 raise ValueError(f"Asset {asset_id} is not active or supported")
-            
-            # Get CoinGecko coin_id
-            coingecko_id = self._get_coingecko_id(asset)
-            if not coingecko_id:
-                raise ValueError(f"No CoinGecko ID found for asset {asset_id}")
-            
+
             # Auto-calculate days if not provided
             if days is None:
+                print("**populate_price_data--> _calculate_optimal_days")
                 days = await self._calculate_optimal_days(asset, timeframe)
                 logger.info(f"Auto-calculated days for asset {asset_id}, timeframe {timeframe}: {days} days")
-            
-            # Fetch data from CoinGecko based on timeframe
-            print(f"Fetching price history for asset {asset_id} ({coingecko_id}), days: {days}, timeframe: {timeframe}")
+
+            api_id = asset.get_external_api_id(self.platform)
+            if not api_id:
+                raise ValueError(f"No {self.platform} ID found for asset {asset_id}")
+
+            print("**populate_price_data--> _fetch_price_history {asset_id}")
             price_history = await self._fetch_price_history(
-                coingecko_id, days, timeframe, vs_currency
-            )
-            print(f"Fetched price history: {len(price_history)} records")
+                asset_id=asset_id, api_id=api_id, days=days, timeframe=timeframe, vs_currency=vs_currency, platform=self.platform
+                )
+            print(f"**populate_price_data--> Fetched price history: {len(price_history)} records")
+            print(f"price_history: {price_history}")
 
-            if not price_history:
-                result = {
-                    'success': False,
-                    'message': 'No data received from CoinGecko',
-                    'records_inserted': 0
-                }
-                return self._serialize_datetime_objects(result)
-            
-            # Process and validate data
-            processed_data = self._process_price_data(
-                asset_id, price_history, timeframe
-            )
-            
             # Bulk insert data - pass asset object instead of asset_id for optimization
-            bulk_result = self.price_data_repo.bulk_insert(asset, processed_data, timeframe)
-
+            bulk_result = self.price_data_repo.bulk_insert(asset, price_history, timeframe)
             if bulk_result.get('success', False):
+                print("**populate_price_data--> start aggregation")
                 aggregation_result = {}
                 if bulk_result.get('inserted_records', 0) > 0 or bulk_result.get('updated_records', 0) > 0:
                 # Trigger aggregation for the asset after successful data insertion or update
@@ -123,9 +120,10 @@ class PriceDataService:
                         logger.info(f"Aggregation completed for asset {asset_id}: {aggregation_result}")
                     except Exception as e:
                         logger.warning(f"Aggregation failed for asset {asset_id} after bulk insert: {e}")
+                print("**populate_price_data--> end aggregation")
 
                 # Update asset metadata including market data
-                await self._update_asset_metadata(asset_id, timeframe, bulk_result.get('inserted_records', 0), coingecko_id)
+                await self._update_asset_metadata(asset_id, timeframe, bulk_result.get('inserted_records', 0))
 
                 logger.info(f"Successfully populated {bulk_result.get('inserted_records', 0)} records for asset {asset_id}")
                 
@@ -193,7 +191,7 @@ class PriceDataService:
         for asset in assets:
             try:
                 result = await self.populate_price_data(
-                    asset.id, days=1, timeframe=timeframe
+                    asset_id=asset.id, days=1, timeframe=timeframe
                 )
                 
                 if result['success']:
@@ -233,7 +231,7 @@ class PriceDataService:
             list: List of data gaps
         """
         # Convert timeframe to minutes for gap detection
-        timeframe_minutes = self._timeframe_to_minutes(timeframe)
+        timeframe_minutes = timeframe_to_minutes(timeframe)
         
         result = self.price_data_repo.get_missing_data_gaps(
             asset_id, timeframe_minutes
@@ -347,238 +345,122 @@ class PriceDataService:
             default_days = 30 if timeframe in ['1d', '1h', '4h'] else 7
             logger.info(f"Using fallback: {default_days} days")
             return default_days
-    
-    def _get_coingecko_id(self, asset: Asset) -> Optional[str]:
-        """
-        Get CoinGecko ID from asset external_ids
-        
-        Supports multiple storage formats:
-        - JSON string: '{"coingecko_id": "bitcoin", "coinmarketcap_id": "1"}'
-        - Dict: {"coingecko": "bitcoin"}
-        - Key variations: coingecko, coingecko_id, coin_gecko_id
-        
-        Note: Recommended canonical format is JSON string with 'coingecko_id' key
-        for consistency with external API naming conventions.
-        
-        Returns:
-            CoinGecko ID string or None if not found
-        """
-        if not asset.external_ids:
-            return None
-        
-        try:
-            # Handle JSON string format
-            if isinstance(asset.external_ids, str):
-                external_ids_dict = json.loads(asset.external_ids)
-            elif isinstance(asset.external_ids, dict):
-                external_ids_dict = asset.external_ids
-            else:
-                logger.warning(f"Unsupported external_ids format for asset {asset.id}: {type(asset.external_ids)}")
-                return None
-            
-            # Try multiple key variations (order by preference)
-            key_variations = ['coingecko', 'coingecko_id', 'coin_gecko_id', 'coinGeckoId']
-            
-            for key in key_variations:
-                if key in external_ids_dict and external_ids_dict[key]:
-                    return str(external_ids_dict[key]).strip()
-            
-            return None
-            
-        except (json.JSONDecodeError, TypeError, AttributeError) as e:
-            logger.error(f"Error parsing external_ids for asset {asset.id}: {e}")
-            return None
+
+
+
     
     async def _fetch_price_history(
         self,
-        coingecko_id: str,
+        asset_id: int,
+        api_id: str,
         days: int,
         timeframe: str,
-        vs_currency: str
+        vs_currency: str,
+        platform: str
     ) -> List[Dict[str, Any]]:
-        """
-        Fetch price history from CoinGecko and convert to OHLCV format
-        """
-        try:
-            # Get raw time-series data from CoinGecko
-            if timeframe == "1d":
-                # Daily data - use get_price_data_by_timeframe for better filtering
-                raw_data = await self.coingecko_client.get_price_data_by_timeframe(
-                    crypto_id=coingecko_id,
-                    timeframe=timeframe,
-                    limit=days,
-                    vs_currency=vs_currency
-                )
-            elif timeframe in ["1h", "4h"]:
-                # Calculate appropriate limit for timeframe
-                limit = self._calculate_data_points_needed(days, timeframe)
-                raw_data = await self.coingecko_client.get_price_data_by_timeframe(
-                    crypto_id=coingecko_id,
-                    timeframe=timeframe,
-                    limit=limit,
-                    vs_currency=vs_currency
-                )
-            else:
-                logger.warning(f"Timeframe {timeframe} not supported for CoinGecko")
-                return []
-            
-            # Convert time-series data to OHLCV format
-            ohlcv_data = self._convert_time_series_to_ohlcv(raw_data, timeframe)
-            
-            return ohlcv_data
-            
-        except Exception as e:
-            logger.error(f"Error fetching data from CoinGecko: {str(e)}")
+        if timeframe not in ["1h", "1d"]:
+            logger.warning(f"Timeframe {timeframe} not supported")
             return []
-    
-    def _process_price_data(
-        self,
-        asset_id: int,
-        price_history: List[Dict[str, Any]],
-        timeframe: str
-    ) -> List[Dict[str, Any]]:
-        """
-        Process raw price data into database-ready format
-        """
-        processed_data = []
-        
-        for record in price_history:
+
+        print(f"*********************{platform}*********************")
+        if platform == "coingecko":
+            """
+            Fetch price history from CoinGecko and convert to OHLCV format
+            """
+            print(f"Fetching price history from CoinGecko for {api_id}, days: {days}, timeframe: {timeframe}")
+            #return []
             try:
-                # Validate required fields
-                if not all(key in record for key in ['timestamp', 'open', 'high', 'low', 'close']):
-                    logger.warning(f"Skipping invalid record: {record}")
-                    continue
-                
-                # Convert timestamp and normalize based on timeframe
-                if isinstance(record['timestamp'], (int, float)):
-                    candle_time = datetime.fromtimestamp(record['timestamp'] / 1000)
-                else:
-                    candle_time = record['timestamp']
-                
-                # Normalize candle time based on timeframe
-                candle_time = self._normalize_candle_time(candle_time, timeframe)
-                
-                processed_record = {
-                    'asset_id': asset_id,
-                    'timeframe': timeframe,
-                    'open_price': Decimal(str(record['open'])),
-                    'high_price': Decimal(str(record['high'])),
-                    'low_price': Decimal(str(record['low'])),
-                    'close_price': Decimal(str(record['close'])),
-                    'volume': Decimal(str(record.get('volume', 0))),
-                    'market_cap': Decimal(str(record['market_cap'])) if record.get('market_cap') else None,
-                    'trade_count': record.get('trade_count'),
-                    'vwap': Decimal(str(record['vwap'])) if record.get('vwap') else None,
-                    'candle_time': candle_time,
-                    'is_validated': False  # Will be validated later
-                }
-                
-                processed_data.append(processed_record)
-                
+                # Get raw time-series data from CoinGecko
+                ohlcv_data = await self.coingecko_client.get_price_data_by_timeframe(
+                    asset_id=asset_id,
+                    crypto_id=api_id,
+                    timeframe=timeframe,
+                    days=days,
+                    vs_currency=vs_currency,
+                )
+                return ohlcv_data
+                               
             except Exception as e:
-                logger.warning(f"Error processing record {record}: {str(e)}")
-                continue
-        
-        return processed_data
+                logger.error(f"Error fetching data from CoinGecko: {str(e)}")
+                return []
+        elif platform == "binance":
+            """
+            Fetch price history from Binance and convert to OHLCV format
+            """
+            print(f"======= Fetching price history from Binance for {api_id}, days: {days}, timeframe: {timeframe}")
+            try:
+                # Get raw time-series data from Binance
+                ohlcv_data = await self.binance_client.get_price_data_by_timeframe(
+                        asset_id=asset_id,
+                        crypto_id=api_id,
+                        timeframe=timeframe,
+                        days=days,
+                        vs_currency=vs_currency
+                )
+                print(f"Fetched Binance OHLCV data: {ohlcv_data}")
+                return ohlcv_data
+
+            except Exception as e:
+                logger.error(f"Error fetching data from Binance: {str(e)}")
+                return []
+        else:
+            logger.error(f"Unsupported external API: {external_api}")
+            return []
     
     async def _update_asset_metadata(
         self,
         asset_id: int,
         timeframe: str,
         records_count: int,
-        coingecko_id: str = None
     ) -> None:
         """
-        Update asset metadata after successful data population and market data from database
+        Update asset metadata with optimized API-first approach
+        
+        Strategy:
+        1. Try to get comprehensive data from CoinGecko API first
+        2. Fall back to database queries only for missing critical data
+        3. Minimize database round-trips by using bulk operations
         """
         try:
             asset = self.asset_repo.get(asset_id)
             if not asset:
                 logger.warning(f"Asset {asset_id} not found for metadata update")
                 return
-            
+
+            coingecko_id = asset.get_external_id("coingecko")
             updated_fields = []
             
-            # Update timeframe_usage
-            if not asset.timeframe_usage:
-                asset.timeframe_usage = {}
-            
-            current_count = asset.timeframe_usage.get(timeframe, 0)
-            asset.timeframe_usage[timeframe] = current_count + records_count
-            
-            # Get current price from the latest price data in database
-            # Get volume data from latest daily candle
-            # Get market cap from latest candle data
-            # For price changes, use latest aggregated candles
-            # ALL IN ONE BULK QUERY to avoid N+1 problem
-            metadata = await self.price_data_repo.get_asset_metadata_bulk(asset_id)
-            
-            # Update current price
-            latest_price_data = metadata.get('latest_price_data')
-            if latest_price_data:
-                latest_price = latest_price_data['close_price']
-                if latest_price > 0:
-                    asset.update_price_data(price=latest_price)
-                    updated_fields.append(f"current_price: ${latest_price:.8f}")
-            
-            # Update volume from daily candle
-            latest_daily_candle = metadata.get('latest_daily_candle')
-            if latest_daily_candle and latest_daily_candle.get('volume'):
-                latest_volume = float(latest_daily_candle['volume'])
-                if latest_volume > 0:
-                    asset.total_volume = latest_volume
-                    updated_fields.append(f"total_volume: ${latest_volume:,.2f}")
-            
-            # Update market cap
-            latest_market_cap = metadata.get('latest_market_cap')
-            if latest_market_cap:
-                asset.market_cap = latest_market_cap
-                updated_fields.append(f"market_cap_from_db: ${latest_market_cap:,.2f}")
-            
-            # Calculate price changes from bulk candle data
-            candle_data = metadata.get('candle_data', {})
-            
-            # Update 24h change from daily candle
-            daily_candle = candle_data.get('1d')
-            if daily_candle and daily_candle.get('price_change_percent') is not None:
-                asset.price_change_percentage_24h = daily_candle['price_change_percent']
-                updated_fields.append(f"price_change_24h_candle: {daily_candle['price_change_percent']:.2f}%")
-            
-            # Update 7d change from weekly candle
-            weekly_candle = candle_data.get('1w')
-            if weekly_candle and weekly_candle.get('price_change_percent') is not None:
-                asset.price_change_percentage_7d = weekly_candle['price_change_percent']
-                updated_fields.append(f"price_change_7d_candle: {weekly_candle['price_change_percent']:.2f}%")
-            
-            # Update 30d change from monthly candle
-            monthly_candle = candle_data.get('1M')
-            if monthly_candle and monthly_candle.get('price_change_percent') is not None:
-                asset.price_change_percentage_30d = monthly_candle['price_change_percent']
-                updated_fields.append(f"price_change_30d_candle: {monthly_candle['price_change_percent']:.2f}%")
-            
-            # Update other metadata
-            updates = {
-                'last_price_update': datetime.utcnow(),
-                'last_accessed_at': datetime.utcnow(),
-                'access_count': (asset.access_count or 0) + 1,
-                'timeframe_usage': asset.timeframe_usage
-            }
-            
-            # Calculate and update data quality score
-            quality_score = self._calculate_data_quality_score(asset_id, timeframe)
-            if quality_score is not None:
-                updates['data_quality_score'] = quality_score
-            
-            # If we have CoinGecko ID, fetch additional detailed market data
+            # Primary strategy: Get comprehensive data from CoinGecko API
+            api_data_available = False
             if coingecko_id:
                 try:
                     detailed_data = await self.coingecko_client.get_detailed_market_data(coingecko_id)
+                    logger.info(f"Fetching comprehensive market data from API for CoinGecko ID: {coingecko_id}")
+                    
                     if detailed_data:
-                        # Update additional fields from detailed API response
+                        api_data_available = True
+                        
+                        # Update current price from API (replaces database query)
+                        if 'current_price' in detailed_data:
+                            asset.current_price = detailed_data['current_price']
+                            updated_fields.append(f"current_price_api: ${detailed_data['current_price']:.8f}")
+                        
+                        # Update market cap from API (replaces database query)
+                        if 'market_cap' in detailed_data:
+                            asset.market_cap = detailed_data['market_cap']
+                            updated_fields.append(f"market_cap_api: ${detailed_data['market_cap']:,.2f}")
+                        
+                        # Update volume from API (replaces database query)
+                        if 'total_volume' in detailed_data:
+                            asset.total_volume = detailed_data['total_volume']
+                            updated_fields.append(f"total_volume_api: ${detailed_data['total_volume']:,.2f}")
+                        
+                        # Update market cap rank
                         if 'market_cap_rank' in detailed_data:
                             asset.market_cap_rank = detailed_data['market_cap_rank']
                             updated_fields.append(f"market_cap_rank: {detailed_data['market_cap_rank']}")
                         
+                        # Update supply data
                         if 'circulating_supply' in detailed_data:
                             asset.circulating_supply = detailed_data['circulating_supply']
                             updated_fields.append(f"circulating_supply: {detailed_data['circulating_supply']:,.0f}")
@@ -591,7 +473,7 @@ class PriceDataService:
                             asset.max_supply = detailed_data['max_supply']
                             updated_fields.append(f"max_supply: {detailed_data['max_supply']:,.0f}")
                         
-                        # Use more accurate price changes from API if available
+                        # Update price changes from API (replaces database candle aggregations)
                         if 'price_change_percentage_24h' in detailed_data:
                             asset.price_change_percentage_24h = detailed_data['price_change_percentage_24h']
                             updated_fields.append(f"price_change_24h_api: {detailed_data['price_change_percentage_24h']:.2f}%")
@@ -604,35 +486,54 @@ class PriceDataService:
                             asset.price_change_percentage_30d = detailed_data['price_change_percentage_30d_in_currency']
                             updated_fields.append(f"price_change_30d_api: {detailed_data['price_change_percentage_30d_in_currency']:.2f}%")
                         
-                        # Update ATH/ATL from API if more accurate
-                        if 'ath' in detailed_data and 'ath_date' in detailed_data:
-                            api_ath = float(detailed_data['ath']['usd'])
+                        # Update ATH/ATL from API (replaces database tracking)
+                        if 'ath' in detailed_data and detailed_data['ath']:
+                            api_ath = float(detailed_data['ath'])
                             if not asset.ath or api_ath > float(asset.ath):
                                 asset.ath = api_ath
-                                asset.ath_date = datetime.fromisoformat(detailed_data['ath_date']['usd'].replace('Z', '+00:00'))
+                                if 'ath_date' in detailed_data:
+                                    asset.ath_date = datetime.fromisoformat(detailed_data['ath_date'].replace('Z', '+00:00'))
                                 updated_fields.append(f"ath_api: ${api_ath:.8f}")
                         
-                        if 'atl' in detailed_data and 'atl_date' in detailed_data:
-                            api_atl = float(detailed_data['atl']['usd'])
+                        if 'atl' in detailed_data and detailed_data['atl']:
+                            api_atl = float(detailed_data['atl'])
                             if not asset.atl or api_atl < float(asset.atl):
                                 asset.atl = api_atl
-                                asset.atl_date = datetime.fromisoformat(detailed_data['atl_date']['usd'].replace('Z', '+00:00'))
+                                if 'atl_date' in detailed_data:
+                                    asset.atl_date = datetime.fromisoformat(detailed_data['atl_date'].replace('Z', '+00:00'))
                                 updated_fields.append(f"atl_api: ${api_atl:.8f}")
-                                
+                        
+                        logger.info(f"Successfully updated asset {asset_id} with comprehensive API data")
+                        
                 except Exception as e:
-                    logger.warning(f"Failed to fetch detailed market data for {coingecko_id}: {e}")
+                    logger.warning(f"Failed to fetch detailed market data from API for {coingecko_id}: {e}")
+                    api_data_available = False
+
+            # Update basic metadata (always needed regardless of data source)
+            updates = {
+                'last_price_update': datetime.utcnow(),
+                'last_accessed_at': datetime.utcnow(),
+                'access_count': (asset.access_count or 0) + 1,
+                'timeframe_usage': asset.timeframe_usage
+            }
             
-            # Update asset with basic metadata
-            updated_asset = self.asset_repo.update(db_obj=asset, obj_in=updates)
+            # Calculate data quality score only when needed (lightweight operation)
+            quality_score = self._calculate_data_quality_score(asset_id, timeframe)
+            if quality_score is not None:
+                updates['data_quality_score'] = quality_score
+
+            # Save all updates
+            self.asset_repo.update_no_obj_return(db_obj=asset, obj_in=updates)
             
-            # Log the updates (commit is already handled in update method)
+            # Log results
+            data_source = "API" if api_data_available else "Database"
             if updated_fields:
-                logger.info(f"Updated asset {asset_id} metadata and market data: {', '.join(updated_fields)}")
+                logger.info(f"Updated asset {asset_id} metadata from {data_source}: {', '.join(updated_fields)}")
             else:
-                logger.debug(f"Updated asset {asset_id} metadata (no market data updates)")
+                logger.debug(f"Updated asset {asset_id} basic metadata from {data_source}")
             
         except Exception as e:
-            logger.error(f"Error updating asset metadata and market data for asset {asset_id}: {str(e)}")
+            logger.error(f"Error updating asset metadata for asset {asset_id}: {str(e)}")
             # BaseRepository.update handles its own transaction management
     
     def _calculate_data_quality_score(
@@ -650,86 +551,9 @@ class PriceDataService:
             logger.error(f"Error calculating quality score: {str(e)}")
             return None
     
-    def _timeframe_to_minutes(self, timeframe: str) -> int:
-        """Convert timeframe string to minutes"""
-        timeframe_map = {
-            '1m': 1,
-            '5m': 5,
-            '15m': 15,
-            '1h': 60,
-            '4h': 240,
-            '1d': 1440,
-            '1w': 10080,
-            '1M': 43200  # Approximate 30 days
-        }
-        return timeframe_map.get(timeframe, 1440)  # Default to daily
+
     
-    def _normalize_candle_time(self, candle_time: datetime, timeframe: str) -> datetime:
-        """
-        Normalize candle time based on timeframe to ensure consistent alignment
-        
-        This function aligns timestamps to timeframe boundaries to ensure:
-        - Consistent data grouping across different sources
-        - Proper aggregation alignment for higher timeframes
-        - Elimination of sub-timeframe timestamp variations
-        
-        Args:
-            candle_time: Original candle time
-            timeframe: Target timeframe (1m, 5m, 15m, 1h, 4h, 1d, 1w, 1M)
-            
-        Returns:
-            Normalized datetime aligned to timeframe boundaries
-            
-        Examples:
-            - 1m: 14:37:25 -> 14:37:00 (zero seconds)
-            - 5m: 14:37:25 -> 14:35:00 (5-minute boundaries: 00, 05, 10, ...)
-            - 1h: 14:37:25 -> 14:00:00 (hour boundaries)
-            - 4h: 14:37:25 -> 12:00:00 (4-hour boundaries: 00, 04, 08, 12, 16, 20)
-            - 1d: 14:37:25 -> 00:00:00 (start of day UTC)
-            - 1w: Mon 14:37:25 -> Mon 00:00:00 (start of week, Monday UTC)
-            - 1M: 2024-01-15 14:37:25 -> 2024-01-01 00:00:00 (start of month UTC)
-        """
-        if timeframe == '1m':
-            # Align to minute boundaries (zero seconds)
-            return candle_time.replace(second=0, microsecond=0)
-        
-        elif timeframe == '5m':
-            # Align to 5-minute boundaries
-            minutes = (candle_time.minute // 5) * 5
-            return candle_time.replace(minute=minutes, second=0, microsecond=0)
-        
-        elif timeframe == '15m':
-            # Align to 15-minute boundaries
-            minutes = (candle_time.minute // 15) * 15
-            return candle_time.replace(minute=minutes, second=0, microsecond=0)
-        
-        elif timeframe == '1h':
-            # Align to hour boundaries
-            return candle_time.replace(minute=0, second=0, microsecond=0)
-        
-        elif timeframe == '4h':
-            # Align to 4-hour boundaries (0, 4, 8, 12, 16, 20)
-            hour = (candle_time.hour // 4) * 4
-            return candle_time.replace(hour=hour, minute=0, second=0, microsecond=0)
-        
-        elif timeframe == '1d':
-            # Align to day boundaries (start of day UTC)
-            return candle_time.replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        elif timeframe == '1w':
-            # Align to week boundaries (Monday 00:00 UTC)
-            days_since_monday = candle_time.weekday()
-            week_start = candle_time - timedelta(days=days_since_monday)
-            return week_start.replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        elif timeframe == '1M':
-            # Align to month boundaries (first day of month 00:00 UTC)
-            return candle_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        
-        else:
-            # Default: align to minute boundaries for unknown timeframes
-            logger.warning(f"Unknown timeframe '{timeframe}', defaulting to minute alignment")
-            return candle_time.replace(second=0, microsecond=0)
+
     
     def _filter_hourly_data(
         self,
@@ -753,125 +577,7 @@ class PriceDataService:
             return filtered_data
         
         return data
-
-    async def calculate_price_change_from_candles(self, asset_id: int) -> Dict[str, Optional[float]]:
-        """
-        Calculate price change percentages using latest candles from aggregated timeframes
-        
-        Args:
-            asset_id: Asset ID
-            
-        Returns:
-            Dictionary with price change percentages for different periods
-        """
-        try:
-            price_changes = {
-                '24h': None,
-                '7d': None, 
-                '30d': None
-            }
-            
-            # Get all candle data in a single bulk query to avoid N+1 problem
-            candle_data = await self.price_data_repo.get_latest_candles_bulk(
-                asset_id, 
-                timeframes=['1d', '1w', '1M']
-            )
-            
-            # Extract price changes from bulk result
-            daily_candle = candle_data.get('1d')
-            if daily_candle:
-                price_changes['24h'] = daily_candle.get('price_change_percent')
-                logger.debug(f"24h change from daily candle for asset {asset_id}: {price_changes['24h']:.2f}%")
-            
-            weekly_candle = candle_data.get('1w')
-            if weekly_candle:
-                price_changes['7d'] = weekly_candle.get('price_change_percent')
-                logger.debug(f"7d change from weekly candle for asset {asset_id}: {price_changes['7d']:.2f}%")
-            
-            monthly_candle = candle_data.get('1M')
-            if monthly_candle:
-                price_changes['30d'] = monthly_candle.get('price_change_percent')
-                logger.debug(f"30d change from monthly candle for asset {asset_id}: {price_changes['30d']:.2f}%")
-            
-            # If no monthly data, try to calculate 30d from multiple weekly candles
-            if price_changes['30d'] is None:
-                price_changes['30d'] = await self.price_data_repo.calculate_multi_period_change(asset_id, '1w', 4)
-            
-            return price_changes
-            
-        except Exception as e:
-            logger.error(f"Failed to calculate price changes from candles for asset {asset_id}: {e}")
-            return {'24h': None, '7d': None, '30d': None}
-
-    def optimize_storage_for_all_assets(self, source_timeframe: str = '1h',
-                                      keep_recent_days: int = 30,
-                                      asset_type: str = 'crypto') -> Dict[str, Any]:
-        """
-        Optimize storage for all assets by aggregating old data
-        
-        Args:
-            source_timeframe: Base timeframe to optimize
-            keep_recent_days: Days of recent data to keep in original timeframe
-            asset_type: Filter by asset type
-            
-        Returns:
-            Storage optimization results
-        """
-        # Get all active assets
-        assets = self.asset_repo.get_by_filters(
-            filters={'asset_type': asset_type, 'is_active': True}
-        )
-        
-        optimization_results = {}
-        total_space_saved = 0
-        
-        for asset in assets:
-            try:
-                result = self.price_data_repo.optimize_storage_with_aggregation(
-                    asset_id=asset.id,
-                    source_timeframe=source_timeframe,
-                    keep_days=keep_recent_days
-                )
-                
-                optimization_results[asset.id] = {
-                    'symbol': asset.symbol,
-                    'status': 'success',
-                    'deleted_records': result.get('deleted_source_records', 0),
-                    'aggregated_records': result.get('aggregated_records', {}),
-                    'result': result
-                }
-                
-                total_space_saved += result.get('deleted_source_records', 0)
-                
-            except Exception as e:
-                optimization_results[asset.id] = {
-                    'symbol': asset.symbol,
-                    'status': 'error',
-                    'error': str(e)
-                }
-        
-        successful_optimizations = sum(
-            1 for r in optimization_results.values() 
-            if r['status'] == 'success'
-        )
-        
-        result = {
-            'total_assets_processed': len(assets),
-            'successful_optimizations': successful_optimizations,
-            'total_records_removed': total_space_saved,
-            'source_timeframe': source_timeframe,
-            'keep_recent_days': keep_recent_days,
-            'detailed_results': optimization_results,
-            'storage_optimization_summary': {
-                'estimated_space_saved_pct': min(85, total_space_saved * 0.001),  # Rough estimate
-                'aggregation_strategy': 'old_data_to_higher_timeframes'
-            }
-        }
-        return self._serialize_datetime_objects(result)
-
-
-    # Timeframe Aggregation Methods (moved from TimeframeAggregationService)
-    
+   
     def auto_aggregate_for_asset(self, asset_id: int, 
                                source_timeframe: str = '1h',
                                force_refresh: bool = False) -> Dict[str, Any]:
@@ -905,7 +611,9 @@ class PriceDataService:
                 return self._serialize_datetime_objects(result)
             
             # Get current status
+            print("****auto_aggregate_for_asset-->get_aggregation_status start")
             status_before = self.price_data_repo.get_aggregation_status(asset_id)
+            print("****auto_aggregate_for_asset-->get_aggregation_status complete")
 
             # Determine time range for aggregation
             source_data_count_raw = status_before.get(source_timeframe, {}).get('count', 0)
@@ -929,21 +637,26 @@ class PriceDataService:
                 for target_timeframe in target_timeframes:
                     try:
                         # Calculate specific window for this target timeframe
+                        print("****auto_aggregate_for_asset-->_calculate_timeframe_specific_window start")
                         aggregation_window = self._calculate_timeframe_specific_window(
                             asset_id=asset_id,
                             source_timeframe=source_timeframe,
                             target_timeframe=target_timeframe
                         )
+                        print("****auto_aggregate_for_asset-->_calculate_timeframe_specific_window complete")
                         
                         # Perform aggregation for this specific timeframe
+                        print("****auto_aggregate_for_asset-->bulk_aggregate_and_store start")
                         result = self.price_data_repo.bulk_aggregate_and_store(
-                            asset_id=asset_id,
+                            asset=asset,
                             source_timeframe=source_timeframe,
                             target_timeframes=[target_timeframe],
                             start_time=aggregation_window['start_time'],
                             end_time=aggregation_window['end_time']
                         )
-                        
+                        print("****auto_aggregate_for_asset-->bulk_aggregate_and_store complete")
+
+                        # Perform aggregation for this specific timeframe
                         aggregation_results[target_timeframe] = {
                             'records': result.get(target_timeframe, 0),
                             'window': aggregation_window,
@@ -1219,87 +932,6 @@ class PriceDataService:
         else:
             # Default to daily
             return days
-    
-    def _convert_time_series_to_ohlcv(
-        self, 
-        time_series_data: Dict[str, List[List[float]]], 
-        timeframe: str
-    ) -> List[Dict[str, Any]]:
-        """
-        Convert CoinGecko time-series data to OHLCV format
-        
-        Args:
-            time_series_data: Raw data from CoinGecko API
-                Format: {'prices': [[timestamp, price]], 'market_caps': [[timestamp, cap]], 'total_volumes': [[timestamp, vol]]}
-            timeframe: Target timeframe ('1h', '4h', '1d')
-            
-        Returns:
-            List of OHLCV records suitable for _process_price_data
-        """
-        try:
-            prices = time_series_data.get('prices', [])
-            market_caps = time_series_data.get('market_caps', [])
-            volumes = time_series_data.get('total_volumes', [])
-            
-            if not prices:
-                logger.warning("No price data in time-series response")
-                return []
-            
-            # Group data by timeframe periods to create OHLCV candles
-            ohlcv_records = []
-            
-            # For each price point, create a minimal OHLCV record
-            # Since CoinGecko doesn't provide true OHLCV data, we'll simulate it
-            for i, (timestamp_ms, price) in enumerate(prices):
-                try:
-                    # Get corresponding market cap and volume
-                    market_cap = None
-                    volume = 0
-                    
-                    # Find matching timestamp in market_caps
-                    if market_caps:
-                        for mc_timestamp, mc_value in market_caps:
-                            if abs(mc_timestamp - timestamp_ms) <= 3600000:  # Within 1 hour
-                                market_cap = mc_value
-                                break
-                    
-                    # Find matching timestamp in volumes
-                    if volumes:
-                        for vol_timestamp, vol_value in volumes:
-                            if abs(vol_timestamp - timestamp_ms) <= 3600000:  # Within 1 hour
-                                volume = vol_value
-                                break
-                    
-                    # Since we only have single price points, we'll create pseudo-OHLCV
-                    # For better accuracy, we could use moving averages or interpolation
-                    # but for now, we'll use the same price for OHLC with small variations
-                    
-                    # Create small variations to simulate OHLC (typically within 0.1% of price)
-                    variation = price * 0.001  # 0.1% variation
-                    
-                    record = {
-                        'timestamp': timestamp_ms,
-                        'open': price - (variation * 0.5),  # Slightly lower open
-                        'high': price + variation,          # Slightly higher high
-                        'low': price - variation,           # Slightly lower low  
-                        'close': price,                     # Actual price as close
-                        'volume': volume,
-                        'market_cap': market_cap
-                    }
-                    
-                    ohlcv_records.append(record)
-                    
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Skipping invalid price data point at index {i}: {e}")
-                    continue
-            
-            logger.info(f"Converted {len(prices)} time-series points to {len(ohlcv_records)} OHLCV records")
-            return ohlcv_records
-            
-        except Exception as e:
-            logger.error(f"Error converting time-series to OHLCV: {e}")
-            return []
-
 
 # Global service instance factory
 def get_price_data_service(db: Session) -> PriceDataService:

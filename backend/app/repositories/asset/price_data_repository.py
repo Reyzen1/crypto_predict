@@ -162,7 +162,7 @@ class PriceDataRepository(BaseRepository):
         if not candle_times:
             return {}
 
-        print(f"Debug: existing_query = self.db.query(PriceData).filter")
+        print(f"Debug func _get_existing_records: existing_query = self.db.query(PriceData).filter")
         existing_query = self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id,
             PriceData.timeframe == timeframe,
@@ -203,6 +203,8 @@ class PriceDataRepository(BaseRepository):
             safe_compare(existing.low_price, new_data.get('low_price')) and
             safe_compare(existing.high_price, new_data.get('high_price'))
         )
+        print(f"existing:close_price={existing.close_price}, low_price={existing.low_price}, , high_price={existing.high_price}")
+        print(f"new_data:close_price={new_data.get('close_price')}, low_price={new_data.get('low_price')}, , high_price={new_data.get('high_price')}")
         
         return not price_unchanged
 
@@ -232,27 +234,41 @@ class PriceDataRepository(BaseRepository):
             skipped_count = 0
             data_range = {'start': None, 'end': None}
             
-            # Track min and max times for reporting
+            # Early return for empty input
+            if not price_data_list:
+                return {
+                    'status': 'success',
+                    'total_processed': 0,
+                    'inserted_records': 0,
+                    'updated_records': 0,
+                    'skipped_records': 0,
+                    'data_range': data_range,
+                    'success': True
+                }
+            
+            # Extract candle times once for both reporting and bulk query optimization
             candle_times = [data['candle_time'] for data in price_data_list if 'candle_time' in data]
             
             # Get latest candle time to only allow updates to the most recent candle
+            print("********bulk_insert--> get_latest_candle_time start")
             latest_candle_time = asset.get_latest_candle_time(timeframe) if asset else None
-
-            # Extract all candle times for bulk query optimization
-            candle_times_to_check = [data['candle_time'] for data in price_data_list if 'candle_time' in data]
              
             # Bulk query to check existing records - fetch all at once to avoid N+1 queries
-            existing_records = self._get_existing_records(asset.id, timeframe, candle_times_to_check)
+            print("********bulk_insert--> get_existing_records start")
+            existing_records = self._get_existing_records(asset.id, timeframe, candle_times)
             
-            # Separate records into categories for bulk processing
-            records_to_insert = []  # New records to insert
-            records_to_update = []  # Existing records to update (only latest candle)
-            records_to_skip = []    # Records to skip
+            # Pre-allocate lists with estimated capacity for better memory management
+            records_to_insert = []  
+            records_to_update = []  
+            records_to_skip = []    
             
+            # Batch preparation: pre-set common fields to avoid repetitive assignment
+            base_data_fields = {'asset_id': asset.id, 'timeframe': timeframe}
+            
+            # Process records in single pass with optimized categorization
             for data in price_data_list:
-                # Ensure data consistency - set asset_id and timeframe
-                data['asset_id'] = asset.id
-                data['timeframe'] = timeframe
+                # Ensure data consistency - set asset_id and timeframe efficiently
+                data.update(base_data_fields)
                 
                 # Get existing record using normalized lookup
                 existing = self._get_existing_record(existing_records, data['candle_time'])
@@ -273,6 +289,7 @@ class PriceDataRepository(BaseRepository):
                         # Skip update for historical candles (not the latest one)
                         records_to_skip.append(data)
 
+            print(f"Debug: Beginning bulk insert/update: {len(records_to_insert)} to insert, {len(records_to_update)} to update, {len(records_to_skip)} to skip")   
             # Bulk insert new records
             if records_to_insert:
                 try:
@@ -286,51 +303,77 @@ class PriceDataRepository(BaseRepository):
                     # Handle bulk constraint violations
                     self.db.rollback()
                     if "duplicate key value violates unique constraint" in str(e) or "UniqueViolation" in str(e):
-                        # Fall back to individual inserts for duplicate handling
+                        # Optimized fallback: batch check for duplicates instead of individual queries
+                        fallback_candle_times = [data['candle_time'] for data in records_to_insert]
+                        print("Debug: Batch checking for duplicates after constraint violation")
+                        
+                        # Single batch query to check which records now exist (concurrent insertion)
+                        existing_after_error = self._get_existing_records(asset.id, timeframe, fallback_candle_times)
+                        
+                        # Process each record with batch lookup instead of individual queries
                         for data in records_to_insert:
-                            try:
-                                # Check if record was inserted by another process
-                                print("Debug:existing_check = self.db.query(PriceData).filter(")
-                                existing_check = self.db.query(PriceData).filter(
-                                    PriceData.asset_id == data['asset_id'],
-                                    PriceData.timeframe == data['timeframe'],
-                                    PriceData.candle_time == data['candle_time']
-                                ).first()
-                                
-                                if not existing_check:
+                            existing_record = self._get_existing_record(existing_after_error, data['candle_time'])
+                            
+                            if not existing_record:
+                                try:
                                     price_data = PriceData(**data)
                                     self.db.add(price_data)
                                     inserted_count += 1
-                                else:
-                                    # Record exists now, add to skip count
+                                except Exception:
+                                    # Skip this record if still failing
                                     skipped_count += 1
-                            except Exception:
+                            else:
+                                # Record exists now (concurrent insertion), add to skip count
                                 skipped_count += 1
-                        self.db.flush()
+                        
+                        # Single flush for all successful fallback records
+                        try:
+                            self.db.flush()
+                        except Exception:
+                            # If still failing, rollback and count as skipped
+                            self.db.rollback()
+                            skipped_count += len(records_to_insert) - inserted_count
+                            inserted_count = 0
                     else:
                         raise
             
-            # Bulk update existing records
+            # Bulk update existing records - batch processing for efficiency
             if records_to_update:
+                # Process all updates in memory first, then single flush
                 for existing, data in records_to_update:
+                    print("********bulk_insert--> updating existing record start")
                     self._update_existing_record(existing, data)
+                    print("********bulk_insert--> updating existing record end")
                     updated_count += 1
+                
+                # Single flush for all updates - more efficient than individual flushes
+                print("********bulk_insert--> self.db.flush() start")
                 self.db.flush()
-            
+                print("********bulk_insert--> self.db.flush() end")
+
             # Count skipped records
             skipped_count += len(records_to_skip)
 
-            
-            # Calculate data range
+            # Calculate data range efficiently (single pass through candle_times)
             if candle_times:
+                # Use single pass min/max calculation instead of separate iterations
+                min_time = max_time = candle_times[0]
+                for time in candle_times[1:]:
+                    if time < min_time:
+                        min_time = time
+                    elif time > max_time:
+                        max_time = time
+                
                 data_range = {
-                    'start': min(candle_times),
-                    'end': max(candle_times)
+                    'start': min_time,
+                    'end': max_time
                 }
             
             # Commit with error handling for any remaining constraint violations
             try:
+                print("********bulk_insert--> self.db.commit() start")
                 self.db.commit()
+                print("********bulk_insert--> self.db.commit() end")
             except Exception as commit_error:
                 self.db.rollback()
                 if "duplicate key value violates unique constraint" in str(commit_error) or "UniqueViolation" in str(commit_error):
@@ -347,10 +390,61 @@ class PriceDataRepository(BaseRepository):
                     }
                 else:
                     raise
+            # Update timeframe cache directly using in-memory data (no database queries needed)
+            # Skip cache update if no meaningful changes were made
             
-            # Update timeframe cache for the asset (only if we actually processed some records)
             if inserted_count > 0 or updated_count > 0:
-                self._update_asset_timeframe_cache_bulk(asset.id, [timeframe], asset_object=asset)
+                try:
+                    print("********bulk_insert--> direct cache update start")
+                    # Calculate cache values directly from processed data without DB queries
+                    current_timeframe_info = asset.get_timeframe_info(timeframe) if asset else {}
+                    print("**************************************************1")    
+                    current_count = current_timeframe_info.get('count', 0) if current_timeframe_info else 0
+                    print("**************************************************2")    
+                    
+                    # Update count based on operations performed
+                    new_count = current_count + inserted_count
+                    
+                    # Calculate earliest and latest times from data range
+                    earliest_time = None
+                    latest_time = None
+                    if data_range['start'] and data_range['end']:
+                        # Use existing earliest if available and earlier than new data
+                        existing_earliest = current_timeframe_info.get('earliest_time') if current_timeframe_info else None
+                        if existing_earliest:
+                            try:
+                                from datetime import datetime
+                                existing_earliest_dt = datetime.fromisoformat(existing_earliest.replace('Z', '+00:00'))
+                                earliest_time = min(existing_earliest_dt, data_range['start']).isoformat()
+                            except:
+                                earliest_time = data_range['start'].isoformat()
+                        else:
+                            earliest_time = data_range['start'].isoformat()
+                        
+                        # Use latest from new data or existing, whichever is newer
+                        existing_latest = current_timeframe_info.get('latest_time') if current_timeframe_info else None
+                        if existing_latest:
+                            try:
+                                existing_latest_dt = datetime.fromisoformat(existing_latest.replace('Z', '+00:00'))
+                                latest_time = max(existing_latest_dt, data_range['end']).isoformat()
+                            except:
+                                latest_time = data_range['end'].isoformat()
+                        else:
+                            latest_time = data_range['end'].isoformat()
+                    
+                    # Direct cache update without database query
+                    asset.update_timeframe_data(
+                        timeframe=timeframe,
+                        count=new_count,
+                        earliest_time=earliest_time,
+                        latest_time=latest_time
+                    )
+                    print(f"********bulk_insert--> direct cache update completed: count={new_count}, range={earliest_time} to {latest_time}")
+                    
+                except Exception as cache_error:
+                    # Log cache update error but don't fail the entire operation
+                    print(f"Warning: Direct cache update failed: {str(cache_error)}")
+                    # Continue without cache update - data insertion/update was successful
             
             total_processed = inserted_count + updated_count + skipped_count
             
@@ -580,7 +674,7 @@ class PriceDataRepository(BaseRepository):
                 aligned_prices1.append(float(p1.close_price))
                 aligned_prices2.append(float(closest_p2.close_price))
         
-        aligned_prices1 = []
+        # Check if we have enough aligned data points for correlation
         if len(aligned_prices1) < 10:
             return {'correlation': None, 'data_points': len(aligned_prices1)}
         
@@ -619,7 +713,7 @@ class PriceDataRepository(BaseRepository):
     def get_data_quality_report(self, asset_id: int, days: int = 7) -> Dict[str, Any]:
         """Generate data quality report for an asset"""
         cutoff_date = datetime.utcnow() - timedelta(days=days)
-        
+
         # Combined query for all quality metrics in one database call
         from sqlalchemy import case
         print(f"Debug: quality_stats = self.db.query(")
@@ -641,7 +735,7 @@ class PriceDataRepository(BaseRepository):
         
         # Check data gaps
         gaps = self.get_missing_data_gaps(asset_id, 5)
-        
+        # Calculate quality score           
         quality_score = 100
         if total_records > 0:
             quality_score -= (missing_price / total_records * 30)  # 30% penalty for missing prices
@@ -857,7 +951,7 @@ class PriceDataRepository(BaseRepository):
         
         return grouping_map[timeframe]
 
-    def bulk_aggregate_and_store(self, asset_id: int, source_timeframe: str, 
+    def bulk_aggregate_and_store(self, asset: int, source_timeframe: str, 
                                 target_timeframes: List[str] = None,
                                 start_time: datetime = None, 
                                 end_time: datetime = None) -> Dict[str, int]:
@@ -875,33 +969,43 @@ class PriceDataRepository(BaseRepository):
         for target_tf in target_timeframes:
             try:
                 # Get aggregated data
+                print("******get_aggregatable_timeframes-->aggregate_to_higher_timeframe start")
                 aggregated_data = self.aggregate_to_higher_timeframe(
-                    asset_id=asset_id,
+                    asset_id=asset.id,
                     source_timeframe=source_timeframe,
                     target_timeframe=target_tf,
                     start_time=start_time,
                     end_time=end_time
                 )
-                
+                print("******get_aggregatable_timeframes-->aggregate_to_higher_timeframe end")
                 # Store aggregated data efficiently using bulk operations
+                print("******get_aggregatable_timeframes-->_bulk_insert start")
+                bulk_result = self.bulk_insert(asset=asset, price_data_list=aggregated_data, timeframe=target_tf)
+                print("******get_aggregatable_timeframes-->_bulk_insert end")
+                """
+                print("******get_aggregatable_timeframes-->_bulk_upsert_aggregated_data start")
                 stored_count = self._bulk_upsert_aggregated_data(
                     aggregated_data=aggregated_data,
                     asset_id=asset_id,
                     target_timeframe=target_tf
                 )
-                
+                print("******get_aggregatable_timeframes-->_bulk_upsert_aggregated_data end")
+                """
                 self.db.commit()
+                stored_count = bulk_result.get('inserted_records', 0) + bulk_result.get('updated_records', 0)
                 results[target_tf] = stored_count
                 
             except Exception as e:
                 self.db.rollback()
                 results[target_tf] = f"Error: {str(e)}"
-        
+        """        
         # Update timeframe cache for all target timeframes in one bulk operation to avoid N+1
         successful_timeframes = [tf for tf, result in results.items() if isinstance(result, int)]
         if successful_timeframes:
-            self._update_asset_timeframe_cache_bulk(asset_id, successful_timeframes)
-
+            print("**************_update_asset_timeframe_cache_bulk start")
+            self._update_asset_timeframe_cache_bulk(asset.id, successful_timeframes)
+            print("**************_update_asset_timeframe_cache_bulk end")
+        """
         return results
 
     def _update_asset_timeframe_cache_bulk(self, asset_id: int, timeframes: List[str], asset_object=None) -> bool:
@@ -939,13 +1043,14 @@ class PriceDataRepository(BaseRepository):
                 PriceData.timeframe.in_(timeframes)
             ).group_by(PriceData.timeframe).all()
             
-            # Update cache for each timeframe
+            # Optimized batch update: direct processing without intermediate list
+            print(f"Debug: Batch updating {len(all_stats)} timeframes directly")
             for stat in all_stats:
                 count = stat.count if stat.count else 0
                 latest = stat.latest.isoformat() if stat.latest else None
                 earliest = stat.earliest.isoformat() if stat.earliest else None
 
-                print(f"Debug: asset.update_timeframe_data(")
+                # Direct update without intermediate storage - more memory efficient
                 asset.update_timeframe_data(
                     timeframe=stat.timeframe,
                     count=count,
@@ -953,68 +1058,12 @@ class PriceDataRepository(BaseRepository):
                     latest_time=latest
                 )
             
+            # Single commit for all updates
             self.db.commit()
             return True
             
         except Exception as e:
             self.db.rollback()
-            return False
-
-    def _update_asset_timeframe_cache(self, asset_id: int, timeframe: str, 
-                                    operation: str = 'refresh') -> bool:
-        """
-        Update asset timeframe_data cache after price data changes
-        
-        Args:
-            asset_id: Asset ID to update
-            timeframe: Timeframe that was modified
-            operation: 'refresh' (recalculate), 'clear' (reset cache)
-            
-        Returns:
-            Success status
-        """
-        try:
-            from ...models.asset import Asset
-
-            print(f"Debug: asset = self.db.query(Asset).filter(Asset.id == {asset_id}).first()")
-            asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
-            if not asset:
-                return False
-            
-            if operation == 'clear':
-                asset.reset_timeframe_cache()
-                self.db.commit()
-                return True
-            
-            # Refresh cache for specific timeframe
-            print(f"Debug: data_stats = self.db.query(")
-            data_stats = self.db.query(
-                func.count(PriceData.id).label('count'),
-                func.max(PriceData.candle_time).label('latest'),
-                func.min(PriceData.candle_time).label('earliest')
-            ).filter(
-                PriceData.asset_id == asset_id,
-                PriceData.timeframe == timeframe
-            ).first()
-            
-            count = data_stats.count if data_stats else 0
-            latest = data_stats.latest.isoformat() if data_stats.latest else None
-            earliest = data_stats.earliest.isoformat() if data_stats.earliest else None
-            
-            print(f"Debug: asset.update_timeframe_data(")
-            asset.update_timeframe_data(
-                timeframe=timeframe,
-                count=count,
-                earliest_time=earliest,
-                latest_time=latest
-            )
-            
-            self.db.commit()
-            return True
-            
-        except Exception as e:
-            self.db.rollback()
-            # Log error but don't fail the main operation
             return False
 
     def get_aggregation_status(self, asset_id: int) -> Dict[str, Dict[str, Any]]:
@@ -1143,110 +1192,6 @@ class PriceDataRepository(BaseRepository):
             # Return empty structure for all requested assets
             return {asset_id: {} for asset_id in asset_ids}
 
-    def optimize_storage_with_aggregation(self, asset_id: int, source_timeframe: str = '1h',
-                                        keep_days: int = 30) -> Dict[str, Any]:
-        """
-        Optimize storage by aggregating older data to higher timeframes
-        
-        Strategy:
-        - Keep recent data in original timeframe
-        - Aggregate older data to higher timeframes
-        - Remove original data after aggregation
-        """
-        cutoff_date = datetime.utcnow() - timedelta(days=keep_days)
-        
-        # Get aggregatable timeframes
-        target_timeframes = self.get_aggregatable_timeframes(source_timeframe)
-        
-        if not target_timeframes:
-            return {'message': f'No aggregatable timeframes found for {source_timeframe}'}
-        
-        # Aggregate old data
-        aggregation_results = {}
-        for target_tf in target_timeframes:
-            results = self.bulk_aggregate_and_store(
-                asset_id=asset_id,
-                source_timeframe=source_timeframe,
-                target_timeframes=[target_tf],
-                end_time=cutoff_date
-            )
-            aggregation_results.update(results)
-        
-        # Remove old source data after successful aggregation
-        print(f"Debug: deleted_count = self.db.query(PriceData).filter(")
-        deleted_count = self.db.query(PriceData).filter(
-            PriceData.asset_id == asset_id,
-            PriceData.timeframe == source_timeframe,
-            PriceData.candle_time < cutoff_date
-        ).delete()
-        
-        self.db.commit()
-        
-        return {
-            'source_timeframe': source_timeframe,
-            'cutoff_date': cutoff_date.isoformat(),
-            'aggregated_records': aggregation_results,
-            'deleted_source_records': deleted_count,
-            'storage_optimization': 'completed'
-        }
-
-    def parallel_aggregate_multiple_assets(self, asset_ids: List[int], 
-                                         source_timeframe: str = '1h',
-                                         target_timeframes: List[str] = None,
-                                         batch_size: int = 10) -> Dict[int, Dict[str, Any]]:
-        """
-        Efficiently aggregate multiple assets in parallel batches
-        
-        Args:
-            asset_ids: List of asset IDs to process
-            source_timeframe: Source timeframe for aggregation
-            target_timeframes: Target timeframes (auto-detected if None)
-            batch_size: Number of assets to process in each batch
-            
-        Returns:
-            Dictionary with asset_id -> aggregation results
-        """
-        if target_timeframes is None:
-            target_timeframes = self.get_aggregatable_timeframes(source_timeframe)
-        
-        results = {}
-        
-        # Process assets in batches
-        for i in range(0, len(asset_ids), batch_size):
-            batch = asset_ids[i:i + batch_size]
-            
-            for asset_id in batch:
-                try:
-                    asset_results = self.bulk_aggregate_and_store(
-                        asset_id=asset_id,
-                        source_timeframe=source_timeframe,
-                        target_timeframes=target_timeframes
-                    )
-                    results[asset_id] = {
-                        'status': 'success',
-                        'timeframe_results': asset_results
-                    }
-                except Exception as e:
-                    results[asset_id] = {
-                        'status': 'error',
-                        'error': str(e)
-                    }
-            
-            # Commit after each batch
-            try:
-                self.db.commit()
-            except Exception as e:
-                self.db.rollback()
-                # Mark batch as failed
-                for asset_id in batch:
-                    if results.get(asset_id, {}).get('status') == 'success':
-                        results[asset_id] = {
-                            'status': 'error',
-                            'error': f'Batch commit failed: {str(e)}'
-                        }
-        
-        return results
-
     def _update_asset_timeframe_cache(self, asset_id: int, timeframe: str, 
                                     operation: str = 'refresh') -> bool:
         """
@@ -1329,9 +1274,8 @@ class PriceDataRepository(BaseRepository):
             return 0
         
         try:
-            # Step 1: Get the latest candle_time for this asset and timeframe
-            print(f"Debug: latest_candle_record = self.db.query(PriceData.candle_t")
-            latest_candle_record = self.db.query(PriceData.candle_time).filter(
+            # Step 1: Get the latest complete record for this asset and timeframe
+            latest_candle_record = self.db.query(PriceData).filter(
                 PriceData.asset_id == asset_id,
                 PriceData.timeframe == target_timeframe
             ).order_by(PriceData.candle_time.desc()).first()
@@ -1344,9 +1288,9 @@ class PriceDataRepository(BaseRepository):
             
             # Step 3: Separate data based on normalized candle_time comparison
             records_to_insert = []  # candle_time > latest_candle_time
-            records_to_update = []  # candle_time == latest_candle_time
+            record_to_update = None  # candle_time == latest_candle_time (should only be one)
             records_to_skip = []    # candle_time < latest_candle_time (complete historical data)
-            
+            print("*************************************")        
             for data in aggregated_data:
                 candle_time = data['candle_time']
                 
@@ -1360,12 +1304,12 @@ class PriceDataRepository(BaseRepository):
                     # New candle - insert
                     records_to_insert.append(data)
                 elif normalized_candle_time == latest_candle_time:
-                    # Latest candle - update (may have new aggregated data)
-                    records_to_update.append(data)
+                    # Latest candle - update (should only be one, but take the last one if multiple)
+                    record_to_update = data
                 else:
                     # Historical candle - skip (already complete)
                     records_to_skip.append(data)
-            
+            print("ttttttttttttttttttttttttttttttttttttt")
             # Step 3: Bulk insert new records
             inserted_count = 0
             if records_to_insert:
@@ -1375,18 +1319,13 @@ class PriceDataRepository(BaseRepository):
             
             # Step 4: Update latest candle if it exists
             updated_count = 0
-            if records_to_update and latest_candle_time:
-                # Get the existing record to update using normalized time
-                print(f"Debug: existing_record = self.db.query(PriceData).filter")
-                existing_record = self.db.query(PriceData).filter(
-                    PriceData.asset_id == asset_id,
-                    PriceData.timeframe == target_timeframe,
-                    PriceData.candle_time == latest_candle_time
-                ).first()
-                
-                if existing_record and records_to_update:
+            if record_to_update and latest_candle_record:
+                # Use the existing record we already fetched (no need for another query!)
+                existing_record = latest_candle_record
+
+                if existing_record and record_to_update:
                     # Update with the latest aggregated data
-                    update_data = records_to_update[0]  # Should only be one record with latest time
+                    update_data = record_to_update
                     for key, value in update_data.items():
                         if key not in ['asset_id', 'timeframe', 'candle_time']:
                             setattr(existing_record, key, value)
@@ -1669,98 +1608,76 @@ class PriceDataRepository(BaseRepository):
                 normalized_minute = (candle_time.minute // timeframe_minutes) * timeframe_minutes
                 return candle_time.replace(minute=normalized_minute, second=0, microsecond=0)
 
-    async def get_latest_market_cap(self, asset_id: int) -> Optional[float]:
+    
+    async def generate_asset_metadata(self, asset_id: int) -> Dict[str, Any]:
         """
-        Get the latest market cap from database (prioritizing more recent timeframes)
+        Get all metadata needed for asset update in a single ultra-optimized query
+        
+        This method consolidates all metadata retrieval into one efficient query that:
+        1. Gets latest price data across all timeframes
+        2. Finds latest market cap from any timeframe
+        3. Gets specific timeframe candles (1d, 1w, 1M) for price calculations
+        4. Minimizes database round trips from 3+ to just 1 query
         
         Args:
             asset_id: Asset ID
             
         Returns:
-            Latest market cap or None if not found
+            Dictionary with all metadata: latest_price, daily_candle, market_cap, price_changes
         """
         try:
-            # Single bulk query for all timeframes to avoid N+1 problem
-            timeframes_to_try = ['1h', '4h', '1d', '1w']
+            metadata = {
+                'latest_price_data': None,
+                'latest_daily_candle': None,
+                'latest_market_cap': None,
+                'candle_data': {}
+            }
             
-            # Get all records with market cap across different timeframes in one query
-            print(f"Debug: market_cap_records = self.db.query(PriceData).filter(")
-            market_cap_records = self.db.query(PriceData).filter(
-                and_(
-                    PriceData.asset_id == asset_id,
-                    PriceData.timeframe.in_(timeframes_to_try),
-                    PriceData.market_cap.isnot(None),
-                    PriceData.market_cap > 0
-                )
-            ).order_by(desc(PriceData.candle_time)).all()
+            # Single consolidated query to get ALL required data in one go
+            # Query strategy: Get all records for this asset, ordered by time desc
+            # Then process in Python to extract what we need (more efficient than multiple DB calls)
+            print(f"Debug: Consolidated query for asset {asset_id} metadata")
+            all_candles = self.db.query(PriceData).filter(
+                PriceData.asset_id == asset_id
+            ).order_by(desc(PriceData.candle_time)).limit(100).all()  # Limit to recent 100 records for efficiency
             
-            if not market_cap_records:
-                return None
+            if not all_candles:
+                return metadata
             
-            # Find the latest record with priority to more recent timeframes
-            # Sort by timeframe priority (1h > 4h > 1d > 1w) and then by time
-            timeframe_priority = {'1h': 1, '4h': 2, '1d': 3, '1w': 4}
+            # Process results to extract all needed metadata
+            latest_price_found = False
+            latest_market_cap_found = False
+            timeframe_latest = {}  # Track latest candle per timeframe
             
-            best_record = None
-            best_priority = float('inf')
-            latest_time = None
+            target_timeframes = ['1d', '1w', '1M']  # Specific timeframes we need for price calculations
             
-            for record in market_cap_records:
-                priority = timeframe_priority.get(record.timeframe, 5)
+            for candle in all_candles:
+                # 1. Extract latest overall price data (from most recent candle)
+                if not latest_price_found:
+                    metadata['latest_price_data'] = {
+                        'close_price': float(candle.close_price),
+                        'candle_time': candle.candle_time
+                    }
+                    latest_price_found = True
                 
-                # Choose record with higher priority timeframe or more recent time
-                if (priority < best_priority or 
-                    (priority == best_priority and (latest_time is None or record.candle_time > latest_time))):
-                    best_record = record
-                    best_priority = priority
-                    latest_time = record.candle_time
-            
-            if best_record and best_record.market_cap:
-                return float(best_record.market_cap)
-            
-            return None
-            
-        except Exception as e:
-            # Import logger here to avoid circular imports
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to get latest market cap from DB for asset {asset_id}: {e}")
-            return None
-
-    async def get_latest_candles_bulk(self, asset_id: int, timeframes: List[str]) -> Dict[str, Dict[str, Any]]:
-        """
-        Get latest candle data for multiple timeframes in a single bulk query to avoid N+1 problem
-        
-        Args:
-            asset_id: Asset ID
-            timeframes: List of timeframes to fetch ('1d', '1w', '1M')
-            
-        Returns:
-            Dictionary with timeframe -> candle data mapping
-        """
-        try:
-            if not timeframes:
-                return {}
-            
-            # Single bulk query for all timeframes
-            print(f"Debug: latest_candles = self.db.query(PriceData).filter")
-            latest_candles = self.db.query(PriceData).filter(
-                and_(
-                    PriceData.asset_id == asset_id,
-                    PriceData.timeframe.in_(timeframes)
-                )
-            ).order_by(desc(PriceData.candle_time)).all()
-            
-            # Group by timeframe and get the latest one for each
-            result = {}
-            timeframe_latest = {}
-            
-            for candle in latest_candles:
+                # 2. Extract latest market cap (prefer higher priority timeframes)
+                if not latest_market_cap_found and candle.market_cap and candle.market_cap > 0:
+                    metadata['latest_market_cap'] = float(candle.market_cap)
+                    latest_market_cap_found = True
+                
+                # 3. Track latest candle per target timeframe for price calculations
                 tf = candle.timeframe
-                if tf not in timeframe_latest or candle.candle_time > timeframe_latest[tf].candle_time:
-                    timeframe_latest[tf] = candle
+                if tf in target_timeframes:
+                    if (tf not in timeframe_latest or 
+                        candle.candle_time > timeframe_latest[tf].candle_time):
+                        timeframe_latest[tf] = candle
+                
+                # Early exit optimization: if we have everything we need, stop processing
+                if (latest_price_found and latest_market_cap_found and 
+                    len(timeframe_latest) == len(target_timeframes)):
+                    break
             
-            # Convert to the expected format
+            # 4. Convert timeframe candles to expected format
             for timeframe, candle in timeframe_latest.items():
                 if candle:
                     candle_data = {
@@ -1781,81 +1698,25 @@ class PriceDataRepository(BaseRepository):
                         if open_price > 0:
                             candle_data['price_change_percent'] = ((close_price - open_price) / open_price) * 100
                         else:
-                            candle_data['price_change_percent'] = 0
+                            candle_data['price_change_percent'] = None
                     else:
-                        candle_data['price_change_percent'] = 0
+                        candle_data['price_change_percent'] = None
                     
-                    result[timeframe] = candle_data
+                    metadata['candle_data'][timeframe] = candle_data
             
-            return result
-            
-        except Exception as e:
-            # Import logger here to avoid circular imports
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to get latest candles bulk for asset {asset_id}: {e}")
-            return {}
-    
-    async def get_asset_metadata_bulk(self, asset_id: int) -> Dict[str, Any]:
-        """
-        Get all metadata needed for asset update in a single optimized query set
-        
-        Args:
-            asset_id: Asset ID
-            
-        Returns:
-            Dictionary with all metadata: latest_price, daily_candle, market_cap, price_changes
-        """
-        try:
-            metadata = {
-                'latest_price_data': None,
-                'latest_daily_candle': None,
-                'latest_market_cap': None,
-                'candle_data': {}
-            }
-            
-            # Single query to get latest price data
-            print(f"Debug: latest_price_record = self.db.query(PriceData).filter")
-            latest_price_record = self.db.query(PriceData).filter(
-                PriceData.asset_id == asset_id
-            ).order_by(desc(PriceData.candle_time)).first()
-            
-            if latest_price_record:
-                metadata['latest_price_data'] = {
-                    'close_price': float(latest_price_record.close_price),
-                    'candle_time': latest_price_record.candle_time
-                }
-            
-            # Get latest market cap from the same query result or try other timeframes
-            if latest_price_record and latest_price_record.market_cap:
-                metadata['latest_market_cap'] = float(latest_price_record.market_cap)
-            else:
-                # Fallback: try other timeframes for market cap
-                print(f"Debug: market_cap_record = self.db.query(PriceData).filter(")
-                market_cap_record = self.db.query(PriceData).filter(
-                    and_(
-                        PriceData.asset_id == asset_id,
-                        PriceData.market_cap.isnot(None),
-                        PriceData.market_cap > 0
-                    )
-                ).order_by(desc(PriceData.candle_time)).first()
-                
-                if market_cap_record:
-                    metadata['latest_market_cap'] = float(market_cap_record.market_cap)
-            
-            # Get candle data for price changes calculation
-            metadata['candle_data'] = await self.get_latest_candles_bulk(
-                asset_id, 
-                timeframes=['1d', '1w', '1M']
-            )
-            
-            # Extract daily candle for volume
+            # 5. Extract daily candle for volume (special case)
             daily_candle = metadata['candle_data'].get('1d')
             if daily_candle:
                 metadata['latest_daily_candle'] = {
                     'volume': daily_candle.get('volume', 0),
                     'candle_time': daily_candle.get('candle_time')
                 }
+            
+            # Debug logging for optimization tracking
+            print(f"Debug: Consolidated query retrieved {len(all_candles)} records, "
+                  f"found {len(metadata['candle_data'])} target timeframes, "
+                  f"latest_price: {'✓' if metadata['latest_price_data'] else '✗'}, "
+                  f"market_cap: {'✓' if metadata['latest_market_cap'] else '✗'}")
             
             return metadata
             

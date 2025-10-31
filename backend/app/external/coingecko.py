@@ -228,40 +228,6 @@ class CoinGeckoClient:
         
         return data
     
-    async def get_historical_data(
-        self,
-        crypto_id: str,
-        vs_currency: str = "usd",
-        days: int = 30,
-        interval: str = "daily"
-    ) -> Dict[str, List[List[float]]]:
-        """
-        Get historical price data for a cryptocurrency (hourly-normalized)
-        
-        This is a wrapper around get_market_chart for backward compatibility.
-        New code should use get_market_chart directly.
-        
-        Note: All data returned is hourly-normalized regardless of the interval parameter.
-        
-        Args:
-            crypto_id: CoinGecko cryptocurrency ID (e.g., 'bitcoin')
-            vs_currency: VS currency (default: 'usd')
-            days: Number of days back (1-365)
-            interval: Data interval ('daily', 'hourly') - note: output is always hourly-normalized
-            
-        Returns:
-            dict: Historical data with hourly-normalized timestamps
-            
-        Example:
-            data = await client.get_historical_data('bitcoin', days=7)
-            # Returns: {'prices': [[hourly_timestamp, price], ...], 'market_caps': [...], 'total_volumes': [...]}
-        """
-        return await self.get_market_chart(
-            crypto_id=crypto_id,
-            vs_currency=vs_currency,
-            days=days,
-            interval=interval
-        )
     
     async def get_market_chart(
         self,
@@ -325,9 +291,9 @@ class CoinGeckoClient:
             params["interval"] = "daily"
         # Skip adding interval for hourly - let CoinGecko auto-select based on days
         
-        endpoint = f"coins/{crypto_id}/market_chart"
+        endpoint = f"coins/{crypto_id}/ohlc"
         data = await self._make_request(endpoint, params)
-        
+        print(f">>>>>>>>>>>>>>>Market chart data for {crypto_id}: {data}")
         # Validate response structure
         required_keys = ["prices", "market_caps", "total_volumes"]
         if not all(key in data for key in required_keys):
@@ -391,13 +357,19 @@ class CoinGeckoClient:
     
     async def get_detailed_market_data(self, coingecko_id: str) -> Optional[Dict[str, Any]]:
         """
-        Fetch detailed market data from CoinGecko coins endpoint
+        Fetch comprehensive market data from CoinGecko coins endpoint
+        
+        Returns all data needed for asset metadata updates to minimize database queries:
+        - Current price, market cap, volume
+        - Market cap rank and supply data  
+        - Price change percentages (24h, 7d, 30d)
+        - All-time high/low with dates
         
         Args:
             coingecko_id: CoinGecko cryptocurrency ID
             
         Returns:
-            Dictionary with detailed market data or None if failed
+            Dictionary with comprehensive market data or None if failed
         """
         try:
             # Use CoinGecko coins/{id} endpoint for detailed data
@@ -418,10 +390,22 @@ class CoinGeckoClient:
             
             market_data = data['market_data']
             
-            # Extract relevant fields
+            # Extract comprehensive market data
             detailed_data = {}
             
-            # Basic market data
+            # Current pricing data (replaces database current_price query)
+            if 'current_price' in market_data and 'usd' in market_data['current_price']:
+                detailed_data['current_price'] = market_data['current_price']['usd']
+            
+            # Market cap data (replaces database market_cap query)
+            if 'market_cap' in market_data and 'usd' in market_data['market_cap']:
+                detailed_data['market_cap'] = market_data['market_cap']['usd']
+            
+            # Volume data (replaces database volume query)
+            if 'total_volume' in market_data and 'usd' in market_data['total_volume']:
+                detailed_data['total_volume'] = market_data['total_volume']['usd']
+            
+            # Market cap rank
             if 'market_cap_rank' in market_data:
                 detailed_data['market_cap_rank'] = market_data['market_cap_rank']
             
@@ -435,7 +419,7 @@ class CoinGeckoClient:
             if 'max_supply' in market_data:
                 detailed_data['max_supply'] = market_data['max_supply']
             
-            # Price change percentages
+            # Price change percentages (replaces database candle aggregation queries)
             if 'price_change_percentage_24h' in market_data:
                 detailed_data['price_change_percentage_24h'] = market_data['price_change_percentage_24h']
             
@@ -445,19 +429,20 @@ class CoinGeckoClient:
             if 'price_change_percentage_30d_in_currency' in market_data:
                 detailed_data['price_change_percentage_30d_in_currency'] = market_data['price_change_percentage_30d_in_currency'].get('usd')
             
-            # ATH/ATL data
-            if 'ath' in market_data:
-                detailed_data['ath'] = market_data['ath']
+            # ATH/ATL data with USD values (replaces database ATH/ATL tracking)
+            if 'ath' in market_data and 'usd' in market_data['ath']:
+                detailed_data['ath'] = market_data['ath']['usd']
             
-            if 'ath_date' in market_data:
-                detailed_data['ath_date'] = market_data['ath_date']
+            if 'ath_date' in market_data and 'usd' in market_data['ath_date']:
+                detailed_data['ath_date'] = market_data['ath_date']['usd']
             
-            if 'atl' in market_data:
-                detailed_data['atl'] = market_data['atl']
+            if 'atl' in market_data and 'usd' in market_data['atl']:
+                detailed_data['atl'] = market_data['atl']['usd']
             
-            if 'atl_date' in market_data:
-                detailed_data['atl_date'] = market_data['atl_date']
+            if 'atl_date' in market_data and 'usd' in market_data['atl_date']:
+                detailed_data['atl_date'] = market_data['atl_date']['usd']
             
+            logger.info(f"Fetched comprehensive market data for {coingecko_id}: {len(detailed_data)} fields")
             return detailed_data
             
         except Exception as e:
@@ -494,9 +479,10 @@ class CoinGeckoClient:
 
     async def get_price_data_by_timeframe(
         self,
+        asset_id: int,
         crypto_id: str,
         timeframe: str = "1d",
-        limit: int = 100,
+        days: int = 100,
         vs_currency: str = "usd"
     ) -> Dict[str, List[List[float]]]:
         """
@@ -504,56 +490,27 @@ class CoinGeckoClient:
         
         Args:
             crypto_id: CoinGecko cryptocurrency ID 
-            timeframe: Our timeframe format ('1h', '4h', '1d')
-            limit: Maximum number of data points to return
+            timeframe: Our timeframe format ('1h', '1d')
+            days: Number of days to look back for price data
             vs_currency: VS currency (default: 'usd')
             
         Returns:
-            dict: Market data filtered by timeframe
+            dict: Market data
             
-        Example:
-            # Get last 24 4-hourly data points
-            data = await client.get_price_data_by_timeframe('bitcoin', '4h', 24)
         """
-        # Calculate days needed
-        days = calculate_days_for_timeframe(timeframe, limit)
-        
-        # For better granularity, ensure we get enough data points
-        # CoinGecko will auto-select appropriate interval based on days parameter
-        if timeframe == '1h':
-            # For hourly data, keep days as calculated
-            pass
-        elif timeframe == '4h':
-            # For 4-hourly, we need hourly data to filter from
-            days = max(days, 2)  # Ensure at least 2 days for filtering
-        elif timeframe == '1d':
-            # For daily with small limits, get more days for better filtering
-            if limit <= 7:
-                days = max(days, 14)  # Get 2 weeks of data
         
         # Fetch market chart data (CoinGecko auto-selects interval based on days)
-        data = await self.get_market_chart(
+        raw_data = await self.get_market_chart(
+            asset_id=asset_id,
             crypto_id=crypto_id,
             vs_currency=vs_currency,
-            days=days
-            # No interval parameter - let CoinGecko auto-select
+            days=days,
+            interval=timeframe_to_coingecko_interval(timeframe)
         )
-        
-        # Apply timeframe filtering to the already-normalized hourly data
-        normalized_count = len(data['prices'])
-        data['prices'] = filter_data_by_timeframe(data['prices'], timeframe)
-        data['market_caps'] = filter_data_by_timeframe(data['market_caps'], timeframe) 
-        data['total_volumes'] = filter_data_by_timeframe(data['total_volumes'], timeframe)
-        filtered_count = len(data['prices'])
-        
-        logger.info(f"Filtered to {timeframe}: {normalized_count} -> {filtered_count} points")
-        
-        # Limit the results to requested number of points
-        for key in ['prices', 'market_caps', 'total_volumes']:
-            if len(data[key]) > limit:
-                data[key] = data[key][-limit:]  # Take the most recent data points
-        
-        return data
+
+        ohlcv_data = self._convert_time_series_to_ohlcv(asset_id, raw_data)
+
+        return ohlcv_data
 
 
 # Utility functions for data conversion and validation
@@ -575,35 +532,10 @@ def timeframe_to_coingecko_interval(timeframe: str) -> str:
     """
     timeframe_mapping = {
         '1h': 'hourly',
-        '4h': 'hourly',  # Get hourly and filter every 4th
         '1d': 'daily'    # Prefer daily, but may use hourly for small ranges
     }
     
     return timeframe_mapping.get(timeframe, 'daily')
-
-
-def calculate_days_for_timeframe(timeframe: str, limit: int) -> int:
-    """
-    Calculate number of days to request based on timeframe and desired data points
-    
-    Args:
-        timeframe: Our timeframe format ('1h', '4h', '1d')
-        limit: Number of data points desired
-        
-    Returns:
-        int: Number of days to request from CoinGecko
-    """
-    if timeframe == '1h':
-        # 1 day = 24 hourly points
-        return max(1, (limit + 23) // 24)  # Round up
-    elif timeframe == '4h':
-        # 1 day = 6 four-hourly points  
-        return max(1, (limit + 5) // 6)  # Round up
-    elif timeframe == '1d':
-        # 1 day = 1 daily point
-        return limit
-    else:
-        return limit
 
 
 def filter_data_by_timeframe(data: List[List[float]], timeframe: str) -> List[List[float]]:
