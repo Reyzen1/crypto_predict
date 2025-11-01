@@ -2,10 +2,12 @@
 Time utilities for cryptocurrency data processing
 
 This module provides common time-related utility functions used across
-the application for normalizing and processing cryptocurrency market data.
+the application for normalizing and processing cryptocurrency market data,
+including datetime serialization and manipulation.
 """
 
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Union
 import logging
 
 logger = logging.getLogger(__name__)
@@ -142,3 +144,44 @@ def is_valid_timeframe(timeframe: str) -> bool:
         True if timeframe is supported, False otherwise
     """
     return timeframe in get_supported_timeframes()
+
+
+def serialize_datetime_objects(obj: Any) -> Any:
+    """
+    Convert datetime objects to ISO format strings in nested data structures
+    
+    Args:
+        obj: Any object that may contain datetime objects
+        
+    Returns:
+        Object with datetime objects converted to ISO strings
+        
+    Examples:
+        # Simple datetime
+        serialize_datetime_objects(datetime(2025, 11, 1, 12, 30))
+        # Returns: '2025-11-01T12:30:00'
+        
+        # Dictionary with datetime
+        serialize_datetime_objects({
+            'created_at': datetime(2025, 11, 1, 12, 30),
+            'name': 'BTC'
+        })
+        # Returns: {'created_at': '2025-11-01T12:30:00', 'name': 'BTC'}
+        
+        # Nested structures
+        serialize_datetime_objects({
+            'data': [
+                {'timestamp': datetime(2025, 11, 1), 'value': 100},
+                {'timestamp': datetime(2025, 11, 2), 'value': 200}
+            ]
+        })
+        # Returns nested structure with datetime strings
+    """
+    if isinstance(obj, dict):
+        return {k: serialize_datetime_objects(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_datetime_objects(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    else:
+        return obj

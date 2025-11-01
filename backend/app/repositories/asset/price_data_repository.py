@@ -13,6 +13,7 @@ from ..base_repository import BaseRepository
 from app.models.asset.price_data import PriceData
 from app.models.asset import Asset
 from app.utils.datetime_utils import normalize_datetime, compare_datetimes, normalize_datetime_dict_keys
+from app.core.time_utils import serialize_datetime_objects
 
 
 class PriceDataRepository(BaseRepository):
@@ -133,7 +134,7 @@ class PriceDataRepository(BaseRepository):
     
     def get_missing_data_gaps(self, asset_id: int, expected_interval_minutes: int = 5) -> List[Dict[str, Any]]:
         """Identify gaps in price data"""
-        print(f"Debug: recent_data = self.db.query(PriceData.candle_time).filter(")
+        print("**********get_missing_data_gaps->recent_data = self.db.query(PriceData.candle_time).filter(")
         recent_data = self.db.query(PriceData.candle_time).filter(
             PriceData.asset_id == asset_id
         ).order_by(PriceData.candle_time.desc()).limit(1000).all()
@@ -162,7 +163,6 @@ class PriceDataRepository(BaseRepository):
         if not candle_times:
             return {}
 
-        print(f"Debug func _get_existing_records: existing_query = self.db.query(PriceData).filter")
         existing_query = self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id,
             PriceData.timeframe == timeframe,
@@ -250,11 +250,10 @@ class PriceDataRepository(BaseRepository):
             candle_times = [data['candle_time'] for data in price_data_list if 'candle_time' in data]
             
             # Get latest candle time to only allow updates to the most recent candle
-            print("********bulk_insert--> get_latest_candle_time start")
             latest_candle_time = asset.get_latest_candle_time(timeframe) if asset else None
              
             # Bulk query to check existing records - fetch all at once to avoid N+1 queries
-            print("********bulk_insert--> get_existing_records start")
+            print("********bulk_insert--> get_existing_records")
             existing_records = self._get_existing_records(asset.id, timeframe, candle_times)
             
             # Pre-allocate lists with estimated capacity for better memory management
@@ -288,14 +287,13 @@ class PriceDataRepository(BaseRepository):
                     else:
                         # Skip update for historical candles (not the latest one)
                         records_to_skip.append(data)
-
-            print(f"Debug: Beginning bulk insert/update: {len(records_to_insert)} to insert, {len(records_to_update)} to update, {len(records_to_skip)} to skip")   
             # Bulk insert new records
             if records_to_insert:
                 try:
                     # Create all PriceData objects at once
                     new_price_objects = [PriceData(**data) for data in records_to_insert]
                     # Bulk insert using add_all
+                    print("********bulk_insert--> db.add_all(new_price_objects)")
                     self.db.add_all(new_price_objects)
                     self.db.flush()  # Single flush for all records
                     inserted_count = len(new_price_objects)
@@ -371,9 +369,7 @@ class PriceDataRepository(BaseRepository):
             
             # Commit with error handling for any remaining constraint violations
             try:
-                print("********bulk_insert--> self.db.commit() start")
                 self.db.commit()
-                print("********bulk_insert--> self.db.commit() end")
             except Exception as commit_error:
                 self.db.rollback()
                 if "duplicate key value violates unique constraint" in str(commit_error) or "UniqueViolation" in str(commit_error):
@@ -398,9 +394,7 @@ class PriceDataRepository(BaseRepository):
                     print("********bulk_insert--> direct cache update start")
                     # Calculate cache values directly from processed data without DB queries
                     current_timeframe_info = asset.get_timeframe_info(timeframe) if asset else {}
-                    print("**************************************************1")    
                     current_count = current_timeframe_info.get('count', 0) if current_timeframe_info else 0
-                    print("**************************************************2")    
                     
                     # Update count based on operations performed
                     new_count = current_count + inserted_count
@@ -716,7 +710,7 @@ class PriceDataRepository(BaseRepository):
 
         # Combined query for all quality metrics in one database call
         from sqlalchemy import case
-        print(f"Debug: quality_stats = self.db.query(")
+        print("********get_data_quality_report->quality_stats = self.db.query")
         quality_stats = self.db.query(
             func.count(PriceData.id).label('total_records'),
             func.sum(case((PriceData.close_price.is_(None), 1), else_=0)).label('missing_price'),
@@ -734,6 +728,7 @@ class PriceDataRepository(BaseRepository):
         zero_prices = quality_stats.zero_prices or 0
         
         # Check data gaps
+        print("********get_data_quality_report->get_missing_data_gaps")
         gaps = self.get_missing_data_gaps(asset_id, 5)
         # Calculate quality score           
         quality_score = 100
@@ -743,7 +738,7 @@ class PriceDataRepository(BaseRepository):
             quality_score -= (zero_prices / total_records * 25)     # 25% penalty for zero prices
             quality_score -= min(len(gaps), 5) * 5                  # 5% penalty per gap (max 25%)
         
-        return {
+        result = {
             'asset_id': asset_id,
             'period_days': days,
             'total_records': total_records or 0,
@@ -754,6 +749,8 @@ class PriceDataRepository(BaseRepository):
             'quality_score': max(0, round(quality_score, 1)),
             'quality_grade': 'A' if quality_score >= 90 else 'B' if quality_score >= 80 else 'C' if quality_score >= 70 else 'D' if quality_score >= 60 else 'F'
         }
+
+        return result
 
     def get_timeframe_hierarchy(self) -> Dict[str, Dict[str, Any]]:
         """Get timeframe hierarchy and aggregation rules"""
@@ -910,7 +907,6 @@ class PriceDataRepository(BaseRepository):
         if end_time:
             query_params['end_time'] = end_time
             
-        print(f"Debug: agg_results = self.db.execute(comprehensive_query, query_params).fetchall()")
         agg_results = self.db.execute(comprehensive_query, query_params).fetchall()
         
         # Convert comprehensive query results to dictionary format
@@ -990,73 +986,7 @@ class PriceDataRepository(BaseRepository):
             except Exception as e:
                 self.db.rollback()
                 results[target_tf] = f"Error: {str(e)}"
-        """        
-        # Update timeframe cache for all target timeframes in one bulk operation to avoid N+1
-        successful_timeframes = [tf for tf, result in results.items() if isinstance(result, int)]
-        if successful_timeframes:
-            print("**************_update_asset_timeframe_cache_bulk start")
-            self._update_asset_timeframe_cache_bulk(asset.id, successful_timeframes)
-            print("**************_update_asset_timeframe_cache_bulk end")
-        """
         return results
-
-    def _update_asset_timeframe_cache_bulk(self, asset_id: int, timeframes: List[str], asset_object=None) -> bool:
-        """
-        Update asset timeframe_data cache for multiple timeframes in a single optimized operation
-        
-        Args:
-            asset_id: Asset ID to update
-            timeframes: List of timeframes to refresh
-            asset_object: Optional pre-loaded asset object to avoid extra query
-            
-        Returns:
-            Success status
-        """
-        try:
-            from ...models.asset import Asset
-            
-            # Use provided asset object or fetch it
-            asset = asset_object
-            if not asset:
-                print(f"Debug: asset = self.db.query(Asset).filter(Asset.id == {asset_id}).first()")
-                asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
-                if not asset:
-                    return False
-            
-            # Single bulk query for all timeframes to avoid N+1 problem
-            print(f"Debug: all_stats = self.db.query(")
-            all_stats = self.db.query(
-                PriceData.timeframe,
-                func.count(PriceData.id).label('count'),
-                func.max(PriceData.candle_time).label('latest'),
-                func.min(PriceData.candle_time).label('earliest')
-            ).filter(
-                PriceData.asset_id == asset_id,
-                PriceData.timeframe.in_(timeframes)
-            ).group_by(PriceData.timeframe).all()
-            
-            # Optimized batch update: direct processing without intermediate list
-            print(f"Debug: Batch updating {len(all_stats)} timeframes directly")
-            for stat in all_stats:
-                count = stat.count if stat.count else 0
-                latest = stat.latest.isoformat() if stat.latest else None
-                earliest = stat.earliest.isoformat() if stat.earliest else None
-
-                # Direct update without intermediate storage - more memory efficient
-                asset.update_timeframe_data(
-                    timeframe=stat.timeframe,
-                    count=count,
-                    earliest_time=earliest,
-                    latest_time=latest
-                )
-            
-            # Single commit for all updates
-            self.db.commit()
-            return True
-            
-        except Exception as e:
-            self.db.rollback()
-            return False
 
     def get_aggregation_status(self, asset_id: int) -> Dict[str, Dict[str, Any]]:
         """
@@ -1071,7 +1001,7 @@ class PriceDataRepository(BaseRepository):
         from ...models.asset import Asset
         
         # Get asset with timeframe_data cache
-        print(f"Debug: asset = self.db.query(Asset).filter(Asset.id == {asset_id}).first()")
+        print("******get_aggregation_status-> asset = self.db.query(Asset)")
         asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
         
         if not asset:
@@ -1080,7 +1010,6 @@ class PriceDataRepository(BaseRepository):
         status = {} 
         # Use cached data if available
         if asset.timeframe_data:
-            print(f"Debug: asset.get_all_timeframe_data()")
             status = asset.get_all_timeframe_data()
         return status
 
@@ -1183,64 +1112,6 @@ class PriceDataRepository(BaseRepository):
         except Exception as e:
             # Return empty structure for all requested assets
             return {asset_id: {} for asset_id in asset_ids}
-
-    def _update_asset_timeframe_cache(self, asset_id: int, timeframe: str, 
-                                    operation: str = 'refresh') -> bool:
-        """
-        Update asset timeframe_data cache after price data changes
-        
-        Args:
-            asset_id: Asset ID to update
-            timeframe: Timeframe that was modified
-            operation: 'refresh' (recalculate), 'clear' (reset cache)
-            
-        Returns:
-            Success status
-        """
-        try:
-            from ...models.asset import Asset
-            
-            print(f"Debug: asset = self.db.query(Asset).filter(Asset.id == {asset_id}).first()")    
-            asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
-            if not asset:
-                return False
-            
-            if operation == 'clear':
-                print(f"Debug: asset.reset_timeframe_cache()")
-                asset.reset_timeframe_cache()
-                self.db.commit()
-                return True
-            
-            # Refresh cache for specific timeframe
-            print(f"Debug: data_stats = self.db.query(")
-            data_stats = self.db.query(
-                func.count(PriceData.id).label('count'),
-                func.max(PriceData.candle_time).label('latest'),
-                func.min(PriceData.candle_time).label('earliest')
-            ).filter(
-                PriceData.asset_id == asset_id,
-                PriceData.timeframe == timeframe
-            ).first()
-            
-            count = data_stats.count if data_stats else 0
-            latest = data_stats.latest.isoformat() if data_stats.latest else None
-            earliest = data_stats.earliest.isoformat() if data_stats.earliest else None
-            
-            print(f"Debug: asset.update_timeframe_data(")
-            asset.update_timeframe_data(
-                timeframe=timeframe,
-                count=count,
-                earliest_time=earliest,
-                latest_time=latest
-            )
-            
-            self.db.commit()
-            return True
-            
-        except Exception as e:
-            self.db.rollback()
-            # Log error but don't fail the main operation
-            return False
 
     def _bulk_upsert_aggregated_data(self, aggregated_data: List[Dict[str, Any]], 
                                    asset_id: int, target_timeframe: str) -> int:

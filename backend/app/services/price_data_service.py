@@ -16,6 +16,7 @@ from app.repositories.asset.price_data_repository import PriceDataRepository
 from app.repositories.asset.asset_repository import AssetRepository
 from app.models.asset.asset import Asset
 from app.models.asset.price_data import PriceData
+from app.core.time_utils import serialize_datetime_objects
 from app.utils.datetime_utils import normalize_datetime, compare_datetimes
 from app.services import external_api
 from app.core.time_utils import normalize_candle_time, timeframe_to_minutes
@@ -45,16 +46,7 @@ class PriceDataService:
         self.platform = "binance"
 
     
-    def _serialize_datetime_objects(self, obj):
-        """Convert datetime objects to ISO format strings in nested data structures"""
-        if isinstance(obj, dict):
-            return {k: self._serialize_datetime_objects(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [self._serialize_datetime_objects(item) for item in obj]
-        elif isinstance(obj, datetime):
-            return obj.isoformat()
-        else:
-            return obj
+
     
     async def populate_price_data(
         self,
@@ -108,21 +100,22 @@ class PriceDataService:
             # Bulk insert data - pass asset object instead of asset_id for optimization
             bulk_result = self.price_data_repo.bulk_insert(asset, price_history, timeframe)
             if bulk_result.get('success', False):
-                print("**populate_price_data--> start aggregation")
                 aggregation_result = {}
                 if bulk_result.get('inserted_records', 0) > 0 or bulk_result.get('updated_records', 0) > 0:
                 # Trigger aggregation for the asset after successful data insertion or update
                     try:
+                        print("**populate_price_data--> auto_aggregate_for_asset start")
                         aggregation_result = self.auto_aggregate_for_asset(
                             asset_id=asset_id, 
                             source_timeframe=timeframe
                         ).get('results', {})
+                        print("**populate_price_data--> auto_aggregate_for_asset end")
                         logger.info(f"Aggregation completed for asset {asset_id}: {aggregation_result}")
                     except Exception as e:
                         logger.warning(f"Aggregation failed for asset {asset_id} after bulk insert: {e}")
-                print("**populate_price_data--> end aggregation")
 
                 # Update asset metadata including market data
+                print("**populate_price_data--> _update_asset_metadata")
                 await self._update_asset_metadata(asset_id, timeframe, bulk_result.get('inserted_records', 0))
 
                 logger.info(f"Successfully populated {bulk_result.get('inserted_records', 0)} records for asset {asset_id}")
@@ -140,7 +133,7 @@ class PriceDataService:
                     'data_range': bulk_result.get('data_range', {}),
                     'message': f'Successfully populated {bulk_result.get("inserted_records", 0)} new records, updated {bulk_result.get("updated_records", 0)}, skipped {bulk_result.get("skipped_records", 0)}'
                 }
-                return self._serialize_datetime_objects(result)
+                return serialize_datetime_objects(result)
             else:
                 result = {
                     'success': False,
@@ -148,7 +141,7 @@ class PriceDataService:
                     'records_inserted': 0,
                     'error': bulk_result.get('error', 'Bulk insert failed')
                 }
-                return self._serialize_datetime_objects(result)
+                return serialize_datetime_objects(result)
                 
         except Exception as e:
             logger.error(f"Error populating price data for asset {asset_id}: {str(e)}")
@@ -158,7 +151,7 @@ class PriceDataService:
                 'records_inserted': 0,
                 'message': f'Failed to populate price data: {str(e)}'
             }
-            return self._serialize_datetime_objects(result)
+            return serialize_datetime_objects(result)
     
     async def fetch_and_update_latest_prices(
         self,
@@ -211,7 +204,7 @@ class PriceDataService:
             'errors': errors,
             'timeframe': timeframe
         }
-        return self._serialize_datetime_objects(result)
+        return serialize_datetime_objects(result)
     
     def get_price_data_gaps(
         self,
@@ -236,7 +229,7 @@ class PriceDataService:
         result = self.price_data_repo.get_missing_data_gaps(
             asset_id, timeframe_minutes
         )
-        return self._serialize_datetime_objects(result)
+        return serialize_datetime_objects(result)
     
     def get_data_quality_report(
         self,
@@ -254,7 +247,7 @@ class PriceDataService:
             dict: Data quality report
         """
         result = self.price_data_repo.get_data_quality_report(asset_id, days)
-        return self._serialize_datetime_objects(result)
+        return serialize_datetime_objects(result)
     
     # Private helper methods
     
@@ -518,11 +511,13 @@ class PriceDataService:
             }
             
             # Calculate data quality score only when needed (lightweight operation)
+            print("****_update_asset_metadata--> _calculate_data_quality_score")
             quality_score = self._calculate_data_quality_score(asset_id, timeframe)
             if quality_score is not None:
                 updates['data_quality_score'] = quality_score
 
             # Save all updates
+            print("****_update_asset_metadata--> update_no_obj_return")
             self.asset_repo.update_no_obj_return(db_obj=asset, obj_in=updates)
             
             # Log results
@@ -545,6 +540,7 @@ class PriceDataService:
         Calculate data quality score based on completeness and accuracy
         """
         try:
+            print("******_calculate_data_quality_score--> get_data_quality_report")
             quality_report = self.get_data_quality_report(asset_id, days=7)
             return quality_report.get('quality_score')
         except Exception as e:
@@ -594,9 +590,10 @@ class PriceDataService:
         """
         try:
             # Get asset info
+            asset: Asset
             asset = self.asset_repo.get(asset_id)
             if not asset:
-                return self._serialize_datetime_objects({'error': f'Asset {asset_id} not found'})
+                return serialize_datetime_objects({'error': f'Asset {asset_id} not found'})
             
             # Check what timeframes we can aggregate to
             target_timeframes = self.price_data_repo.get_aggregatable_timeframes(source_timeframe)
@@ -608,11 +605,12 @@ class PriceDataService:
                     'message': f'No aggregatable timeframes for {source_timeframe}',
                     'aggregated_timeframes': []
                 }
-                return self._serialize_datetime_objects(result)
+                return serialize_datetime_objects(result)
             
             # Get current status
             print("****auto_aggregate_for_asset-->get_aggregation_status start")
             status_before = self.price_data_repo.get_aggregation_status(asset_id)
+            print(f"status_before: {status_before}")
             print("****auto_aggregate_for_asset-->get_aggregation_status complete")
 
             # Determine time range for aggregation
@@ -627,7 +625,7 @@ class PriceDataService:
                     'symbol': asset.symbol,
                     'error': f'No {source_timeframe} data available for aggregation'
                 }
-                return self._serialize_datetime_objects(result)
+                return serialize_datetime_objects(result)
             
             # Calculate optimal aggregation window for all target timeframes in single query
             aggregation_results = {}
@@ -641,8 +639,8 @@ class PriceDataService:
                         source_timeframe=source_timeframe,
                         target_timeframes=target_timeframes
                     )
+                    print(f"aggregation_window: {aggregation_window}")
                     print("****auto_aggregate_for_asset-->_calculate_timeframe_specific_window complete")
-                    
                     # Check if window calculation succeeded
                     if aggregation_window.get('start_time') and aggregation_window.get('end_time'):
                         # Perform aggregation for all timeframes using the optimal window
@@ -698,11 +696,8 @@ class PriceDataService:
                         'status': 'success'
                     }
             
-            # Update timeframe_data fields in assets table after successful aggregation
-            self._update_asset_timeframe_data(asset_id, aggregation_results)
-            
             # Get status after aggregation and timeframe updates
-            status_after = self.price_data_repo.get_aggregation_status(asset_id)
+            status_after = asset.timeframe_data
             
             result = {
                 'asset_id': asset_id,
@@ -714,14 +709,14 @@ class PriceDataService:
                 'status_after': status_after,
                 'window_optimization': 'individual_timeframe_windows' if not force_refresh else 'force_refresh_all_data'
             }
-            return self._serialize_datetime_objects(result)
+            return serialize_datetime_objects(result)
             
         except Exception as e:
             result = {
                 'asset_id': asset_id,
                 'error': f'Aggregation failed: {str(e)}'
             }
-            return self._serialize_datetime_objects(result)
+            return serialize_datetime_objects(result)
 
     def _update_asset_timeframe_data(self, asset_id: int, aggregation_results: Dict[str, Any]) -> None:
         """
@@ -820,12 +815,11 @@ class PriceDataService:
                     'method': 'asset_not_found',
                     'target_timeframes': target_timeframes
                 }
-                return self._serialize_datetime_objects(result)
+                return serialize_datetime_objects(result)
             
             # Use the optimized get_aggregation_status that queries database directly
-            status = self.price_data_repo.get_aggregation_status(asset)
+            status = self.price_data_repo.get_aggregation_status(asset_id)
             source_info = status.get(source_timeframe, {})
-            
             # Get source latest time
             source_latest = source_info.get('latest_time')
             if not source_latest:
@@ -835,7 +829,7 @@ class PriceDataService:
                     'method': 'no_source_data',
                     'target_timeframes': target_timeframes
                 }
-                return self._serialize_datetime_objects(result)
+                return serialize_datetime_objects(result)
             
             source_latest_dt = datetime.fromisoformat(source_latest.replace('Z', '+00:00'))
             
@@ -857,7 +851,8 @@ class PriceDataService:
             for target_timeframe in target_timeframes:
                 target_info = status.get(target_timeframe, {})
                 target_latest = target_info.get('latest_time')
-                
+                print(f"target_latest: {target_latest}")
+
                 # Get timeframe requirements
                 req = timeframe_requirements.get(target_timeframe, {'min_days': 7, 'buffer_days': 1, 'extension_threshold': 1})
                 min_days = req['min_days']
@@ -932,7 +927,7 @@ class PriceDataService:
                     'single_query_optimization': True
                 }
             }
-            return self._serialize_datetime_objects(result)
+            return serialize_datetime_objects(result)
             
         except Exception as e:
             result = {
@@ -942,7 +937,7 @@ class PriceDataService:
                 'target_timeframes': target_timeframes,
                 'error': str(e)
             }
-            return self._serialize_datetime_objects(result)
+            return serialize_datetime_objects(result)
     
     def _calculate_data_points_needed(self, days: int, timeframe: str) -> int:
         """
