@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship
 from ..base import BaseModel, TimestampMixin
 from ..mixins import ActiveMixin, AccessTrackingMixin, DataQualityMixin, ExternalIdsMixin
 from ..enums import AssetType
-from ...utils.datetime_utils import normalize_datetime
+from ...utils.datetime_utils import normalize_datetime, normalize_datetime_string
 import logging
 
 logger = logging.getLogger(__name__)
@@ -443,6 +443,8 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         except (ValueError, TypeError):
             count_int = 0
         
+        # Import normalize function from time_utils for consistent timezone handling
+        
         self.timeframe_data[timeframe] = {
             'count': count_int,
             'earliest_time': earliest_time,
@@ -474,13 +476,13 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
             PriceData.asset_id == self.id
         ).group_by(PriceData.timeframe).all()
         
-        # Update cache
+        # Update cache with normalized datetime strings
         self.timeframe_data = {}
         for stat in timeframe_stats:
             self.timeframe_data[stat.timeframe] = {
-                'count': stat.count,
-                'earliest_time': stat.earliest.isoformat() if stat.earliest else None,
-                'latest_time': stat.latest.isoformat() if stat.latest else None,
+                'count': stat.count_int,
+                'earliest_time': stat.earliest_time,
+                'latest_time': stat.latest_time,
                 'last_updated': datetime.now(timezone.utc).isoformat()
             }
     

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from app.core.rate_limiter import rate_limiter
 from app.core.config import settings
-from app.core.time_utils import normalize_candle_time
+from app.utils.datetime_utils import normalize_candle_time
 
 logger = logging.getLogger(__name__)
 

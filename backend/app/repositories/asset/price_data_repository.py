@@ -12,8 +12,7 @@ logger = logging.getLogger(__name__)
 from ..base_repository import BaseRepository
 from app.models.asset.price_data import PriceData
 from app.models.asset import Asset
-from app.utils.datetime_utils import normalize_datetime, compare_datetimes, normalize_datetime_dict_keys
-from app.core.time_utils import serialize_datetime_objects
+from app.utils.datetime_utils import normalize_datetime, compare_datetimes, normalize_datetime_dict_keys, serialize_datetime_objects
 
 
 class PriceDataRepository(BaseRepository):
@@ -988,7 +987,7 @@ class PriceDataRepository(BaseRepository):
                 results[target_tf] = f"Error: {str(e)}"
         return results
 
-    def get_aggregation_status(self, asset_id: int) -> Dict[str, Dict[str, Any]]:
+    def get_aggregation_status(self, asset: Asset) -> Dict[str, Dict[str, Any]]:
         """
         Get aggregation status showing available data for each timeframe
         
@@ -998,11 +997,6 @@ class PriceDataRepository(BaseRepository):
         Returns:
             Dictionary with timeframe -> {count, latest_time, earliest_time}
         """
-        from ...models.asset import Asset
-        
-        # Get asset with timeframe_data cache
-        print("******get_aggregation_status-> asset = self.db.query(Asset)")
-        asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
         
         if not asset:
             return {}

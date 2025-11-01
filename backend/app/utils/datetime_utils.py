@@ -1,8 +1,8 @@
 # backend/app/utils/datetime_utils.py
-# Timezone normalization utilities
+# Comprehensive datetime utilities for cryptocurrency data processing
 
-from datetime import datetime
-from typing import Union, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Union, Optional, Any, Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,9 +40,11 @@ def normalize_datetime(dt: Union[datetime, None]) -> Optional[datetime]:
             logger.warning(f"Failed to parse datetime: {dt}")
             return None
     
-    # Remove timezone info to create naive datetime
+    # Convert to UTC and then remove timezone info for consistent naive datetime
     if dt.tzinfo is not None:
-        return dt.replace(tzinfo=None)
+        # First convert to UTC to preserve actual time, then make naive
+        dt_utc = dt.astimezone(timezone.utc)
+        return dt_utc.replace(tzinfo=None)
     
     return dt
 
@@ -133,3 +135,219 @@ def make_timezone_aware(dt: Union[datetime, None], tzinfo=None) -> Optional[date
         return dt.replace(tzinfo=tzinfo)
     
     return dt
+
+
+# ============================================================================
+# Candle Time and Timeframe Utilities (moved from time_utils.py)
+# ============================================================================
+
+def normalize_candle_time(candle_time: Union[datetime, int, float], timeframe: str) -> datetime:
+    """
+    Normalize candle time based on timeframe to ensure consistent alignment
+    
+    This function aligns timestamps to timeframe boundaries to ensure:
+    - Consistent data grouping across different sources
+    - Proper aggregation alignment for higher timeframes
+    - Elimination of sub-timeframe timestamp variations
+    
+    Args:
+        candle_time: Original candle time (datetime object, timestamp int/float)
+        timeframe: Target timeframe (1m, 5m, 15m, 1h, 4h, 1d, 1w, 1M)
+        
+    Returns:
+        Normalized datetime aligned to timeframe boundaries
+        
+    Examples:
+        - 1m: 14:37:25 -> 14:37:00 (zero seconds)
+        - 5m: 14:37:25 -> 14:35:00 (5-minute boundaries: 00, 05, 10, ...)
+        - 1h: 14:37:25 -> 14:00:00 (hour boundaries)
+        - 4h: 14:37:25 -> 12:00:00 (4-hour boundaries: 00, 04, 08, 12, 16, 20)
+        - 1d: 14:37:25 -> 00:00:00 (start of day UTC)
+        - 1w: Mon 14:37:25 -> Mon 00:00:00 (start of week, Monday UTC)
+        - 1M: 2024-01-15 14:37:25 -> 2024-01-01 00:00:00 (start of month UTC)
+    """
+    # Handle millisecond timestamp conversion
+    if isinstance(candle_time, (int, float)):
+        # Always create timezone-aware datetime in UTC for consistency
+        candle_time = datetime.fromtimestamp(candle_time / 1000, tz=timezone.utc)
+    
+    if timeframe == '1m':
+        # Align to minute boundaries (zero seconds)
+        return candle_time.replace(second=0, microsecond=0)
+    
+    elif timeframe == '5m':
+        # Align to 5-minute boundaries
+        minutes = (candle_time.minute // 5) * 5
+        return candle_time.replace(minute=minutes, second=0, microsecond=0)
+    
+    elif timeframe == '15m':
+        # Align to 15-minute boundaries
+        minutes = (candle_time.minute // 15) * 15
+        return candle_time.replace(minute=minutes, second=0, microsecond=0)
+    
+    elif timeframe == '1h':
+        # Align to hour boundaries
+        return candle_time.replace(minute=0, second=0, microsecond=0)
+    
+    elif timeframe == '4h':
+        # Align to 4-hour boundaries (0, 4, 8, 12, 16, 20)
+        hour = (candle_time.hour // 4) * 4
+        return candle_time.replace(hour=hour, minute=0, second=0, microsecond=0)
+    
+    elif timeframe == '1d':
+        # Align to day boundaries (start of day UTC)
+        return candle_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    elif timeframe == '1w':
+        # Align to week boundaries (Monday 00:00 UTC)
+        days_since_monday = candle_time.weekday()
+        week_start = candle_time - timedelta(days=days_since_monday)
+        return week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    elif timeframe == '1M':
+        # Align to month boundaries (first day of month 00:00 UTC)
+        return candle_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    else:
+        # Default: align to minute boundaries for unknown timeframes
+        logger.warning(f"Unknown timeframe '{timeframe}', defaulting to minute alignment")
+        return candle_time.replace(second=0, microsecond=0)
+
+
+def timeframe_to_minutes(timeframe: str) -> int:
+    """
+    Convert timeframe string to minutes
+    
+    Args:
+        timeframe: Timeframe string (1m, 5m, 15m, 1h, 4h, 1d, 1w, 1M)
+        
+    Returns:
+        Number of minutes in the timeframe
+        
+    Examples:
+        timeframe_to_minutes('1h')   # Returns 60
+        timeframe_to_minutes('4h')   # Returns 240  
+        timeframe_to_minutes('1d')   # Returns 1440
+    """
+    timeframe_map = {
+        '1m': 1,
+        '5m': 5,
+        '15m': 15,
+        '1h': 60,
+        '4h': 240,
+        '1d': 1440,
+        '1w': 10080,
+        '1M': 43200  # Approximate 30 days
+    }
+    return timeframe_map.get(timeframe, 1440)  # Default to daily
+
+
+def get_supported_timeframes() -> list:
+    """
+    Get list of supported timeframes
+    
+    Returns:
+        List of supported timeframe strings
+    """
+    return ['1m', '5m', '15m', '1h', '4h', '1d', '1w', '1M']
+
+
+def is_valid_timeframe(timeframe: str) -> bool:
+    """
+    Check if timeframe is valid
+    
+    Args:
+        timeframe: Timeframe string to validate
+        
+    Returns:
+        True if timeframe is supported, False otherwise
+    """
+    return timeframe in get_supported_timeframes()
+
+
+def normalize_datetime_string(dt_str: Union[str, datetime]) -> str:
+    """
+    Normalize datetime strings to ensure consistent UTC timezone storage
+    
+    This function ensures all datetime strings are stored in UTC format with 'Z' suffix
+    for consistent timezone handling across the application.
+    
+    Args:
+        dt_str: Datetime string in various formats or datetime object
+        
+    Returns:
+        Normalized datetime string in UTC format with 'Z' suffix
+        
+    Examples:
+        normalize_datetime_string("2025-10-27T00:00:00+03:30")
+        # Returns: "2025-10-26T20:30:00Z"
+        
+        normalize_datetime_string("2025-11-01T00:00:00Z")
+        # Returns: "2025-11-01T00:00:00Z"
+        
+        normalize_datetime_string(datetime(2025, 11, 1))
+        # Returns: "2025-11-01T00:00:00Z"
+    """
+    if not dt_str:
+        return dt_str
+    
+    try:
+        # Parse the datetime string or object
+        if isinstance(dt_str, str):
+            dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+        elif hasattr(dt_str, 'isoformat'):  # datetime object
+            dt = dt_str
+        else:
+            return dt_str
+        
+        # Convert to UTC and return as ISO string with Z suffix
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        
+        return dt.isoformat().replace('+00:00', 'Z')
+    except (ValueError, AttributeError):
+        logger.warning(f"Failed to normalize datetime string: {dt_str}")
+        return dt_str
+
+
+def serialize_datetime_objects(obj: Any) -> Any:
+    """
+    Convert datetime objects to ISO format strings in nested data structures
+    
+    Args:
+        obj: Any object that may contain datetime objects
+        
+    Returns:
+        Object with datetime objects converted to ISO strings
+        
+    Examples:
+        # Simple datetime
+        serialize_datetime_objects(datetime(2025, 11, 1, 12, 30))
+        # Returns: '2025-11-01T12:30:00'
+        
+        # Dictionary with datetime
+        serialize_datetime_objects({
+            'created_at': datetime(2025, 11, 1, 12, 30),
+            'name': 'BTC'
+        })
+        # Returns: {'created_at': '2025-11-01T12:30:00', 'name': 'BTC'}
+        
+        # Nested structures
+        serialize_datetime_objects({
+            'data': [
+                {'timestamp': datetime(2025, 11, 1), 'value': 100},
+                {'timestamp': datetime(2025, 11, 2), 'value': 200}
+            ]
+        })
+        # Returns nested structure with datetime strings
+    """
+    if isinstance(obj, dict):
+        return {k: serialize_datetime_objects(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_datetime_objects(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    else:
+        return obj

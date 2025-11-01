@@ -3,7 +3,7 @@
 
 from fileinput import close
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import json
 import logging
@@ -16,10 +16,8 @@ from app.repositories.asset.price_data_repository import PriceDataRepository
 from app.repositories.asset.asset_repository import AssetRepository
 from app.models.asset.asset import Asset
 from app.models.asset.price_data import PriceData
-from app.core.time_utils import serialize_datetime_objects
-from app.utils.datetime_utils import normalize_datetime, compare_datetimes
+from app.utils.datetime_utils import normalize_datetime, compare_datetimes, serialize_datetime_objects, normalize_candle_time, timeframe_to_minutes
 from app.services import external_api
-from app.core.time_utils import normalize_candle_time, timeframe_to_minutes
 
 logger = logging.getLogger(__name__)
 
@@ -609,7 +607,7 @@ class PriceDataService:
             
             # Get current status
             print("****auto_aggregate_for_asset-->get_aggregation_status start")
-            status_before = self.price_data_repo.get_aggregation_status(asset_id)
+            status_before = self.price_data_repo.get_aggregation_status(asset)
             print(f"status_before: {status_before}")
             print("****auto_aggregate_for_asset-->get_aggregation_status complete")
 
@@ -639,7 +637,6 @@ class PriceDataService:
                         source_timeframe=source_timeframe,
                         target_timeframes=target_timeframes
                     )
-                    print(f"aggregation_window: {aggregation_window}")
                     print("****auto_aggregate_for_asset-->_calculate_timeframe_specific_window complete")
                     # Check if window calculation succeeded
                     if aggregation_window.get('start_time') and aggregation_window.get('end_time'):
@@ -697,7 +694,7 @@ class PriceDataService:
                     }
             
             # Get status after aggregation and timeframe updates
-            status_after = asset.timeframe_data
+            status_after = self.price_data_repo.get_aggregation_status(asset)
             
             result = {
                 'asset_id': asset_id,
@@ -718,70 +715,7 @@ class PriceDataService:
             }
             return serialize_datetime_objects(result)
 
-    def _update_asset_timeframe_data(self, asset_id: int, aggregation_results: Dict[str, Any]) -> None:
-        """
-        Update timeframe_data fields in assets table after successful aggregation
-        
-        Args:
-            asset_id: Asset ID to update
-            aggregation_results: Results from aggregation process
-        """
-        try:
-            # Get the asset record
-            asset = self.asset_repo.get(asset_id)
-            if not asset:
-                logger.warning(f"Asset {asset_id} not found for timeframe data update")
-                return
-            
-            # Get current status to get latest times and counts
-            current_status = self.price_data_repo.get_aggregation_status(asset_id)
-            
-            updated_timeframes = []
-            
-            # Update timeframe data for successfully aggregated timeframes
-            for timeframe, result in aggregation_results.items():
-                # Ensure records is an integer for comparison
-                records = result.get('records', 0)
-                try:
-                    records_int = int(records) if records is not None else 0
-                except (ValueError, TypeError):
-                    records_int = 0
-                
-                if result.get('status') == 'success' and records_int > 0:
-                    # Get stats from current status
-                    timeframe_stats = current_status.get(timeframe, {})
-                    count = int(timeframe_stats.get('count', 0)) if timeframe_stats.get('count') is not None else 0
-                    earliest_time = timeframe_stats.get('earliest_time')
-                    latest_time = timeframe_stats.get('latest_time')
-                    
-                    if count > 0:
-                        # Update the asset's timeframe_data cache using the model method
-                        asset.update_timeframe_data(
-                            timeframe=timeframe,
-                            count=count,
-                            earliest_time=earliest_time,
-                            latest_time=latest_time
-                        )
-                        updated_timeframes.append(timeframe)
-            
-            # If no specific timeframes were processed, refresh all timeframe data
-            if not updated_timeframes:
-                # Refresh the entire timeframe_data cache from database
-                asset.refresh_timeframe_data_from_db(self.db)
-                logger.info(f"Refreshed complete timeframe data cache for asset {asset_id}")
-            
-            # Commit the updates
-            if updated_timeframes:
-                self.db.commit()
-                logger.info(f"Updated asset {asset_id} timeframe data for: {', '.join(updated_timeframes)}")
-            else:
-                self.db.commit()
-                logger.debug(f"Refreshed timeframe data cache for asset {asset_id}")
-                
-        except Exception as e:
-            logger.error(f"Failed to update timeframe data for asset {asset_id}: {str(e)}")
-            self.db.rollback()
-    
+
     def _calculate_timeframe_specific_window(self, asset_id: int, source_timeframe: str, 
                                            target_timeframes: List[str]) -> Dict[str, Any]:
         """
@@ -818,7 +752,7 @@ class PriceDataService:
                 return serialize_datetime_objects(result)
             
             # Use the optimized get_aggregation_status that queries database directly
-            status = self.price_data_repo.get_aggregation_status(asset_id)
+            status = self.price_data_repo.get_aggregation_status(asset)
             source_info = status.get(source_timeframe, {})
             # Get source latest time
             source_latest = source_info.get('latest_time')
@@ -850,8 +784,9 @@ class PriceDataService:
             # Process each target timeframe to find the maximum window requirement
             for target_timeframe in target_timeframes:
                 target_info = status.get(target_timeframe, {})
+                #print(f"target_info: {target_info}")
+
                 target_latest = target_info.get('latest_time')
-                print(f"target_latest: {target_latest}")
 
                 # Get timeframe requirements
                 req = timeframe_requirements.get(target_timeframe, {'min_days': 7, 'buffer_days': 1, 'extension_threshold': 1})
@@ -859,10 +794,12 @@ class PriceDataService:
                 buffer_days = req['buffer_days']
                 extension_threshold = req['extension_threshold']
                 
-                target_latest_dt = None
+                print(f"target_latest: {target_latest}")
+                
                 if target_latest:
+                    # Parse target latest datetime
                     target_latest_dt = datetime.fromisoformat(target_latest.replace('Z', '+00:00'))
-                    
+
                     # Calculate days since last aggregation for this timeframe
                     days_since_last = (source_latest_dt - target_latest_dt).days
                     
@@ -874,6 +811,7 @@ class PriceDataService:
                     timeframe_start_time = target_latest_dt - timedelta(days=buffer_days)
                 else:
                     # No existing data for this timeframe - use minimum window
+                    target_latest_dt = None
                     days_since_last = 'first_time'
                     timeframe_start_time = source_latest_dt - timedelta(days=min_days)
                 
@@ -893,7 +831,7 @@ class PriceDataService:
                     'window_extension': 'extended' if target_latest_dt and days_since_last != 'first_time' and days_since_last > extension_threshold else 'standard'
                 }
                 processed_timeframes.append(target_timeframe)
-            
+
             # Final window calculation - use the earliest start time to satisfy all timeframes
             end_time = source_latest_dt
             start_time = earliest_start_time
