@@ -982,15 +982,7 @@ class PriceDataRepository(BaseRepository):
                 print("******get_aggregatable_timeframes-->_bulk_insert start")
                 bulk_result = self.bulk_insert(asset=asset, price_data_list=aggregated_data, timeframe=target_tf)
                 print("******get_aggregatable_timeframes-->_bulk_insert end")
-                """
-                print("******get_aggregatable_timeframes-->_bulk_upsert_aggregated_data start")
-                stored_count = self._bulk_upsert_aggregated_data(
-                    aggregated_data=aggregated_data,
-                    asset_id=asset_id,
-                    target_timeframe=target_tf
-                )
-                print("******get_aggregatable_timeframes-->_bulk_upsert_aggregated_data end")
-                """
+
                 self.db.commit()
                 stored_count = bulk_result.get('inserted_records', 0) + bulk_result.get('updated_records', 0)
                 results[target_tf] = stored_count

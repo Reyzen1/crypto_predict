@@ -629,41 +629,53 @@ class PriceDataService:
                 }
                 return self._serialize_datetime_objects(result)
             
-            # Calculate individual optimal aggregation windows for each target timeframe
+            # Calculate optimal aggregation window for all target timeframes in single query
             aggregation_results = {}
             
             if not force_refresh:
-                # Process each target timeframe with its own optimal window
-                for target_timeframe in target_timeframes:
-                    try:
-                        # Calculate specific window for this target timeframe
-                        print("****auto_aggregate_for_asset-->_calculate_timeframe_specific_window start")
-                        aggregation_window = self._calculate_timeframe_specific_window(
-                            asset_id=asset_id,
-                            source_timeframe=source_timeframe,
-                            target_timeframe=target_timeframe
-                        )
-                        print("****auto_aggregate_for_asset-->_calculate_timeframe_specific_window complete")
-                        
-                        # Perform aggregation for this specific timeframe
+                try:
+                    # Calculate optimal window for all target timeframes at once
+                    print("****auto_aggregate_for_asset-->_calculate_timeframe_specific_window start")
+                    aggregation_window = self._calculate_timeframe_specific_window(
+                        asset_id=asset_id,
+                        source_timeframe=source_timeframe,
+                        target_timeframes=target_timeframes
+                    )
+                    print("****auto_aggregate_for_asset-->_calculate_timeframe_specific_window complete")
+                    
+                    # Check if window calculation succeeded
+                    if aggregation_window.get('start_time') and aggregation_window.get('end_time'):
+                        # Perform aggregation for all timeframes using the optimal window
                         print("****auto_aggregate_for_asset-->bulk_aggregate_and_store start")
                         result = self.price_data_repo.bulk_aggregate_and_store(
                             asset=asset,
                             source_timeframe=source_timeframe,
-                            target_timeframes=[target_timeframe],
+                            target_timeframes=target_timeframes,
                             start_time=aggregation_window['start_time'],
                             end_time=aggregation_window['end_time']
                         )
                         print("****auto_aggregate_for_asset-->bulk_aggregate_and_store complete")
-
-                        # Perform aggregation for this specific timeframe
-                        aggregation_results[target_timeframe] = {
-                            'records': result.get(target_timeframe, 0),
-                            'window': aggregation_window,
-                            'status': 'success'
-                        }
                         
-                    except Exception as e:
+                        # Process results for each timeframe
+                        for target_timeframe in target_timeframes:
+                            aggregation_results[target_timeframe] = {
+                                'records': result.get(target_timeframe, 0),
+                                'window': aggregation_window,
+                                'status': 'success'
+                            }
+                    else:
+                        # Window calculation failed - mark all timeframes as failed
+                        for target_timeframe in target_timeframes:
+                            aggregation_results[target_timeframe] = {
+                                'records': 0,
+                                'error': aggregation_window.get('error', 'Window calculation failed'),
+                                'window': aggregation_window,
+                                'status': 'error'
+                            }
+                        
+                except Exception as e:
+                    # Global error - mark all timeframes as failed
+                    for target_timeframe in target_timeframes:
                         aggregation_results[target_timeframe] = {
                             'records': 0,
                             'error': str(e),
@@ -776,125 +788,148 @@ class PriceDataService:
             self.db.rollback()
     
     def _calculate_timeframe_specific_window(self, asset_id: int, source_timeframe: str, 
-                                           target_timeframe: str) -> Dict[str, Any]:
+                                           target_timeframes: List[str]) -> Dict[str, Any]:
         """
-        Calculate optimal aggregation window specific to each target timeframe
+        Calculate optimal aggregation window for multiple target timeframes in a single query
+        
+        Returns the largest window needed to satisfy all target timeframes optimally.
+        This avoids multiple database queries and ensures all timeframes are processed efficiently.
         
         Different timeframes need different aggregation windows:
         - Monthly (1M): At least 30+ days to ensure complete months
-        - Weekly (1w): At least 7+ days to ensure complete weeks
-        - Daily (1d): At least 1+ days 
+        - Weekly (1w): At least 7+ days to ensure complete weeks  
+        - Daily (1d): At least 1+ days
         - 4-hour (4h): At least 8+ hours to ensure multiple periods
         - Hourly (1h): At least 1+ hours
         
         Args:
             asset_id: Asset ID to analyze
             source_timeframe: Source timeframe for aggregation
-            target_timeframe: Specific target timeframe to optimize for
+            target_timeframes: List of target timeframes to optimize for
             
         Returns:
-            Optimal window configuration for this specific timeframe
+            Optimal window configuration that satisfies all target timeframes
         """
         try:
-            # Get current aggregation status
-            status = self.price_data_repo.get_aggregation_status(asset_id)
-            source_info = status.get(source_timeframe, {})
-            target_info = status.get(target_timeframe, {})
+            # Single query to get aggregation status for all relevant timeframes
+            asset = self.asset_repo.get(asset_id)
+            if not asset:
+                result = {
+                    'start_time': None,
+                    'end_time': None,
+                    'method': 'asset_not_found',
+                    'target_timeframes': target_timeframes
+                }
+                return self._serialize_datetime_objects(result)
             
-            # Get latest times
+            # Use the optimized get_aggregation_status that queries database directly
+            status = self.price_data_repo.get_aggregation_status(asset)
+            source_info = status.get(source_timeframe, {})
+            
+            # Get source latest time
             source_latest = source_info.get('latest_time')
-            target_latest = target_info.get('latest_time')
-            if not target_latest:
-                target_latest = source_info.get('earliest_time')
             if not source_latest:
                 result = {
                     'start_time': None,
                     'end_time': None,
                     'method': 'no_source_data',
-                    'target_timeframe': target_timeframe
+                    'target_timeframes': target_timeframes
                 }
                 return self._serialize_datetime_objects(result)
             
             source_latest_dt = datetime.fromisoformat(source_latest.replace('Z', '+00:00'))
-            target_latest_dt = None
-            if target_latest:
-                target_latest_dt = datetime.fromisoformat(target_latest.replace('Z', '+00:00'))
             
-            # Calculate minimum window based on target timeframe requirements
-            if target_timeframe == '1M':
-                # Monthly: Need at least 30+ days, go back further if no recent aggregation
-                min_days = 35  # Extra buffer for month boundaries
-                if target_latest_dt:
-                    days_since_last = (source_latest_dt - target_latest_dt).days
-                    # If last aggregation was more than a week ago, extend window
-                    if days_since_last > 7:
-                        min_days = max(min_days, days_since_last + 10)
-                
-            elif target_timeframe == '1w':
-                # Weekly: Need at least 10+ days
-                min_days = 12  # Extra buffer for week boundaries
-                if target_latest_dt:
-                    days_since_last = (source_latest_dt - target_latest_dt).days
-                    if days_since_last > 3:
-                        min_days = max(min_days, days_since_last + 5)
-                
-            elif target_timeframe == '1d':
-                # Daily: Need at least 2+ days
-                min_days = 3
-                if target_latest_dt:
-                    days_since_last = (source_latest_dt - target_latest_dt).days
-                    if days_since_last > 1:
-                        min_days = max(min_days, days_since_last + 1)
-                
-            elif target_timeframe == '4h':
-                # 4-hour: Need at least 1+ day (6 periods)
-                min_days = 2
-                if target_latest_dt:
-                    days_since_last = (source_latest_dt - target_latest_dt).days
-                    if days_since_last > 0:
-                        min_days = max(min_days, days_since_last + 1)
-                        
-            elif target_timeframe == '1h':
-                # Hourly: Need at least few hours
-                min_days = 1
-                if target_latest_dt:
-                    hours_since_last = (source_latest_dt - target_latest_dt).total_seconds() / 3600
-                    if hours_since_last > 2:
-                        min_days = max(min_days, int(hours_since_last / 24) + 1)
-            else:
-                # Default: 7 days
-                min_days = 7
+            # Define timeframe requirements and calculate the maximum window needed
+            timeframe_requirements = {
+                '1M': {'min_days': 35, 'buffer_days': 7, 'extension_threshold': 7},
+                '1w': {'min_days': 12, 'buffer_days': 2, 'extension_threshold': 3}, 
+                '1d': {'min_days': 3, 'buffer_days': 1, 'extension_threshold': 1},
+                '4h': {'min_days': 2, 'buffer_days': 1, 'extension_threshold': 0},
+                '1h': {'min_days': 1, 'buffer_days': 1, 'extension_threshold': 0}
+            }
             
-            # Calculate optimal window
-            end_time = source_latest_dt
-            start_time = source_latest_dt - timedelta(days=min_days)
+            max_min_days = 0
+            earliest_start_time = source_latest_dt
+            timeframe_analysis = {}
+            processed_timeframes = []
             
-            # If we have existing target data, only go back to cover the gap plus buffer
-            if target_latest_dt and target_latest_dt > start_time:
-                # Add buffer based on timeframe
-                if target_timeframe == '1M':
-                    buffer_days = 7  # 1 week buffer for monthly
-                elif target_timeframe == '1w':
-                    buffer_days = 2  # 2 day buffer for weekly
-                elif target_timeframe == '1d':
-                    buffer_days = 1  # 1 day buffer for daily
+            # Process each target timeframe to find the maximum window requirement
+            for target_timeframe in target_timeframes:
+                target_info = status.get(target_timeframe, {})
+                target_latest = target_info.get('latest_time')
+                
+                # Get timeframe requirements
+                req = timeframe_requirements.get(target_timeframe, {'min_days': 7, 'buffer_days': 1, 'extension_threshold': 1})
+                min_days = req['min_days']
+                buffer_days = req['buffer_days']
+                extension_threshold = req['extension_threshold']
+                
+                target_latest_dt = None
+                if target_latest:
+                    target_latest_dt = datetime.fromisoformat(target_latest.replace('Z', '+00:00'))
+                    
+                    # Calculate days since last aggregation for this timeframe
+                    days_since_last = (source_latest_dt - target_latest_dt).days
+                    
+                    # Extend window if last aggregation was too long ago
+                    if days_since_last > extension_threshold:
+                        min_days = max(min_days, days_since_last + buffer_days)
+                    
+                    # Calculate start time for this timeframe considering existing data
+                    timeframe_start_time = target_latest_dt - timedelta(days=buffer_days)
                 else:
-                    buffer_days = 1
+                    # No existing data for this timeframe - use minimum window
+                    days_since_last = 'first_time'
+                    timeframe_start_time = source_latest_dt - timedelta(days=min_days)
                 
-                start_time = target_latest_dt - timedelta(days=buffer_days)
+                # Track the earliest start time needed (biggest window)
+                if timeframe_start_time < earliest_start_time:
+                    earliest_start_time = timeframe_start_time
+                
+                # Keep track of the largest minimum days requirement
+                max_min_days = max(max_min_days, min_days)
+                
+                # Store analysis for this timeframe
+                timeframe_analysis[target_timeframe] = {
+                    'min_days': min_days,
+                    'days_since_last_aggregation': days_since_last,
+                    'target_latest': target_latest,
+                    'calculated_start_time': timeframe_start_time,
+                    'window_extension': 'extended' if target_latest_dt and days_since_last != 'first_time' and days_since_last > extension_threshold else 'standard'
+                }
+                processed_timeframes.append(target_timeframe)
+            
+            # Final window calculation - use the earliest start time to satisfy all timeframes
+            end_time = source_latest_dt
+            start_time = earliest_start_time
+            
+            # Ensure minimum window size
+            min_window_start = source_latest_dt - timedelta(days=max_min_days)
+            if start_time > min_window_start:
+                start_time = min_window_start
+            
+            # Calculate final statistics
+            window_days = (end_time - start_time).days
+            
+            # Determine optimization method
+            has_extensions = any(analysis['window_extension'] == 'extended' for analysis in timeframe_analysis.values())
+            optimization_method = 'multi_timeframe_optimization_with_extensions' if has_extensions else 'multi_timeframe_optimization_standard'
             
             result = {
                 'start_time': start_time,
                 'end_time': end_time,
-                'method': 'timeframe_specific_optimization',
-                'target_timeframe': target_timeframe,
-                'window_days': (end_time - start_time).days,
-                'rationale': f'Optimized for {target_timeframe}: {min_days} day minimum window',
+                'method': optimization_method,
+                'target_timeframes': processed_timeframes,
+                'window_days': window_days,
+                'max_min_days_required': max_min_days,
+                'rationale': f'Optimized window for {len(processed_timeframes)} timeframes: {", ".join(processed_timeframes)}',
                 'source_latest': source_latest,
-                'target_latest': target_latest,
-                'gap_analysis': {
-                    'days_since_last_aggregation': (source_latest_dt - target_latest_dt).days if target_latest_dt else 'first_time',
-                    'window_extension': 'extended' if target_latest_dt and (source_latest_dt - target_latest_dt).days > 7 else 'standard'
+                'timeframe_analysis': timeframe_analysis,
+                'optimization_summary': {
+                    'total_timeframes_processed': len(processed_timeframes),
+                    'largest_window_timeframe': max(timeframe_analysis.keys(), key=lambda tf: timeframe_analysis[tf]['min_days']),
+                    'has_gap_extensions': has_extensions,
+                    'single_query_optimization': True
                 }
             }
             return self._serialize_datetime_objects(result)
@@ -904,7 +939,7 @@ class PriceDataService:
                 'start_time': None,
                 'end_time': None,
                 'method': 'error',
-                'target_timeframe': target_timeframe,
+                'target_timeframes': target_timeframes,
                 'error': str(e)
             }
             return self._serialize_datetime_objects(result)
