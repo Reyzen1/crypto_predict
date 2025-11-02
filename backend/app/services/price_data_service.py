@@ -48,7 +48,7 @@ class PriceDataService:
     
     async def populate_price_data(
         self,
-        asset_id: int,
+        asset: Asset,
         days: Optional[int] = None,
         timeframe: str = "1d",
         vs_currency: str = "usd"
@@ -57,7 +57,7 @@ class PriceDataService:
         Complete price data population for an asset with timeframe support
         
         Args:
-            asset_id: Asset ID to populate data for
+            asset: Asset object to populate data for
             days: Number of days of historical data (auto-calculated if None)
             timeframe: Data timeframe (1d, 1h, 5m, etc.)
             vs_currency: Base currency (default: usd)
@@ -65,35 +65,30 @@ class PriceDataService:
         Returns:
             dict: Operation results
         """
-        logger.info(f"Starting price data population for asset {asset_id}, timeframe: {timeframe}")
+        logger.info(f"Starting price data population for asset {asset.id}, timeframe: {timeframe}")
         
         try:
-            # Get asset from database
-            print("**populate_price_data--> asset = self.asset_repo.get(asset_id)")
-            asset: Asset
-            asset = self.asset_repo.get(asset_id)
             if not asset:
-                raise ValueError(f"Asset {asset_id} not found")
+                raise ValueError(f"Asset {asset.id} not found")
             
             if not asset.is_active or not asset.is_supported:
-                raise ValueError(f"Asset {asset_id} is not active or supported")
+                raise ValueError(f"Asset {asset.id} is not active or supported")
 
             # Auto-calculate days if not provided
             if days is None:
                 print("**populate_price_data--> _calculate_optimal_days")
                 days = await self._calculate_optimal_days(asset, timeframe)
-                logger.info(f"Auto-calculated days for asset {asset_id}, timeframe {timeframe}: {days} days")
+                logger.info(f"Auto-calculated days for asset {asset.id}, timeframe {timeframe}: {days} days")
 
             api_id = asset.get_external_api_id(self.platform)
             if not api_id:
-                raise ValueError(f"No {self.platform} ID found for asset {asset_id}")
+                raise ValueError(f"No {self.platform} ID found for asset {asset.id}")
 
-            print("**populate_price_data--> _fetch_price_history {asset_id}")
+            print(f"**populate_price_data--> _fetch_price_history {asset.id}")
             price_history = await self._fetch_price_history(
-                asset_id=asset_id, api_id=api_id, days=days, timeframe=timeframe, vs_currency=vs_currency, platform=self.platform
+                asset_id=asset.id, api_id=api_id, days=days, timeframe=timeframe, vs_currency=vs_currency, platform=self.platform
                 )
             print(f"**populate_price_data--> Fetched price history: {len(price_history)} records")
-            print(f"price_history: {price_history}")
 
             # Bulk insert data - pass asset object instead of asset_id for optimization
             bulk_result = self.price_data_repo.bulk_insert(asset, price_history, timeframe)
@@ -104,19 +99,19 @@ class PriceDataService:
                     try:
                         print("**populate_price_data--> auto_aggregate_for_asset start")
                         aggregation_result = self.auto_aggregate_for_asset(
-                            asset_id=asset_id, 
+                            asset_id=asset.id, 
                             source_timeframe=timeframe
                         ).get('results', {})
                         print("**populate_price_data--> auto_aggregate_for_asset end")
-                        logger.info(f"Aggregation completed for asset {asset_id}: {aggregation_result}")
+                        logger.info(f"Aggregation completed for asset {asset.id}: {aggregation_result}")
                     except Exception as e:
-                        logger.warning(f"Aggregation failed for asset {asset_id} after bulk insert: {e}")
+                        logger.warning(f"Aggregation failed for asset {asset.id} after bulk insert: {e}")
 
                 # Update asset metadata including market data
                 print("**populate_price_data--> _update_asset_metadata")
-                await self._update_asset_metadata(asset_id, timeframe, bulk_result.get('inserted_records', 0))
+                await self._update_asset_metadata(asset.id, timeframe, bulk_result.get('inserted_records', 0))
 
-                logger.info(f"Successfully populated {bulk_result.get('inserted_records', 0)} records for asset {asset_id}")
+                logger.info(f"Successfully populated {bulk_result.get('inserted_records', 0)} records for asset {asset.id}")
                 
                 result = {
                     'success': True,
@@ -125,7 +120,7 @@ class PriceDataService:
                     'records_skipped': bulk_result.get('skipped_records', 0),
                     'total_processed': bulk_result.get('total_processed', 0),
                     'aggregation_result': aggregation_result,
-                    'asset_id': asset_id,
+                    'asset_id': asset.id,
                     'timeframe': timeframe,
                     'period_days': days,
                     'data_range': bulk_result.get('data_range', {}),
@@ -142,7 +137,7 @@ class PriceDataService:
                 return serialize_datetime_objects(result)
                 
         except Exception as e:
-            logger.error(f"Error populating price data for asset {asset_id}: {str(e)}")
+            logger.error(f"Error populating price data for asset {asset.id}: {str(e)}")
             result = {
                 'success': False,
                 'error': str(e),
@@ -182,7 +177,7 @@ class PriceDataService:
         for asset in assets:
             try:
                 result = await self.populate_price_data(
-                    asset_id=asset.id, days=1, timeframe=timeframe
+                    asset=asset, days=1, timeframe=timeframe
                 )
                 
                 if result['success']:
@@ -353,7 +348,6 @@ class PriceDataService:
             logger.warning(f"Timeframe {timeframe} not supported")
             return []
 
-        print(f"*********************{platform}*********************")
         if platform == "coingecko":
             """
             Fetch price history from CoinGecko and convert to OHLCV format
@@ -378,7 +372,6 @@ class PriceDataService:
             """
             Fetch price history from Binance and convert to OHLCV format
             """
-            print(f"======= Fetching price history from Binance for {api_id}, days: {days}, timeframe: {timeframe}")
             try:
                 # Get raw time-series data from Binance
                 ohlcv_data = await self.binance_client.get_price_data_by_timeframe(
@@ -388,7 +381,6 @@ class PriceDataService:
                         days=days,
                         vs_currency=vs_currency
                 )
-                print(f"Fetched Binance OHLCV data: {ohlcv_data}")
                 return ohlcv_data
 
             except Exception as e:
@@ -608,7 +600,6 @@ class PriceDataService:
             # Get current status
             print("****auto_aggregate_for_asset-->get_aggregation_status start")
             status_before = self.price_data_repo.get_aggregation_status(asset)
-            print(f"status_before: {status_before}")
             print("****auto_aggregate_for_asset-->get_aggregation_status complete")
 
             # Determine time range for aggregation
@@ -810,10 +801,36 @@ class PriceDataService:
                     # Calculate start time for this timeframe considering existing data
                     timeframe_start_time = target_latest_dt - timedelta(days=buffer_days)
                 else:
-                    # No existing data for this timeframe - use minimum window
-                    target_latest_dt = None
-                    days_since_last = 'first_time'
-                    timeframe_start_time = source_latest_dt - timedelta(days=min_days)
+                    # No existing data for this timeframe - use maximum possible window
+                    # Get earliest time from source timeframe to maximize data coverage
+                    source_earliest = source_info.get('earliest_time')
+                    
+                    if source_earliest:
+                        # Parse source earliest time and normalize it to target timeframe
+                        source_earliest_dt = datetime.fromisoformat(source_earliest.replace('Z', '+00:00'))
+                        
+                        # Normalize earliest source time to target timeframe boundary
+                        normalized_target_start = self._normalize_datetime_to_timeframe(
+                            source_earliest_dt, target_timeframe
+                        )
+                        
+                        # Use normalized time as if it's the "latest" target data for calculation
+                        target_latest_dt = normalized_target_start
+                        days_since_last = (source_latest_dt - normalized_target_start).days
+                        
+                        # Calculate start time to include ALL available data
+                        timeframe_start_time = normalized_target_start - timedelta(days=buffer_days)
+                        
+                        print(f"Target timeframe {target_timeframe} has no data. Using normalized source earliest time:")
+                        print(f"  Source earliest: {source_earliest_dt}")
+                        print(f"  Normalized to {target_timeframe}: {normalized_target_start}")
+                        print(f"  Calculated window start: {timeframe_start_time}")
+                        
+                    else:
+                        # Fallback: use minimum window if no source earliest data
+                        target_latest_dt = None
+                        days_since_last = 'first_time_no_source_earliest'
+                        timeframe_start_time = source_latest_dt - timedelta(days=min_days)
                 
                 # Track the earliest start time needed (biggest window)
                 if timeframe_start_time < earliest_start_time:
@@ -822,13 +839,27 @@ class PriceDataService:
                 # Keep track of the largest minimum days requirement
                 max_min_days = max(max_min_days, min_days)
                 
+                # Determine window type based on data availability and calculation method
+                if target_latest:
+                    window_type = 'extended' if days_since_last != 'first_time' and days_since_last > extension_threshold else 'standard'
+                    data_status = 'existing_data_found'
+                elif source_info.get('earliest_time'):
+                    window_type = 'maximum_coverage'
+                    data_status = 'no_target_data_using_normalized_source_earliest'
+                else:
+                    window_type = 'minimum_fallback'
+                    data_status = 'no_data_using_minimum_window'
+                
                 # Store analysis for this timeframe
                 timeframe_analysis[target_timeframe] = {
                     'min_days': min_days,
                     'days_since_last_aggregation': days_since_last,
                     'target_latest': target_latest,
+                    'source_earliest': source_info.get('earliest_time'),
                     'calculated_start_time': timeframe_start_time,
-                    'window_extension': 'extended' if target_latest_dt and days_since_last != 'first_time' and days_since_last > extension_threshold else 'standard'
+                    'window_extension': window_type,
+                    'data_status': data_status,
+                    'normalized_start': target_latest_dt.isoformat() if target_latest_dt else None
                 }
                 processed_timeframes.append(target_timeframe)
 
@@ -877,6 +908,51 @@ class PriceDataService:
             }
             return serialize_datetime_objects(result)
     
+    def _normalize_datetime_to_timeframe(self, dt: datetime, timeframe: str) -> datetime:
+        """
+        Normalize datetime to the appropriate timeframe boundary
+        
+        This ensures that the datetime aligns with the natural boundaries of the target timeframe:
+        - 1h: Round down to start of hour
+        - 4h: Round down to nearest 4-hour boundary (00:00, 04:00, 08:00, etc.)
+        - 1d: Round down to start of day (00:00:00)
+        - 1w: Round down to start of week (Monday 00:00:00)
+        - 1M: Round down to start of month (1st day 00:00:00)
+        
+        Args:
+            dt: Datetime to normalize
+            timeframe: Target timeframe
+            
+        Returns:
+            Normalized datetime aligned to timeframe boundary
+        """
+        if timeframe == '1h':
+            # Round down to start of hour
+            return dt.replace(minute=0, second=0, microsecond=0)
+            
+        elif timeframe == '4h':
+            # Round down to nearest 4-hour boundary
+            normalized_hour = (dt.hour // 4) * 4
+            return dt.replace(hour=normalized_hour, minute=0, second=0, microsecond=0)
+            
+        elif timeframe == '1d':
+            # Round down to start of day
+            return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+            
+        elif timeframe == '1w':
+            # Round down to start of week (Monday)
+            days_since_monday = dt.weekday()
+            start_of_week = dt - timedelta(days=days_since_monday)
+            return start_of_week.replace(hour=0, minute=0, second=0, microsecond=0)
+            
+        elif timeframe == '1M':
+            # Round down to start of month
+            return dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            
+        else:
+            # Default: round down to start of day
+            return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
     def _calculate_data_points_needed(self, days: int, timeframe: str) -> int:
         """
         Calculate how many data points we need for given days and timeframe
