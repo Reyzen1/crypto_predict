@@ -42,9 +42,6 @@ class PriceDataService:
         self.price_data_repo = PriceDataRepository(db)
         self.asset_repo = AssetRepository(db)
         self.platform = "binance"
-
-    
-
     
     async def populate_price_data(
         self,
@@ -86,7 +83,7 @@ class PriceDataService:
 
             print(f"**populate_price_data--> _fetch_price_history {asset.id}")
             price_history = await self._fetch_price_history(
-                asset_id=asset.id, api_id=api_id, days=days, timeframe=timeframe, vs_currency=vs_currency, platform=self.platform
+                asset=asset, api_id=api_id, days=days, timeframe=timeframe, vs_currency=vs_currency, platform=self.platform
                 )
             print(f"**populate_price_data--> Fetched price history: {len(price_history)} records")
 
@@ -99,7 +96,7 @@ class PriceDataService:
                     try:
                         print("**populate_price_data--> auto_aggregate_for_asset start")
                         aggregation_result = self.auto_aggregate_for_asset(
-                            asset_id=asset.id, 
+                            asset=asset,
                             source_timeframe=timeframe
                         ).get('results', {})
                         print("**populate_price_data--> auto_aggregate_for_asset end")
@@ -332,12 +329,10 @@ class PriceDataService:
             logger.info(f"Using fallback: {default_days} days")
             return default_days
 
-
-
     
     async def _fetch_price_history(
         self,
-        asset_id: int,
+        asset: Asset,
         api_id: str,
         days: int,
         timeframe: str,
@@ -357,7 +352,7 @@ class PriceDataService:
             try:
                 # Get raw time-series data from CoinGecko
                 ohlcv_data = await self.coingecko_client.get_price_data_by_timeframe(
-                    asset_id=asset_id,
+                    asset_id=asset.id,
                     crypto_id=api_id,
                     timeframe=timeframe,
                     days=days,
@@ -375,7 +370,7 @@ class PriceDataService:
             try:
                 # Get raw time-series data from Binance
                 ohlcv_data = await self.binance_client.get_price_data_by_timeframe(
-                        asset_id=asset_id,
+                        asset_id=asset.id,
                         crypto_id=api_id,
                         timeframe=timeframe,
                         days=days,
@@ -537,41 +532,15 @@ class PriceDataService:
             logger.error(f"Error calculating quality score: {str(e)}")
             return None
     
-
     
-
-    
-    def _filter_hourly_data(
-        self,
-        data: List[Dict[str, Any]],
-        timeframe: str
-    ) -> List[Dict[str, Any]]:
-        """
-        Filter hourly data to specific intervals (e.g., 4h)
-        """
-        if timeframe == "1h":
-            return data
-        
-        if timeframe == "4h":
-            # Keep every 4th hour
-            filtered_data = []
-            for i, record in enumerate(data):
-                timestamp = record.get('timestamp', 0)
-                hour = datetime.fromtimestamp(timestamp / 1000).hour
-                if hour % 4 == 0:
-                    filtered_data.append(record)
-            return filtered_data
-        
-        return data
-   
-    def auto_aggregate_for_asset(self, asset_id: int, 
+    def auto_aggregate_for_asset(self, asset: Asset, 
                                source_timeframe: str = '1h',
                                force_refresh: bool = False) -> Dict[str, Any]:
         """
         Automatically aggregate price data for an asset
         
         Args:
-            asset_id: Asset to process
+            asset: Asset to process
             source_timeframe: Base timeframe to aggregate from
             force_refresh: Whether to re-aggregate existing data
             
@@ -580,17 +549,15 @@ class PriceDataService:
         """
         try:
             # Get asset info
-            asset: Asset
-            asset = self.asset_repo.get(asset_id)
             if not asset:
-                return serialize_datetime_objects({'error': f'Asset {asset_id} not found'})
+                return serialize_datetime_objects({'error': f'Asset {asset.id} not found'})
             
             # Check what timeframes we can aggregate to
             target_timeframes = self.price_data_repo.get_aggregatable_timeframes(source_timeframe)
             
             if not target_timeframes:
                 result = {
-                    'asset_id': asset_id,
+                    'asset_id': asset.id,
                     'symbol': asset.symbol,
                     'message': f'No aggregatable timeframes for {source_timeframe}',
                     'aggregated_timeframes': []
@@ -610,7 +577,7 @@ class PriceDataService:
                 source_data_count = 0
             if source_data_count == 0:
                 result = {
-                    'asset_id': asset_id,
+                    'asset_id': asset.id,
                     'symbol': asset.symbol,
                     'error': f'No {source_timeframe} data available for aggregation'
                 }
@@ -624,7 +591,7 @@ class PriceDataService:
                     # Calculate optimal window for all target timeframes at once
                     print("****auto_aggregate_for_asset-->_calculate_timeframe_specific_window start")
                     aggregation_window = self._calculate_timeframe_specific_window(
-                        asset_id=asset_id,
+                        asset=asset,
                         source_timeframe=source_timeframe,
                         target_timeframes=target_timeframes
                     )
@@ -670,7 +637,7 @@ class PriceDataService:
             else:
                 # Force refresh - process all timeframes together
                 result = self.price_data_repo.bulk_aggregate_and_store(
-                    asset_id=asset_id,
+                    asset_id=asset.id,
                     source_timeframe=source_timeframe,
                     target_timeframes=target_timeframes,
                     start_time=None,
@@ -688,7 +655,7 @@ class PriceDataService:
             status_after = self.price_data_repo.get_aggregation_status(asset)
             
             result = {
-                'asset_id': asset_id,
+                'asset_id': asset.id,
                 'symbol': asset.symbol,
                 'source_timeframe': source_timeframe,
                 'aggregated_timeframes': target_timeframes,
@@ -701,13 +668,13 @@ class PriceDataService:
             
         except Exception as e:
             result = {
-                'asset_id': asset_id,
+                'asset_id': asset.id,
                 'error': f'Aggregation failed: {str(e)}'
             }
             return serialize_datetime_objects(result)
 
 
-    def _calculate_timeframe_specific_window(self, asset_id: int, source_timeframe: str, 
+    def _calculate_timeframe_specific_window(self, asset: Asset, source_timeframe: str, 
                                            target_timeframes: List[str]) -> Dict[str, Any]:
         """
         Calculate optimal aggregation window for multiple target timeframes in a single query
@@ -732,7 +699,6 @@ class PriceDataService:
         """
         try:
             # Single query to get aggregation status for all relevant timeframes
-            asset = self.asset_repo.get(asset_id)
             if not asset:
                 result = {
                     'start_time': None,
@@ -953,29 +919,6 @@ class PriceDataService:
             # Default: round down to start of day
             return dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    def _calculate_data_points_needed(self, days: int, timeframe: str) -> int:
-        """
-        Calculate how many data points we need for given days and timeframe
-        
-        Args:
-            days: Number of days to cover
-            timeframe: Timeframe ('1h', '4h', '1d')
-            
-        Returns:
-            int: Number of data points needed
-        """
-        if timeframe == '1h':
-            # 24 hours per day
-            return days * 24
-        elif timeframe == '4h':
-            # 6 four-hour periods per day (24/4)
-            return days * 6
-        elif timeframe == '1d':
-            # 1 day per day
-            return days
-        else:
-            # Default to daily
-            return days
 
 # Global service instance factory
 def get_price_data_service(db: Session) -> PriceDataService:
