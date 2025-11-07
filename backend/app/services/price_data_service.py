@@ -87,22 +87,26 @@ class PriceDataService:
                 )
             print(f"**populate_price_data--> Fetched price history: {len(price_history)} records")
 
-            # Bulk insert data - pass asset object instead of asset_id for optimization
+            # Bulk insert data - NOW includes automatic aggregation with complete statistics
             bulk_result = self.price_data_repo.bulk_insert(asset, price_history, timeframe)
             if bulk_result.get('success', False):
-                aggregation_result = {}
-                if bulk_result.get('inserted_records', 0) > 0 or bulk_result.get('updated_records', 0) > 0:
-                # Trigger aggregation for the asset after successful data insertion or update
+                # Extract aggregation statistics from bulk_insert (NEW - no longer duplicate aggregation)
+                auto_aggregation_stats = bulk_result.get('aggregation_results', {})
+                total_auto_aggregated = bulk_result.get('total_aggregated_records', 0)
+                
+                # Legacy manual aggregation (only if auto-aggregation was disabled or failed)
+                manual_aggregation_result = {}
+                if not auto_aggregation_stats and (bulk_result.get('inserted_records', 0) > 0 or bulk_result.get('updated_records', 0) > 0):
                     try:
-                        print("**populate_price_data--> auto_aggregate_for_asset start")
-                        aggregation_result = self.auto_aggregate_for_asset(
+                        print("**populate_price_data--> manual auto_aggregate_for_asset start (fallback)")
+                        manual_aggregation_result = self.auto_aggregate_for_asset(
                             asset=asset,
                             source_timeframe=timeframe
                         ).get('results', {})
-                        print("**populate_price_data--> auto_aggregate_for_asset end")
-                        logger.info(f"Aggregation completed for asset {asset.id}: {aggregation_result}")
+                        print("**populate_price_data--> manual auto_aggregate_for_asset end (fallback)")
+                        logger.info(f"Manual aggregation completed for asset {asset.id}: {manual_aggregation_result}")
                     except Exception as e:
-                        logger.warning(f"Aggregation failed for asset {asset.id} after bulk insert: {e}")
+                        logger.warning(f"Manual aggregation failed for asset {asset.id} after bulk insert: {e}")
 
                 # Update asset metadata including market data
                 print("**populate_price_data--> _update_asset_metadata")
@@ -110,18 +114,55 @@ class PriceDataService:
 
                 logger.info(f"Successfully populated {bulk_result.get('inserted_records', 0)} records for asset {asset.id}")
                 
+                # Calculate total operations including accurate aggregation counts
+                total_direct_inserted = bulk_result.get('inserted_records', 0)
+                total_direct_updated = bulk_result.get('updated_records', 0)
+                
+                # ✨ NEW: Extract accurate aggregation statistics
+                total_aggregated_inserted = bulk_result.get('total_aggregated_inserted', 0)
+                total_aggregated_updated = bulk_result.get('total_aggregated_updated', 0)
+                
+                # Legacy fallback for manual aggregation
+                if total_aggregated_inserted == 0 and manual_aggregation_result:
+                    total_aggregated_inserted = sum(manual_aggregation_result.values())
+                
                 result = {
                     'success': True,
-                    'records_inserted': bulk_result.get('inserted_records', 0),
-                    'records_updated': bulk_result.get('updated_records', 0),
+                    # ✨ FIXED: Now accurately separates insert and update operations
+                    'records_inserted': total_direct_inserted + total_aggregated_inserted,  # Direct + Aggregated inserts
+                    'records_updated': total_direct_updated + total_aggregated_updated,    # Direct + Aggregated updates
                     'records_skipped': bulk_result.get('skipped_records', 0),
                     'total_processed': bulk_result.get('total_processed', 0),
-                    'aggregation_result': aggregation_result,
+                    
+                    # ✨ Detailed breakdown for transparency with accurate aggregation
+                    'operation_breakdown': {
+                        'direct_inserted': total_direct_inserted,
+                        'direct_updated': total_direct_updated,
+                        'direct_skipped': bulk_result.get('skipped_records', 0),
+                        'aggregated_inserted': total_aggregated_inserted,
+                        'aggregated_updated': total_aggregated_updated,  # Now accurately reflects aggregation updates
+                        'total_database_operations': total_direct_inserted + total_direct_updated + total_aggregated_inserted + total_aggregated_updated
+                    },
+                    
+                    # ✨ NEW: Complete aggregation statistics from bulk_insert with accurate counts
+                    'auto_aggregation_stats': auto_aggregation_stats,
+                    'total_auto_aggregated_records': total_aggregated_inserted + total_aggregated_updated,
+                    'aggregation_breakdown': {
+                        'auto_aggregated_timeframes': self._format_aggregation_timeframes(auto_aggregation_stats),
+                        'manual_aggregated_timeframes': list(manual_aggregation_result.keys()) if manual_aggregation_result else [],
+                        'total_aggregated_inserted': total_aggregated_inserted,
+                        'total_aggregated_updated': total_aggregated_updated,
+                        'total_aggregated_records': total_aggregated_inserted + total_aggregated_updated
+                    },
+                    
+                    # Legacy fields for backward compatibility
+                    'aggregation_result': manual_aggregation_result,  # Legacy manual aggregation
+                    
                     'asset_id': asset.id,
                     'timeframe': timeframe,
                     'period_days': days,
                     'data_range': bulk_result.get('data_range', {}),
-                    'message': f'Successfully populated {bulk_result.get("inserted_records", 0)} new records, updated {bulk_result.get("updated_records", 0)}, skipped {bulk_result.get("skipped_records", 0)}'
+                    'message': f'Successfully processed {total_direct_inserted + total_aggregated_inserted + total_direct_updated + total_aggregated_updated} total records: {total_direct_inserted} direct inserts, {total_direct_updated} direct updates, {bulk_result.get("skipped_records", 0)} skipped. Auto-aggregated: {total_aggregated_inserted} inserts + {total_aggregated_updated} updates across {len(auto_aggregation_stats)} timeframes.'
                 }
                 return serialize_datetime_objects(result)
             else:
@@ -531,6 +572,59 @@ class PriceDataService:
         except Exception as e:
             logger.error(f"Error calculating quality score: {str(e)}")
             return None
+
+    def _format_aggregation_timeframes(self, auto_aggregation_stats: Dict[str, int]) -> Dict[str, Dict[str, int]]:
+        """
+        Format aggregation statistics to show insert/update breakdown for each timeframe.
+        
+        Args:
+            auto_aggregation_stats: Raw aggregation stats from bulk_insert
+                Example: {'4h_inserted': 2, '4h_updated': 1, '1d_inserted': 0, '1d_updated': 1, '1w_updated': 1}
+        
+        Returns:
+            Dictionary with timeframe breakdown showing inserts and updates separately:
+                Example: {
+                    '4h': {'inserted': 2, 'updated': 1, 'total': 3},
+                    '1d': {'inserted': 0, 'updated': 1, 'total': 1}, 
+                    '1w': {'inserted': 0, 'updated': 1, 'total': 1}
+                }
+        """
+        if not auto_aggregation_stats:
+            return {}
+        
+        timeframe_breakdown = {}
+        
+        # Process each aggregation stat entry
+        for key, count in auto_aggregation_stats.items():
+            # Extract timeframe and operation type
+            if key.endswith('_inserted'):
+                timeframe = key.replace('_inserted', '')
+                operation = 'inserted'
+            elif key.endswith('_updated'):
+                timeframe = key.replace('_updated', '')
+                operation = 'updated'
+            else:
+                # Legacy format - treat as mixed operations
+                timeframe = key
+                # For legacy entries, we can't distinguish insert vs update
+                if timeframe not in timeframe_breakdown:
+                    timeframe_breakdown[timeframe] = {'inserted': 0, 'updated': 0, 'total': 0}
+                timeframe_breakdown[timeframe]['total'] = count
+                continue
+            
+            # Initialize timeframe entry if not exists
+            if timeframe not in timeframe_breakdown:
+                timeframe_breakdown[timeframe] = {'inserted': 0, 'updated': 0, 'total': 0}
+            
+            # Set the specific operation count
+            timeframe_breakdown[timeframe][operation] = count
+        
+        # Calculate totals for each timeframe
+        for timeframe_data in timeframe_breakdown.values():
+            if timeframe_data['total'] == 0:  # Only calculate if not set by legacy format
+                timeframe_data['total'] = timeframe_data['inserted'] + timeframe_data['updated']
+        
+        return timeframe_breakdown
     
     
     def auto_aggregate_for_asset(self, asset: Asset, 

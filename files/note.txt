@@ -1,18 +1,2 @@
-cd /mnt/d/install/Projects/crypto_predict
-docker-compose start
-
-
-# 1. ایجاد و اجازه اجرا
-chmod +x scripts/*.sh
-
-# 2. راه‌اندازی اولیه
-./scripts/quick-setup.sh
-
-# 3. شروع backend (Terminal 1)
-./scripts/start-backend.sh
-
-# 4. شروع frontend (Terminal 2)
-./scripts/start-frontend.sh
-
-# 5. متوقف کردن database‌ها
-./scripts/stop-db.sh
+data_source in assets table should be in json format. for example data source of price_data maybe is binance and for assets is coingecko.
+tomeframe_usage should not increased when populating data_price

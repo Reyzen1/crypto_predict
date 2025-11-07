@@ -75,7 +75,7 @@ async def quick_bitcoin_test():
             print("✅ Update successful!")
             print(f"   📊 New records: {result.get('records_inserted', 0)}")
             print(f"   🔄 Updated records: {result.get('records_updated', 0)}")
-            print(f"   🔄 aggregation result: {result.get('aggregation_result', {})}")
+            print(f"   🔄 aggregation result: {result.get('aggregation_breakdown', {})}")
         else:
             print(f"❌ Update failed: {result.get('message')}")
         

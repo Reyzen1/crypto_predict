@@ -443,8 +443,7 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         except (ValueError, TypeError):
             count_int = 0
         
-        # Import normalize function from time_utils for consistent timezone handling
-        
+        # Update timeframe data cache
         self.timeframe_data[timeframe] = {
             'count': count_int,
             'earliest_time': earliest_time,
@@ -455,6 +454,119 @@ class Asset(BaseModel, TimestampMixin, ActiveMixin, AccessTrackingMixin,
         # Mark as modified for SQLAlchemy
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(self, 'timeframe_data')
+
+    def update_technical_metrics(self, timeframe: str, latest_metrics: dict):
+        """
+        Update technical indicators in metrics_details for a specific timeframe
+        
+        Args:
+            timeframe: Timeframe identifier (e.g., '1h', '1d')
+            latest_metrics: Dictionary containing latest technical indicator values
+                Example: {
+                    'close': 50000.0,
+                    'rsi_14': 65.5,
+                    'sma_200': 48000.0,
+                    'ema_200': 49000.0,
+                    'volume': 1000000.0,
+                    'calculated_at': '2025-11-07T10:00:00Z'
+                }
+        """
+        if not self.metrics_details:
+            self.metrics_details = {}
+        
+        # Initialize timeframe section if not exists
+        if 'technical_indicators' not in self.metrics_details:
+            self.metrics_details['technical_indicators'] = {}
+        
+        if timeframe not in self.metrics_details['technical_indicators']:
+            self.metrics_details['technical_indicators'][timeframe] = {}
+        
+        # Update with latest metrics
+        timeframe_metrics = self.metrics_details['technical_indicators'][timeframe]
+        
+        # Map of common technical indicators
+        indicator_mapping = {
+            'close': 'latest_close_price',
+            'open': 'latest_open_price', 
+            'high': 'latest_high_price',
+            'low': 'latest_low_price',
+            'volume': 'latest_volume',
+            'rsi_14': 'rsi_14',
+            'sma_200': 'sma_200',
+            'ema_200': 'ema_200',
+            'candle_time': 'candle_time'
+        }
+        
+        # Update indicators with proper naming
+        for metric_key, metric_value in latest_metrics.items():
+            if metric_key in indicator_mapping:
+                indicator_name = indicator_mapping[metric_key]
+                timeframe_metrics[indicator_name] = metric_value
+            else:
+                # Keep original key for custom indicators
+                timeframe_metrics[metric_key] = metric_value
+        
+        # Add metadata
+        timeframe_metrics['last_updated'] = datetime.now(timezone.utc).isoformat()
+        
+        # Keep summary of latest values across all timeframes
+        if 'summary' not in self.metrics_details:
+            self.metrics_details['summary'] = {}
+        
+        # Update summary with primary timeframe data (typically '1d')
+        if timeframe == '1d' or len(self.metrics_details['technical_indicators']) == 1:
+            summary = self.metrics_details['summary']
+            if 'close' in latest_metrics:
+                summary['latest_price'] = latest_metrics['close']
+            if 'rsi_14' in latest_metrics:
+                summary['latest_rsi'] = latest_metrics['rsi_14']
+            if 'sma_200' in latest_metrics:
+                summary['latest_sma_200'] = latest_metrics['sma_200']
+            if 'ema_200' in latest_metrics:
+                summary['latest_ema_200'] = latest_metrics['ema_200']
+            summary['primary_timeframe'] = timeframe
+            summary['last_updated'] = datetime.now(timezone.utc).isoformat()
+        
+        # Mark as modified for SQLAlchemy
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(self, 'metrics_details')
+    
+    def get_technical_metrics(self, timeframe: str = None) -> dict:
+        """
+        Get technical indicators for a specific timeframe or all timeframes
+        
+        Args:
+            timeframe: Specific timeframe or None for all timeframes
+            
+        Returns:
+            Dictionary containing technical indicators
+        """
+        if not self.metrics_details or 'technical_indicators' not in self.metrics_details:
+            return {} if timeframe is None else None
+        
+        technical_indicators = self.metrics_details['technical_indicators']
+        
+        if timeframe:
+            return technical_indicators.get(timeframe, {})
+        else:
+            return technical_indicators
+    
+    def get_latest_indicator_value(self, indicator_name: str, timeframe: str = '1d') -> float:
+        """
+        Get latest value of a specific technical indicator
+        
+        Args:
+            indicator_name: Name of the indicator (e.g., 'rsi_14', 'sma_200')
+            timeframe: Timeframe to check (default: '1d')
+            
+        Returns:
+            Latest indicator value or None if not found
+        """
+        metrics = self.get_technical_metrics(timeframe)
+        if not metrics:
+            return None
+        
+        return metrics.get(indicator_name)
     
     def remove_timeframe_data(self, timeframe: str):
         """Remove timeframe from data cache"""

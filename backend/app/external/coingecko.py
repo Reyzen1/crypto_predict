@@ -291,9 +291,8 @@ class CoinGeckoClient:
             params["interval"] = "daily"
         # Skip adding interval for hourly - let CoinGecko auto-select based on days
         
-        endpoint = f"coins/{crypto_id}/ohlc"
+        endpoint = f"coins/{crypto_id}/market_chart"
         data = await self._make_request(endpoint, params)
-        print(f">>>>>>>>>>>>>>>Market chart data for {crypto_id}: {data}")
         # Validate response structure
         required_keys = ["prices", "market_caps", "total_volumes"]
         if not all(key in data for key in required_keys):
@@ -448,6 +447,7 @@ class CoinGeckoClient:
         except Exception as e:
             logger.error(f"Failed to fetch detailed market data for {coingecko_id}: {e}")
             return None
+
 
     async def ping(self) -> bool:
         """
