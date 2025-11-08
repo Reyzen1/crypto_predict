@@ -106,20 +106,32 @@ class TradingViewClient:
         Returns:
             TradingView symbol (e.g., 'BTCUSD', 'ETHUSD')
         """
-        # Try direct mapping first
-        if crypto_id.lower() in self.symbol_mappings:
-            return self.symbol_mappings[crypto_id.lower()]
-        
+        # If the caller already supplied a full TradingView symbol (contains a
+        # namespace like 'CRYPTOCAP:' or exchange prefix like 'BINANCE:'), return
+        # it as-is (uppercase) so we don't accidentally append 'USD'.
+        if crypto_id is None:
+            raise ValueError("crypto_id cannot be None")
+
+        cid = str(crypto_id).strip()
+        if ':' in cid:
+            # Already a fully-qualified TradingView symbol, return unchanged
+            return cid.upper()
+
+        # Try direct mapping first (CoinGecko id -> TradingView short symbol)
+        if cid.lower() in self.symbol_mappings:
+            return self.symbol_mappings[cid.lower()]
+
         # Try to construct symbol from common patterns
-        if crypto_id.upper() in ['BTC', 'BITCOIN']:
+        up = cid.upper()
+        if up in ['BTC', 'BITCOIN']:
             return 'BTCUSD'
-        elif crypto_id.upper() in ['ETH', 'ETHEREUM']:
+        elif up in ['ETH', 'ETHEREUM']:
             return 'ETHUSD'
-        elif crypto_id.upper() in ['BNB', 'BINANCECOIN']:
+        elif up in ['BNB', 'BINANCECOIN']:
             return 'BNBUSD'
-        
+
         # Default: try to use the ID directly + USD
-        return f"{crypto_id.upper()}USD"
+        return f"{up}USD"
     
     def _map_timeframe_to_resolution(self, timeframe: str) -> str:
         """
@@ -168,6 +180,7 @@ class TradingViewClient:
             TradingViewAPIError: For API errors
             TradingViewRateLimitError: For rate limit errors
         """
+        print(f"Making request to TradingView API: {endpoint}, {params}")
         # Check circuit breaker
         if not await rate_limiter.check_circuit_breaker("tradingview"):
             raise TradingViewAPIError("TradingView API is temporarily unavailable (circuit breaker open)")
@@ -322,7 +335,7 @@ class TradingViewClient:
             raise ValueError("Limit must be between 1 and 5000")
         
         # Map symbol to TradingView format
-        tv_symbol = self._map_crypto_id_to_symbol(symbol)
+        tv_symbol = symbol #self._map_crypto_id_to_symbol(symbol)
         
         # Map timeframe to TradingView resolution
         resolution = self._map_timeframe_to_resolution(interval)

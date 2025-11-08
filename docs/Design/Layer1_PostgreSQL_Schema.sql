@@ -709,13 +709,20 @@ INSERT INTO assets (
     external_ids
 ) VALUES 
 -- Bitcoin (BTC)
-('BTC', 'Bitcoin', 'crypto', 'USDT', '{"binance_id": "BTCUSDT", "coingecko_id": "bitcoin", "coinmarketcap_id": "1"}'),
+('BTC', 'Bitcoin', 'crypto', 'USDT', '{"binance_id": "BTCUSDT", "coingecko_id": "bitcoin", "tradingview_id": "BTCUSDT"}'),
 
 -- Ethereum (ETH)  
-('ETH', 'Ethereum', 'crypto', 'USDT', '{"binance_id": "ETHUSDT", "coingecko_id": "ethereum", "coinmarketcap_id": "1027"}'),
+('ETH', 'Ethereum', 'crypto', 'USDT', '{"binance_id": "ETHUSDT", "coingecko_id": "ethereum", "tradingview_id": "ETHUSDT"}'),
 
 -- Tether USD (USDT)
-('USDT', 'Tether USD', 'stablecoin',  'USD', '{"binance_id": "USDT", "coingecko_id": "tether", "coinmarketcap_id": "825"}')
+('USDT', 'Tether USD', 'stablecoin',  'USD', '{"binance_id": "USDT", "coingecko_id": "tether", "tradingview_id": "USDTUSDC"}'),
+
+-- Bitcoin Dominance (BTC.D)
+('BTC.D', 'Bitcoin Dominance', 'index', 'USD', '{"tradingview_id": "BTC.D"}'),
+
+-- Ethereum Dominance (ETH.D)
+('ETH.D', 'Ethereum Dominance', 'index', 'USD', '{"tradingview_id": "ETH.D"}')
+
 ON CONFLICT (symbol) DO NOTHING;
 
 -- ===============================================

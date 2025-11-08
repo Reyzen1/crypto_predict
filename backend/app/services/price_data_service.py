@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.external.coingecko import CoinGeckoClient
 from app.external.binance import BinanceClient
+from app.external.tradingview import TradingViewClient
 
 from app.repositories.asset.price_data_repository import PriceDataRepository
 from app.repositories.asset.asset_repository import AssetRepository
@@ -37,18 +38,26 @@ class PriceDataService:
     
     def __init__(self, db: Session):
         self.db = db
+
         self.coingecko_client = CoinGeckoClient()
         self.binance_client = BinanceClient()
+        self.tradingview_client = TradingViewClient()
+        self.client_map = {
+            "coingecko": self.coingecko_client,
+            "binance": self.binance_client,
+            "tradingview": self.tradingview_client,
+        }
+
         self.price_data_repo = PriceDataRepository(db)
         self.asset_repo = AssetRepository(db)
-        self.platform = "binance"
     
     async def populate_price_data(
         self,
         asset: Asset,
         days: Optional[int] = None,
         timeframe: str = "1d",
-        vs_currency: str = "usd"
+        vs_currency: str = "usd",
+        platform: str = "binance"
     ) -> Dict[str, Any]:
         """
         Complete price data population for an asset with timeframe support
@@ -77,13 +86,13 @@ class PriceDataService:
                 days = await self._calculate_optimal_days(asset, timeframe)
                 logger.info(f"Auto-calculated days for asset {asset.id}, timeframe {timeframe}: {days} days")
 
-            api_id = asset.get_external_api_id(self.platform)
+            api_id = asset.get_external_api_id(platform)
             if not api_id:
-                raise ValueError(f"No {self.platform} ID found for asset {asset.id}")
+                raise ValueError(f"No {platform} ID found for asset {asset.id}")
 
             print(f"**populate_price_data--> _fetch_price_history {asset.id}")
             price_history = await self._fetch_price_history(
-                asset=asset, api_id=api_id, days=days, timeframe=timeframe, vs_currency=vs_currency, platform=self.platform
+                asset=asset, api_id=api_id, days=days, timeframe=timeframe, vs_currency=vs_currency, platform=platform
                 )
             print(f"**populate_price_data--> Fetched price history: {len(price_history)} records")
 
@@ -384,46 +393,29 @@ class PriceDataService:
             logger.warning(f"Timeframe {timeframe} not supported")
             return []
 
-        if platform == "coingecko":
-            """
-            Fetch price history from CoinGecko and convert to OHLCV format
-            """
-            print(f"Fetching price history from CoinGecko for {api_id}, days: {days}, timeframe: {timeframe}")
-            #return []
-            try:
-                # Get raw time-series data from CoinGecko
-                ohlcv_data = await self.coingecko_client.get_price_data_by_timeframe(
-                    asset_id=asset.id,
-                    crypto_id=api_id,
-                    timeframe=timeframe,
-                    days=days,
-                    vs_currency=vs_currency,
-                )
-                return ohlcv_data
-                               
-            except Exception as e:
-                logger.error(f"Error fetching data from CoinGecko: {str(e)}")
-                return []
-        elif platform == "binance":
-            """
-            Fetch price history from Binance and convert to OHLCV format
-            """
-            try:
-                # Get raw time-series data from Binance
-                ohlcv_data = await self.binance_client.get_price_data_by_timeframe(
-                        asset_id=asset.id,
-                        crypto_id=api_id,
-                        timeframe=timeframe,
-                        days=days,
-                        vs_currency=vs_currency
-                )
-                return ohlcv_data
+        # Map supported platforms to their client instances. This allows a
+        # single unified code path and avoids duplicated try/except blocks.
+        client = self.client_map.get(platform)
+        if not client:
+            logger.error(f"Unsupported external API: {platform}")
+            return []
 
-            except Exception as e:
-                logger.error(f"Error fetching data from Binance: {str(e)}")
-                return []
-        else:
-            logger.error(f"Unsupported external API: {external_api}")
+        # Debug/logging for the fetch
+        logger.debug(f"Fetching price history from {platform} for {api_id}, days: {days}, timeframe: {timeframe}")
+
+        try:
+            # All clients implement get_price_data_by_timeframe(asset_id, crypto_id, timeframe, days, vs_currency)
+            ohlcv_data = await client.get_price_data_by_timeframe(
+                asset_id=asset.id,
+                crypto_id=api_id,
+                timeframe=timeframe,
+                days=days,
+                vs_currency=vs_currency,
+            )
+            return ohlcv_data
+        except Exception as e:
+            # Provide platform-specific logging but keep behavior consistent
+            logger.error(f"Error fetching data from {platform} for asset {asset.id}: {e}")
             return []
     
     async def _update_asset_metadata(
