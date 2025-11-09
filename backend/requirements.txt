@@ -152,6 +152,9 @@ flower==2.0.1                 # Celery monitoring tool
 celery[redis]==5.3.4          # Celery with Redis broker support
 
 # ================================
+tradingview-datafeed==2.1.1   # TradingView data feed integration
+
+# ================================
 # NOTES
 # ================================
 # Excluded packages to avoid dependency conflicts:

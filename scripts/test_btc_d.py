@@ -1,116 +1,224 @@
-import requests
-import json
-import time
-from datetime import datetime
-import re
+from datetime import datetime, timezone
+from typing import Any, List, Dict
+import logging
+import asyncio
 
-def get_tradingview_ohlc_tvdatafeed(symbol="BTC.D", exchange="CRYPTOCAP", interval="1D", days=365):
-    """
-    Get OHLC data from TradingView using tvdatafeed library
-    
-    Parameters:
-    - symbol: Symbol to fetch (e.g., "BTC.D")
-    - exchange: Exchange name (default: "CRYPTOCAP")
-    - interval: Timeframe (1m, 5m, 15m, 30m, 1h, 2h, 4h, 1D, 1W, 1M)
-    - days: Number of days (converted to bars based on interval)
-    """
-    
-    try:
-        print(f"\n📊 Fetching BTC.D OHLC from TradingView using tvdatafeed...")
-        print(f"Symbol: {exchange}:{symbol}")
-        print(f"Interval: {interval}")
-        print(f"Days: {days}")
-        print("=" * 80)
+# use a real logger instead of importing from fastapi
+logger = logging.getLogger(__name__)
+
+class TradingViewClient:
+    async def get_price_data_by_timeframe(
+        self,
+        asset_id: int,
+        crypto_id: str,
+        timeframe: str = "1d",
+        days: int = 100,
+        vs_currency: str = "usd"
+    ) -> Dict[str, List[List[float]]]:
+        """
+        Get price data with timeframe support optimized for our price_data_service
         
-        from tvDatafeed import TvDatafeed, Interval
-        
-        # Map interval strings to TvDatafeed Interval enum
-        interval_map = {
-            '1m': Interval.in_1_minute,
-            '3m': Interval.in_3_minute,
-            '5m': Interval.in_5_minute,
-            '15m': Interval.in_15_minute,
-            '30m': Interval.in_30_minute,
-            '45m': Interval.in_45_minute,
-            '1h': Interval.in_1_hour,
-            '2h': Interval.in_2_hour,
-            '3h': Interval.in_3_hour,
-            '4h': Interval.in_4_hour,
-            '1D': Interval.in_daily,
-            '1W': Interval.in_weekly,
-            '1M': Interval.in_monthly,
-        }
-        
-        if interval not in interval_map:
-            print(f"❌ Invalid interval. Valid options: {list(interval_map.keys())}")
-            return None
-        
-        # Calculate number of bars based on interval
-        bars_per_day = {
-            '1m': 1440, '3m': 480, '5m': 288, '15m': 96,
-            '30m': 48, '45m': 32, '1h': 24, '2h': 12,
-            '3h': 8, '4h': 6, '1D': 1, '1W': 1/7, '1M': 1/30
-        }
-        
-        n_bars = int(days * bars_per_day.get(interval, 1))
-        n_bars = min(n_bars, 5000)  # Max 5000 bars per request
-        
-        print(f"🔄 Requesting {n_bars} bars...")
-        
-        # Create TvDatafeed instance (no login required for most symbols)
-        tv = TvDatafeed()
-        
-        # Get historical data
-        df = tv.get_hist(
-            symbol=symbol,
-            exchange=exchange,
-            interval=interval_map[interval],
-            n_bars=n_bars
+        Args:
+            crypto_id: TradingView cryptocurrency ID
+            timeframe: Our timeframe format ('1h', '1d')
+            days: Number of days to look back for price data
+            vs_currency: VS currency (default: 'usd')
+            
+        Returns:
+            dict: Market data
+            
+        Example:
+            # Get last 24 1-hourly data points
+            data = await client.get_price_data_by_timeframe('bitcoin', '1h', 24)
+        """
+        data = await self._get_ohlcv(
+            asset_id=asset_id,
+            symbol=crypto_id,
+            days=days,
+            interval=timeframe
         )
-        
-        if df is not None and not df.empty:
-            print(f"✅ Successfully fetched {len(df)} bars")
+                
+        return data
+
+
+    async def _get_ohlcv(
+        self, 
+        asset_id: int, 
+        symbol: str = "BTC.D", 
+        exchange: str = "CRYPTOCAP", 
+        interval: str = "1D", 
+        days: int = 365
+    )-> List[Dict[str, Any]]:
+        """Fetch OHLC data for a symbol.
+
+        Args:
+            symbol: TradingView symbol (e.g., "BTC.D")
+            exchange: Exchange / dataset name (e.g., "CRYPTOCAP")
+            interval: Timeframe string (same keys as the original script)
+            days: Number of days to fetch; translated to bars according to interval
+        Returns:
+            pandas.DataFrame or None
+        """
+        try:
+            # Import tvdatafeed lazily so the module can run in environments
+            # where tvdatafeed is not installed (we provide a fallback demo).
+            from tvDatafeed import TvDatafeed, Interval
+            tv = TvDatafeed()
+
+            interval_map = {
+                '1m': 'in_1_minute',
+                '3m': 'in_3_minute',
+                '5m': 'in_5_minute',
+                '15m': 'in_15_minute',
+                '30m': 'in_30_minute',
+                '45m': 'in_45_minute',
+                '1h': 'in_1_hour',
+                '2h': 'in_2_hour',
+                '3h': 'in_3_hour',
+                '4h': 'in_4_hour',
+                '1D': 'in_daily',
+                '1W': 'in_weekly',
+                '1M': 'in_monthly',
+            }
+
+            if interval not in interval_map:
+                raise ValueError(f"Invalid interval: {interval}. Valid: {list(interval_map.keys())}")
+
+            # Map string to Interval attribute
+            interval_attr = getattr(Interval, interval_map[interval])
+            print(f"Using TradingView interval: {interval_attr}")
+
+            # Calculate number of bars to request
+            bars_per_day = {
+                '1m': 1440, '3m': 480, '5m': 288, '15m': 96,
+                '30m': 48, '45m': 32, '1h': 24, '2h': 12,
+                '3h': 8, '4h': 6, '1D': 1, '1W': 1/7, '1M': 1/30
+            }
+            n_bars = int(days * bars_per_day.get(interval, 1))
+            n_bars = min(n_bars, 5000)
+
+            print(f"symbol={symbol}, exchange={exchange}, interval={interval_attr}, n_bars={n_bars}")
+            df = tv.get_hist(symbol=symbol, exchange=exchange, interval=interval_attr, n_bars=n_bars)
+
+            # Convert raw data to structured format
+            ohlcv = []
+
+
+            # Use datetime-like index as timestamp
+            for idx, row in df.iterrows():
+                try:
+                    # idx is often a pandas.Timestamp or datetime
+                    if isinstance(idx, (datetime,)):
+                        ts_dt = idx
+                    else:
+                        ts_dt = datetime.fromtimestamp(idx / 1000, tz=timezone.utc)
+
+                        #ts_dt = _parse_timestamp(idx)
+
+                    # Extract OHLCV from named columns if available
+                    open_v = float(row['open']) if 'open' in row.index else float(row[1])
+                    high_v = float(row['high']) if 'high' in row.index else float(row[2])
+                    low_v = float(row['low']) if 'low' in row.index else float(row[3])
+                    close_v = float(row['close']) if 'close' in row.index else float(row[4])
+                    vol_v = float(row['volume']) if 'volume' in row.index else float(row[5])
+
+                    ohlcv.append({
+                        'timestamp': ts_dt,
+                        'open': open_v,
+                        'high': high_v,
+                        'low': low_v,
+                        'close': close_v,
+                        'volume': vol_v,
+                    })
+                except (ValueError, IndexError, TypeError) as e:
+                    logger.warning(f"Error parsing candle row: {e}")
+                    continue
+            logger.info(f"Retrieved {len(ohlcv)} OHLCV candles for {symbol} ({interval})")
+
+            # pass the parsed ohlcv list to the converter (was using undefined name before)
+            standardized_ohlcv = self._convert_tradingview_ohlcv_to_standardized_ohlcv(asset_id, interval, ohlcv)
+            return standardized_ohlcv
+
+        except ImportError:
+            print("\n❌ tvdatafeed library not installed")
+            print("💡 Install it with: pip install tradingview-datafeed")
+            return None
+        except Exception as e:
+            print(f"❌ Error fetching from TradingView: {e}")
+            return None
+
+    def _convert_tradingview_ohlcv_to_standardized_ohlcv(
+        self, 
+        asset_id: int, 
+        interval: str, 
+        ohlcv: list
+    ) -> List[Dict[str, Any]]:
+        """Convert TradingView OHLCV format to standardized format.
+
+        Args:
+            asset_id: Internal asset ID
+            interval: Timeframe string
+            ohlcv: List of OHLCV dictionaries from TradingView
+
+        Returns:
+            pd.DataFrame with standardized OHLCV data
+        """
+        import pandas as pd
+
+        records = []
+        try:
+            for entry in ohlcv:
+                ohlcv_record = {
+                    'asset_id': asset_id,
+                    'timeframe': interval,
+                    'candle_time': entry['timestamp'],
+                    'open_price': float(entry['open']),
+                    'high_price': float(entry['high']),
+                    'low_price': float(entry['low']),
+                    'close_price': float(entry['close']),
+                    'volume': float(entry['volume']),
+                    'market_cap': None  # TradingView doesn't provide market cap in OHLCV data
+                }
+
+                records.append(ohlcv_record)
+        except Exception as e:
+            logger.error(f"Error converting tradingview data to OHLCV format: {e}")
+
+        return records
+
+    def print_result(self, data: List[Dict[str, Any]]):
+        if data is not None and len(data) > 0:
+            print(f"✅ Successfully fetched {len(data)} bars")
             print("=" * 80)
             print(f"{'Date':<20} {'Open':<10} {'High':<10} {'Low':<10} {'Close':<10} {'Volume':<15}")
             print("-" * 80)
-            
-            # Print all data
-            for idx, row in df.iterrows():
-                date_str = idx.strftime('%Y-%m-%d %H:%M:%S')
-                print(f"{date_str:<20} {row['open']:>9.2f}% {row['high']:>9.2f}% {row['low']:>9.2f}% {row['close']:>9.2f}% {row['volume']:>14,.0f}")
-            
+            for row in data:
+                date_str = row['candle_time'].strftime('%Y-%m-%d %H:%M:%S')
+                print(f"{date_str:<20} {row['open_price']:>9.2f}% {row['high_price']:>9.2f}% {row['low_price']:>9.2f}% {row['close_price']:>9.2f}% {row['volume']:>14,.0f}")
+
             print("=" * 80)
-            
-            # Print statistics
-            print(f"\n📈 Statistics ({len(df)} bars):")
-            print(f"Period: {df.index[0].strftime('%Y-%m-%d')} to {df.index[-1].strftime('%Y-%m-%d')}")
-            print(f"Highest: {df['high'].max():.2f}%")
-            print(f"Lowest: {df['low'].min():.2f}%")
-            print(f"Range: {df['high'].max() - df['low'].min():.2f}%")
-            print(f"First Close: {df['close'].iloc[0]:.2f}%")
-            print(f"Last Close: {df['close'].iloc[-1]:.2f}%")
-            print(f"Change: {df['close'].iloc[-1] - df['close'].iloc[0]:+.2f}%")
-            print(f"Average Volume: {df['volume'].mean():,.0f}")
+            print(f"\n📈 Statistics ({len(data)} bars):")
+            print(f"Period: {data[0]['candle_time'].strftime('%Y-%m-%d')} to {data[-1]['candle_time'].strftime('%Y-%m-%d')}")
+            print(f"Highest: {max(row['high_price'] for row in data):.2f}%")
+            print(f"Lowest: {min(row['low_price'] for row in data):.2f}%")
+            print(f"Range: {max(row['high_price'] for row in data) - min(row['low_price'] for row in data):.2f}%")
+            print(f"First Close: {data[0]['close_price']:.2f}%")
+            print(f"Last Close: {data[-1]['close_price']:.2f}%")
+            print(f"Change: {data[-1]['close_price'] - data[0]['close_price']:+.2f}%")
+            print(f"Average Volume: {sum(row['volume'] for row in data) / len(data):,.0f}")
             print("=" * 80)
-            
-            return df
         else:
             print("❌ No data received from TradingView")
-            return None
-            
-    except ImportError:
-        print("\n❌ tvdatafeed library not installed")
-        print("💡 Install it with: pip install tvdatafeed")
-        
-    except Exception as e:
-        print(f"❌ Error fetching from TradingView: {e}")
 
 if __name__ == "__main__":
     import sys
     days = 5
-    interval = "1D"
-    
+    timeframe = "1D"
+    tv = TradingViewClient()    
     # Try TradingView first (with tvdatafeed)
     print("🔄 Attempting to fetch from TradingView...")
-    data = get_tradingview_ohlc_tvdatafeed("BTC.D", "CRYPTOCAP", interval, days)
+    # Run the async method correctly using asyncio.run to avoid "coroutine was never awaited"
+    data = asyncio.run(tv.get_price_data_by_timeframe(asset_id=1, crypto_id="BTC.D", timeframe=timeframe, days=days))
+    print(data)
+    tv.print_result(data)
     

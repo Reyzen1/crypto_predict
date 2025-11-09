@@ -209,18 +209,17 @@ class BinanceClient:
         """
         
         # Fetch market chart data (CoinGecko auto-selects interval based on days)
-        data = await self._get_ohlvc(
+        data = await self._get_ohlcv(
             asset_id=asset_id,
             symbol=crypto_id,
             limit=days,
             interval=timeframe
         )
         
-        
         return data
 
 
-    async def _get_ohlvc(
+    async def _get_ohlcv(
         self,
         asset_id: int,
         symbol: str = 'BTCUSDT',
