@@ -91,7 +91,9 @@ class TradingViewClient:
                 '2h': 'in_2_hour',
                 '3h': 'in_3_hour',
                 '4h': 'in_4_hour',
+                '1d': 'in_daily',
                 '1D': 'in_daily',
+                '1w': 'in_weekly',
                 '1W': 'in_weekly',
                 '1M': 'in_monthly',
             }
