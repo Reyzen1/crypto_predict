@@ -64,11 +64,11 @@ async def quick_bitcoin_test():
         # Test price data update
         print("🔄 Testing data update...")
 
-        #asset = asset_repo.get_by_symbol(symbol='BTC')
-        #result = await price_service.populate_price_data(asset, timeframe="1d")
+        asset = asset_repo.get_by_symbol(symbol='BTC')
+        result = await price_service.populate_price_data(asset, timeframe="1d", platform="binance")
 
-        asset = asset_repo.get_by_symbol(symbol='BTC.D')
-        result = await price_service.populate_price_data(asset, timeframe="1d", platform="tradingview")
+        #asset = asset_repo.get_by_symbol(symbol='BTC.D')
+        #result = await price_service.populate_price_data(asset, timeframe="1d", platform="tradingview")
 
         #result = price_service.auto_aggregate_for_asset(asset_id=1, source_timeframe="1d")
 

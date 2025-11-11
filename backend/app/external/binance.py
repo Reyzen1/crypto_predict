@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from app.core.rate_limiter import rate_limiter
 from app.core.config import settings
-from app.utils.datetime_utils import normalize_candle_time
+from app.external.ohlcv_utils import convert_ohlcv_to_standardized
 
 logger = logging.getLogger(__name__)
 
@@ -311,89 +311,10 @@ class BinanceClient:
 
         logger.info(f"Retrieved {len(binance_ohlcv)} OHLCV candles for {symbol} ({interval})")
 
-        standardized_ohlcv = self._convert_binance_ohlcv_to_standardized_ohlcv(asset_id, interval, binance_ohlcv)
-        return standardized_ohlcv
+        # Delegate conversion to shared utility for robustness across sources
+        return convert_ohlcv_to_standardized(asset_id, interval, binance_ohlcv)
 
-
-    def _convert_binance_ohlcv_to_standardized_ohlcv(
-    self,
-    asset_id: int,
-    interval: str,
-    raw_data: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """
-        Convert Binance API data to standardized OHLCV format
-        
-        Args:
-            raw_data: Raw data from Binance API
-                Format: [{'timestamp': datetime, 'open': float, 'high': float, 'low': float, 
-                        'close': float, 'volume': float, 'close_time': datetime, 
-                        'quote_volume': float, 'trades': int, ...}, ...]
-        Returns:
-            List of OHLCV records suitable for _process_price_data
-                Format: [{'timestamp': int, 'open': float, 'high': float, 'low': float, 
-                        'close': float, 'volume': float, 'market_cap': None}, ...]
-        """
-        ohlcv_records = []
-        
-        try:
-            if not raw_data or not isinstance(raw_data, list):
-                logger.warning("Invalid raw_data format - expected non-empty list")
-                return ohlcv_records
-            
-            for candle in raw_data:
-                try:
-                    # Validate required fields from Binance data
-                    required_fields = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
-                    if not all(field in candle for field in required_fields):
-                        logger.warning(f"Skipping invalid candle - missing fields: {candle}")
-                        continue
-                    
-                    # Convert datetime to millisecond timestamp for consistency
-                    if isinstance(candle['timestamp'], datetime):
-                        timestamp_ms = int(candle['timestamp'].timestamp() * 1000)
-                    else:
-                        # Already in timestamp format
-                        timestamp_ms = int(candle['timestamp'])
-
-                    candle_time = normalize_candle_time(timestamp_ms, interval)
-
-                    # Create standardized OHLCV record
-                    ohlcv_record = {
-                        'asset_id': asset_id,
-                        'timeframe': interval,
-                        'candle_time': candle_time,
-                        'open_price': float(candle['open']),
-                        'high_price': float(candle['high']),
-                        'low_price': float(candle['low']),
-                        'close_price': float(candle['close']),
-                        'volume': float(candle['volume']),
-                        'market_cap': None  # Binance doesn't provide market cap in OHLCV data
-                    }
-                    
-                    # Add optional fields if available
-                    if 'trades' in candle:
-                        ohlcv_record['trade_count'] = int(candle['trades'])
-                
-                    # Calculate VWAP if quote_volume is available
-                    if 'quote_volume' in candle and candle['volume'] > 0:
-                        ohlcv_record['vwap'] = float(candle['quote_volume']) / float(candle['volume'])
-
-                    ohlcv_record['is_validated'] = False  # Will be validated later
-                    ohlcv_records.append(ohlcv_record)
-                    
-                except (ValueError, TypeError, KeyError) as e:
-                    logger.warning(f"Error processing candle {candle}: {e}")
-                    continue
-            
-            logger.info(f"Successfully converted {len(ohlcv_records)} Binance candles to OHLCV format")
-            
-        except Exception as e:
-            logger.error(f"Error converting Binance data to OHLCV format: {e}")
-        
-        return ohlcv_records
-
-    
+   
     async def get_exchange_info(self, symbol: Optional[str] = None) -> Dict[str, Any]:
         """
         Get exchange information and trading rules

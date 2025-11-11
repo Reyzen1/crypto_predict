@@ -119,7 +119,7 @@ class PriceDataService:
 
                 # Update asset metadata including market data
                 print("**populate_price_data--> _update_asset_metadata")
-                await self._update_asset_metadata(asset.id, timeframe, bulk_result.get('inserted_records', 0))
+                await self._update_asset_metadata(asset.id, timeframe, platform=platform)
 
                 logger.info(f"Successfully populated {bulk_result.get('inserted_records', 0)} records for asset {asset.id}")
                 
@@ -422,7 +422,7 @@ class PriceDataService:
         self,
         asset_id: int,
         timeframe: str,
-        records_count: int,
+        platform: str = "binance"
     ) -> None:
         """
         Update asset metadata with optimized API-first approach
@@ -522,6 +522,7 @@ class PriceDataService:
 
             # Update basic metadata (always needed regardless of data source)
             updates = {
+                'data_source': platform,
                 'last_price_update': datetime.utcnow(),
                 'last_accessed_at': datetime.utcnow(),
                 'access_count': (asset.access_count or 0) + 1,

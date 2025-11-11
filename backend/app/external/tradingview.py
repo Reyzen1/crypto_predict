@@ -16,7 +16,7 @@ helpful message when you call `get_ohlc`.
 from datetime import datetime, timezone
 from typing import Any, List, Dict
 import logging
-import asyncio
+from app.external.ohlcv_utils import convert_ohlcv_to_standardized
 
 # use a real logger instead of importing from fastapi
 logger = logging.getLogger(__name__)
@@ -116,7 +116,7 @@ class TradingViewClient:
 
             print(f"symbol={symbol}, exchange={exchange}, interval={interval_attr}, n_bars={n_bars}")
             df = tv.get_hist(symbol=symbol, exchange=exchange, interval=interval_attr, n_bars=n_bars)
-
+            print(df)
             # Convert raw data to structured format
             ohlcv = []
 
@@ -125,12 +125,15 @@ class TradingViewClient:
             for idx, row in df.iterrows():
                 try:
                     # idx is often a pandas.Timestamp or datetime
-                    if isinstance(idx, (datetime,)):
-                        ts_dt = idx
+                    if isinstance(idx, datetime):
+                        # Ensure the datetime is timezone-aware in UTC
+                        if idx.tzinfo is None:
+                            ts_dt = idx.replace(tzinfo=timezone.utc)
+                        else:
+                            ts_dt = idx.astimezone(timezone.utc)
                     else:
-                        ts_dt = datetime.fromtimestamp(idx / 1000, tz=timezone.utc)
-
-                        #ts_dt = _parse_timestamp(idx)
+                        # idx may be an integer/float (ms) or a string representation
+                            ts_dt = datetime.fromtimestamp(float(idx) / 1000.0, tz=timezone.utc)
 
                     # Extract OHLCV from named columns if available
                     open_v = float(row['open']) if 'open' in row.index else float(row[1])
@@ -152,8 +155,9 @@ class TradingViewClient:
                     continue
             logger.info(f"Retrieved {len(ohlcv)} OHLCV candles for {symbol} ({interval})")
 
-            # pass the parsed ohlcv list to the converter (was using undefined name before)
-            standardized_ohlcv = self._convert_tradingview_ohlcv_to_standardized_ohlcv(asset_id, interval, ohlcv)
+            # pass the parsed ohlcv list to the shared converter
+            standardized_ohlcv = convert_ohlcv_to_standardized(asset_id, interval, ohlcv)
+            self.print_result(standardized_ohlcv)
             return standardized_ohlcv
 
         except ImportError:
@@ -163,45 +167,6 @@ class TradingViewClient:
         except Exception as e:
             print(f"❌ Error fetching from TradingView: {e}")
             return None
-
-    def _convert_tradingview_ohlcv_to_standardized_ohlcv(
-        self, 
-        asset_id: int, 
-        interval: str, 
-        ohlcv: list
-    ) -> List[Dict[str, Any]]:
-        """Convert TradingView OHLCV format to standardized format.
-
-        Args:
-            asset_id: Internal asset ID
-            interval: Timeframe string
-            ohlcv: List of OHLCV dictionaries from TradingView
-
-        Returns:
-            pd.DataFrame with standardized OHLCV data
-        """
-        import pandas as pd
-
-        records = []
-        try:
-            for entry in ohlcv:
-                ohlcv_record = {
-                    'asset_id': asset_id,
-                    'timeframe': interval,
-                    'candle_time': entry['timestamp'],
-                    'open_price': float(entry['open']),
-                    'high_price': float(entry['high']),
-                    'low_price': float(entry['low']),
-                    'close_price': float(entry['close']),
-                    'volume': float(entry['volume']),
-                    'market_cap': None  # TradingView doesn't provide market cap in OHLCV data
-                }
-
-                records.append(ohlcv_record)
-        except Exception as e:
-            logger.error(f"Error converting tradingview data to OHLCV format: {e}")
-
-        return records
 
     def print_result(self, data: List[Dict[str, Any]]):
         if data is not None and len(data) > 0:
