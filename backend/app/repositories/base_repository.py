@@ -3,7 +3,7 @@
 
 from typing import Type, TypeVar, Generic, List, Optional, Any, Dict
 from sqlalchemy.orm import Session, DeclarativeBase
-from sqlalchemy import and_, or_, desc, asc
+from sqlalchemy import and_, or_, desc, asc, text
 from pydantic import BaseModel
 
 # Type variables for generic repository
@@ -30,6 +30,15 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         self.model = model
         self.db = db
+
+        # Ensure DB session uses UTC timezone for this connection so timestamptz
+        # values are represented in UTC when queried/inspected. Non-fatal if the
+        # database doesn't support SET TIME ZONE or the command fails.
+        try:
+            self.db.execute(text("SET TIME ZONE 'UTC'"))
+        except Exception as tz_exc:
+            # Keep non-fatal: warn and continue
+            print(f"Warning: failed to set DB session time zone to UTC: {tz_exc}")
 
     def get(self, id: int) -> Optional[ModelType]:
         """

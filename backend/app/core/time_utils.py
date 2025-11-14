@@ -13,7 +13,6 @@ from ..utils.datetime_utils import (
     timeframe_to_minutes,
     get_supported_timeframes,
     is_valid_timeframe,
-    normalize_datetime_string,
     serialize_datetime_objects,
 )
 

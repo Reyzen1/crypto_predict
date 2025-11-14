@@ -38,6 +38,8 @@ class PriceData(BaseModel, TimestampMixin, ValidationMixin):
     technical_indicators = Column(JSON, nullable=True)
     
     # Timing
+    # Use timezone-aware timestamps (Postgres timestamptz) so datetimes are stored as
+    # absolute instants and returned consistently in UTC when the session timezone is UTC.
     candle_time = Column(DateTime(timezone=True), nullable=False, index=True)
     
     # Relationships

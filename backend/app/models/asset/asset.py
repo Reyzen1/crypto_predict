@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship
 from ..base import BaseModel, TimestampMixin
 from ..mixins import ActiveMixin, AccessTrackingMixin, DataQualityMixin, ExternalIdsMixin
 from ..enums import AssetType
-from ...utils.datetime_utils import normalize_datetime, normalize_datetime_string
+from ...utils.datetime_utils import normalize_datetime
 import logging
 
 logger = logging.getLogger(__name__)

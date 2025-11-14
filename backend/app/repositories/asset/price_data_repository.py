@@ -12,7 +12,11 @@ logger = logging.getLogger(__name__)
 from ..base_repository import BaseRepository
 from app.models.asset.price_data import PriceData
 from app.models.asset import Asset
-from app.utils.datetime_utils import normalize_datetime, compare_datetimes, normalize_datetime_dict_keys, serialize_datetime_objects
+from app.utils.datetime_utils import (
+    compare_datetimes,
+    to_aware_utc,
+    canonical_datetime_key,
+)
 
 
 class PriceDataRepository(BaseRepository):
@@ -122,26 +126,28 @@ class PriceDataRepository(BaseRepository):
         """Get existing records for bulk comparison with timezone normalization"""
         if not candle_times:
             return {}
+        # Convert incoming candle_times to timezone-aware UTC where possible
+        aware_candle_times = [to_aware_utc(ct) for ct in candle_times if ct is not None]
 
         existing_query = self.db.query(PriceData).filter(
             PriceData.asset_id == asset_id,
             PriceData.timeframe == timeframe,
-            PriceData.candle_time.in_(candle_times)
+            PriceData.candle_time.in_(aware_candle_times)
         ).all()
-        
-        # Create lookup dictionary with consistent timezone normalization
+
+        # Create lookup dictionary using canonical ISO keys for consistent matching
         existing_records = {}
         for record in existing_query:
-            normalized_time = normalize_datetime(record.candle_time)
-            if normalized_time is not None:
-                existing_records[normalized_time] = record
-        
+            key = canonical_datetime_key(record.candle_time)
+            if key is not None:
+                existing_records[key] = record
+
         return existing_records
 
     def _get_existing_record(self, existing_records: Dict, candle_time) -> Optional[PriceData]:
         """Get existing record with timezone normalization"""
-        normalized_time = normalize_datetime(candle_time)
-        return existing_records.get(normalized_time) if normalized_time is not None else None
+        key = canonical_datetime_key(candle_time)
+        return existing_records.get(key) if key is not None else None
 
     # --- Technical indicator helpers (used by bulk insert) ---
     def _compute_sma(self, prices: List[float], period: int) -> Optional[float]:
@@ -212,8 +218,6 @@ class PriceDataRepository(BaseRepository):
             safe_compare(existing.low_price, new_data.get('low_price')) and
             safe_compare(existing.high_price, new_data.get('high_price'))
         )
-        print(f"existing:close_price={existing.close_price}, low_price={existing.low_price}, , high_price={existing.high_price}")
-        print(f"new_data:close_price={new_data.get('close_price')}, low_price={new_data.get('low_price')}, , high_price={new_data.get('high_price')}")
         
         return not price_unchanged
 
@@ -465,7 +469,7 @@ class PriceDataRepository(BaseRepository):
                 raise ValueError(f"Target timeframe {tf} must be divisible by source {source_timeframe}")
         
         # Process all timeframes in a single query
-        result = self._aggregate_multiple_timeframes_single_query(
+        result = self._aggregate_multiple_timeframes(
             asset_id=asset_id,
             source_timeframe=source_timeframe,
             target_timeframes=target_timeframes,
@@ -479,7 +483,7 @@ class PriceDataRepository(BaseRepository):
         else:
             return result
     
-    def _aggregate_multiple_timeframes_single_query(self, asset_id: int, source_timeframe: str,
+    def _aggregate_multiple_timeframes(self, asset_id: int, source_timeframe: str,
                                                    target_timeframes: List[str], start_time: datetime = None,
                                                    end_time: datetime = None) -> Dict[str, List[Dict[str, Any]]]:
         """
@@ -1249,7 +1253,7 @@ class PriceDataRepository(BaseRepository):
         total_inserted = 0
         total_updated = 0
         total_skipped = len(all_records_to_skip)
-        
+
         # Bulk insert
         if all_records_to_insert:
             total_inserted = self._execute_bulk_insert(all_records_to_insert, asset)
@@ -1290,6 +1294,15 @@ class PriceDataRepository(BaseRepository):
         """
         try:
             print(f"********unified_bulk_insert--> bulk inserting {len(records_to_insert)} records")
+
+            # Ensure all candle_time values are timezone-aware UTC before creating ORM objects
+            for record in records_to_insert:
+                ct = record.get('candle_time')
+                try:
+                    record['candle_time'] = to_aware_utc(ct) if ct is not None else None
+                except Exception:
+                    record['candle_time'] = ct
+
             new_price_objects = [PriceData(**data) for data in records_to_insert]
             self.db.add_all(new_price_objects)
             self.db.flush()

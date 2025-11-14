@@ -13,6 +13,7 @@ import asyncio
 from pathlib import Path
 from datetime import datetime
 import json
+from unittest import result
 
 # Add backend to path
 backend_path = Path(__file__).parent.parent.parent / "backend"
@@ -64,21 +65,33 @@ async def quick_bitcoin_test():
         # Test price data update
         print("🔄 Testing data update...")
 
+        print("\n==========================BTC=======================\n")
         asset = asset_repo.get_by_symbol(symbol='BTC')
-        result = await price_service.populate_price_data(asset, timeframe="1d", platform="binance")
+        result1 = await price_service.populate_price_data(asset, timeframe="1d", platform="binance")
+        print("\n==========================BTC.D=======================\n")
+        asset = asset_repo.get_by_symbol(symbol='BTC.D')
+        result2 = await price_service.populate_price_data(asset, timeframe="1d", platform="tradingview")
 
-        #asset = asset_repo.get_by_symbol(symbol='BTC.D')
-        #result = await price_service.populate_price_data(asset, timeframe="1d", platform="tradingview")
-
-        #result = price_service.auto_aggregate_for_asset(asset_id=1, source_timeframe="1d")
-
-        if result is None:
+        print("\n==========================BTC Results=======================\n")
+        if result1 is None:
             print("❌ Update failed: No result returned")
-        elif result.get('success'):
+        elif result1.get('success'):
             print("✅ Update successful!")
-            print(f"   📊 New records: {result.get('records_inserted', 0)}")
-            print(f"   🔄 Updated records: {result.get('records_updated', 0)}")
-            print(f"   🔄 aggregation result: {result.get('aggregation_breakdown', {})}")
+            print(f"   📊 New records: {result1.get('records_inserted', 0)}")
+            print(f"   🔄 Updated records: {result1.get('records_updated', 0)}")
+            print(f"   🔄 aggregation result: {result1.get('aggregation_breakdown', {})}")
+        else:
+            print(f"❌ Update failed: {result1.get('message')}")
+ 
+
+        print("\n==========================BTC.D Results=======================\n")
+        if result2 is None:
+            print("❌ Update failed: No result returned")
+        elif result2.get('success'):
+            print("✅ Update successful!")
+            print(f"   📊 New records: {result2.get('records_inserted', 0)}")
+            print(f"   🔄 Updated records: {result2.get('records_updated', 0)}")
+            print(f"   🔄 aggregation result: {result2.get('aggregation_breakdown', {})}")
         else:
             print(f"❌ Update failed: {result.get('message')}")
         

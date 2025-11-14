@@ -27,19 +27,9 @@ def convert_ohlcv_to_standardized(asset_id: int, interval: str, raw_ohlcv: List[
                 ts = candle.get('timestamp') if isinstance(candle, dict) else None
                 if ts is None:
                     # try other common keys
-                    ts = candle.get('time') if isinstance(candle, dict) else None
+                    ts = candle.get('candle_time', candle.get('time')) if isinstance(candle, dict) else None
 
-                if isinstance(ts, datetime):
-                    timestamp_ms = int(ts.timestamp() * 1000)
-                else:
-                    # assume already epoch ms/seconds numeric-like
-                    timestamp_ms = int(float(ts))
-                    # if appears to be seconds (small), scale to ms
-                    if timestamp_ms < 1e11:
-                        timestamp_ms = int(timestamp_ms * 1000)
-
-                candle_time = normalize_candle_time(timestamp_ms, interval)
-
+                candle_time = normalize_candle_time(ts, interval)
                 open_price = float(candle.get('open') or candle.get('open_price'))
                 high_price = float(candle.get('high') or candle.get('high_price'))
                 low_price = float(candle.get('low') or candle.get('low_price'))

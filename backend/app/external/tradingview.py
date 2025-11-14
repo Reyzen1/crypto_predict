@@ -116,7 +116,6 @@ class TradingViewClient:
 
             print(f"symbol={symbol}, exchange={exchange}, interval={interval_attr}, n_bars={n_bars}")
             df = tv.get_hist(symbol=symbol, exchange=exchange, interval=interval_attr, n_bars=n_bars)
-            print(df)
             # Convert raw data to structured format
             ohlcv = []
 
@@ -157,7 +156,6 @@ class TradingViewClient:
 
             # pass the parsed ohlcv list to the shared converter
             standardized_ohlcv = convert_ohlcv_to_standardized(asset_id, interval, ohlcv)
-            self.print_result(standardized_ohlcv)
             return standardized_ohlcv
 
         except ImportError:

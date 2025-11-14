@@ -43,8 +43,9 @@ def normalize_datetime(dt: Union[datetime, None]) -> Optional[datetime]:
     # Convert to UTC and then remove timezone info for consistent naive datetime
     if dt.tzinfo is not None:
         # First convert to UTC to preserve actual time, then make naive
-        dt_utc = dt.astimezone(timezone.utc)
-        return dt_utc.replace(tzinfo=None)
+        dt_utc = dt  #.astimezone(timezone.utc)
+        dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+        return dt_utc
     
     return dt
 
@@ -135,6 +136,58 @@ def make_timezone_aware(dt: Union[datetime, None], tzinfo=None) -> Optional[date
         return dt.replace(tzinfo=tzinfo)
     
     return dt
+
+
+def to_aware_utc(dt: Union[datetime, int, float, str, None]) -> Optional[datetime]:
+    """
+    Ensure the input is a timezone-aware datetime in UTC.
+
+    - If input is numeric (assumed milliseconds), converts to UTC datetime.
+    - If input is a naive datetime, assumes UTC and attaches tzinfo=UTC.
+    - If input is timezone-aware, converts to UTC.
+    - If input is an ISO8601 string, attempts to parse it.
+    Returns None for invalid input.
+    """
+    if dt is None:
+        return None
+
+    # Millisecond timestamp
+    if isinstance(dt, (int, float)):
+        try:
+            return datetime.fromtimestamp(dt / 1000.0, tz=timezone.utc)
+        except Exception:
+            return None
+
+    # String input
+    if isinstance(dt, str):
+        try:
+            dt_parsed = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+            if dt_parsed.tzinfo is None:
+                return dt_parsed.replace(tzinfo=timezone.utc)
+            return dt_parsed.astimezone(timezone.utc)
+        except Exception:
+            return None
+
+    # Datetime input
+    if isinstance(dt, datetime):
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
+    return None
+
+
+def canonical_datetime_key(dt: Union[datetime, int, float, str, None]) -> Optional[str]:
+    """
+    Return a canonical string key for a datetime suitable for dictionary lookups.
+
+    The canonical form is the ISO8601 string of the datetime converted to UTC
+    (e.g. '2025-11-06T00:00:00+00:00'). Returns None if dt is invalid.
+    """
+    aw = to_aware_utc(dt)
+    if aw is None:
+        return None
+    return aw.isoformat()
 
 
 # ============================================================================
@@ -263,53 +316,6 @@ def is_valid_timeframe(timeframe: str) -> bool:
         True if timeframe is supported, False otherwise
     """
     return timeframe in get_supported_timeframes()
-
-
-def normalize_datetime_string(dt_str: Union[str, datetime]) -> str:
-    """
-    Normalize datetime strings to ensure consistent UTC timezone storage
-    
-    This function ensures all datetime strings are stored in UTC format with 'Z' suffix
-    for consistent timezone handling across the application.
-    
-    Args:
-        dt_str: Datetime string in various formats or datetime object
-        
-    Returns:
-        Normalized datetime string in UTC format with 'Z' suffix
-        
-    Examples:
-        normalize_datetime_string("2025-10-27T00:00:00+03:30")
-        # Returns: "2025-10-26T20:30:00Z"
-        
-        normalize_datetime_string("2025-11-01T00:00:00Z")
-        # Returns: "2025-11-01T00:00:00Z"
-        
-        normalize_datetime_string(datetime(2025, 11, 1))
-        # Returns: "2025-11-01T00:00:00Z"
-    """
-    if not dt_str:
-        return dt_str
-    
-    try:
-        # Parse the datetime string or object
-        if isinstance(dt_str, str):
-            dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-        elif hasattr(dt_str, 'isoformat'):  # datetime object
-            dt = dt_str
-        else:
-            return dt_str
-        
-        # Convert to UTC and return as ISO string with Z suffix
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        else:
-            dt = dt.astimezone(timezone.utc)
-        
-        return dt.isoformat().replace('+00:00', 'Z')
-    except (ValueError, AttributeError):
-        logger.warning(f"Failed to normalize datetime string: {dt_str}")
-        return dt_str
 
 
 def serialize_datetime_objects(obj: Any) -> Any:

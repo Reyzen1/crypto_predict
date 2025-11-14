@@ -17,7 +17,7 @@ from app.repositories.asset.price_data_repository import PriceDataRepository
 from app.repositories.asset.asset_repository import AssetRepository
 from app.models.asset.asset import Asset
 from app.models.asset.price_data import PriceData
-from app.utils.datetime_utils import normalize_datetime, compare_datetimes, serialize_datetime_objects, normalize_candle_time, timeframe_to_minutes
+from app.utils.datetime_utils import normalize_datetime, serialize_datetime_objects, timeframe_to_minutes, to_aware_utc
 from app.services import external_api
 
 logger = logging.getLogger(__name__)
@@ -336,17 +336,20 @@ class PriceDataService:
                 logger.info(f"No valid latest_time found for asset {asset.id}, timeframe {timeframe}. Fetching {max_days} days")
                 return max_days
             
-            # Calculate days since latest data using normalized datetime comparison
-            # Normalize latest_time to remove timezone info for consistent calculation
-            normalized_latest_time = normalize_datetime(latest_time)
-            if not normalized_latest_time:
-                logger.info(f"Failed to normalize latest_time for asset {asset.id}, timeframe {timeframe}. Fetching {max_days} days")
+            # Calculate days since latest data using timezone-aware UTC datetimes
+            # Convert both latest_time and now to timezone-aware UTC to avoid
+            # subtraction errors between naive and aware datetimes.
+            latest_aw = to_aware_utc(latest_time)
+            if not latest_aw:
+                logger.info(f"Failed to parse latest_time for asset {asset.id}, timeframe {timeframe}. Fetching {max_days} days")
                 return max_days
 
-            # Use current time as naive datetime for consistent comparison
-            now = normalize_datetime(datetime.now())
-            
-            days_since_latest = (now - normalized_latest_time).days
+            now_aw = to_aware_utc(datetime.utcnow())
+            if not now_aw:
+                logger.info(f"Failed to obtain current UTC time for asset {asset.id}, timeframe {timeframe}. Fetching {max_days} days")
+                return max_days
+
+            days_since_latest = (now_aw - latest_aw).days
             
             # Add buffer for latest candle update (always fetch last candle + some buffer)
             buffer_days = 2  # Always fetch last 2 days to ensure latest candle is updated
@@ -359,13 +362,13 @@ class PriceDataService:
             
             print(
                 f"Asset {asset.id}, timeframe {timeframe}: "
-                f"Latest data: {normalized_latest_time.strftime('%Y-%m-%d %H:%M:%S')}, "
+                f"Latest data: {latest_aw.strftime('%Y-%m-%d %H:%M:%S')}, "
                 f"Days since: {days_since_latest}, "
                 f"Will fetch: {days_to_fetch} days"
             )
             logger.info(
                 f"Asset {asset.id}, timeframe {timeframe}: "
-                f"Latest data: {normalized_latest_time.strftime('%Y-%m-%d %H:%M:%S')}, "
+                f"Latest data: {latest_aw.strftime('%Y-%m-%d %H:%M:%S')}, "
                 f"Days since: {days_since_latest}, "
                 f"Will fetch: {days_to_fetch} days"
             )

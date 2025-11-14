@@ -195,6 +195,7 @@ class BinanceClient:
         Get price data with timeframe support optimized for our price_data_service
         
         Args:
+            assset_id: int,
             crypto_id: Binance cryptocurrency ID 
             timeframe: Our timeframe format ('1h', '1d')
             days: Number of days to look back for price data
@@ -309,8 +310,10 @@ class BinanceClient:
                 logger.warning(f"Error parsing candle data: {e}")
                 continue
 
-        logger.info(f"Retrieved {len(binance_ohlcv)} OHLCV candles for {symbol} ({interval})")
+            print(datetime.fromtimestamp(candle[0] / 1000, tz=timezone.utc))
 
+        logger.info(f"Retrieved {len(binance_ohlcv)} OHLCV candles for {symbol} ({interval})")
+        print(f"binance_ohlcv: {binance_ohlcv}")
         # Delegate conversion to shared utility for robustness across sources
         return convert_ohlcv_to_standardized(asset_id, interval, binance_ohlcv)
 
