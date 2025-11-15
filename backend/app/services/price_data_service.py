@@ -415,6 +415,40 @@ class PriceDataService:
                 days=days,
                 vs_currency=vs_currency,
             )
+            # If the asset's quote_currency indicates values are stored in billions (e.g. "USD (B)"),
+            # scale numeric price/market_cap/volume fields down by 1e9 so downstream logic works in base USD.
+            def _safe_divide(val, scale=1e9):
+                try:
+                    if val is None:
+                        return val
+                    # Allow numeric types or numeric strings
+                    if isinstance(val, (int, float)):
+                        return float(val) / scale
+                    # convert numeric strings
+                    if isinstance(val, str):
+                        # skip empty
+                        if val.strip() == "":
+                            return val
+                        return float(val.replace(',','')) / scale
+                except Exception:
+                    return val
+
+            quote_currency = getattr(asset, 'quote_currency', '') if asset is not None else ''
+            if quote_currency and '(B)' in str(quote_currency):
+                logger.info(f"Scaling fetched OHLCV values by 1e9 for asset {asset.id} because quote_currency='{quote_currency}'")
+                for rec in ohlcv_data:
+                    # price fields - support multiple key names returned by clients
+                    for k in ('open', 'high', 'low', 'close', 'open_price', 'high_price', 'low_price', 'close_price', 'current_price'):
+                        if k in rec:
+                            rec[k] = _safe_divide(rec[k])
+
+                    # Only scale clearly monetary fields. Do NOT scale base-asset volumes or integer counts.
+                    # Common monetary field names across clients: total_volume (often monetary), market_cap,
+                    # and quote-volume variants returned by some APIs (quote_volume, volume_quote).
+                    for k in ('total_volume', 'market_cap', 'quote_volume', 'volume_quote'):
+                        if k in rec:
+                            rec[k] = _safe_divide(rec[k])
+
             return ohlcv_data
         except Exception as e:
             # Provide platform-specific logging but keep behavior consistent

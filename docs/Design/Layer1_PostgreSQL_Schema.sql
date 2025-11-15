@@ -723,6 +723,9 @@ INSERT INTO assets (
 -- Ethereum Dominance (ETH.D)
 ('ETH.D', 'Ethereum Dominance', 'index', 'USD', '{"tradingview_id": "ETH.D"}')
 
+-- Total Market Cap (TOTAL)
+('TOTAL', 'Total Market Cap', 'index', 'USD (B)', '{"tradingview_id": "TOTAL"}')
+
 ON CONFLICT (symbol) DO NOTHING;
 
 -- ===============================================

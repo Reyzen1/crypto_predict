@@ -30,6 +30,25 @@ def format_datetime_in_dict(obj):
     else:
         return obj
 
+
+def print_update_results(result, label="Result"):
+    """Print a standardized update result block for an asset.
+
+    Args:
+        result: dict or None returned from populate_price_data
+        label: display label for the header (e.g., 'BTC' or 'BTC.D')
+    """
+    print(f"\n=========================={label} Results=======================\n")
+    if result is None:
+        print("❌ Update failed: No result returned")
+    elif result.get('success'):
+        print("✅ Update successful!")
+        print(f"   📊 New records: {result.get('records_inserted', 0)}")
+        print(f"   🔄 Updated records: {result.get('records_updated', 0)}")
+        print(f"   🔄 aggregation result: {result.get('aggregation_breakdown', {})}")
+    else:
+        print(f"❌ Update failed: {result.get('message')}")
+
 async def quick_bitcoin_test():
     """Quick Bitcoin data test function"""
     
@@ -64,38 +83,24 @@ async def quick_bitcoin_test():
 
         # Test price data update
         print("🔄 Testing data update...")
-
+        """
         print("\n==========================BTC=======================\n")
-        asset = asset_repo.get_by_symbol(symbol='BTC')
-        result1 = await price_service.populate_price_data(asset, timeframe="1d", platform="binance")
+        result1 = await price_service.populate_price_data(
+            asset_repo.get_by_symbol(symbol='BTC'), 
+            timeframe="1d", platform="binance")
         print("\n==========================BTC.D=======================\n")
-        asset = asset_repo.get_by_symbol(symbol='BTC.D')
-        result2 = await price_service.populate_price_data(asset, timeframe="1d", platform="tradingview")
+        result2 = await price_service.populate_price_data(
+            asset_repo.get_by_symbol(symbol='BTC.D'), 
+            timeframe="1d", platform="tradingview")
+        print("\n==========================TOTAL=======================\n")
+        """
+        result3 = await price_service.populate_price_data(
+            asset_repo.get_by_symbol(symbol='TOTAL'), 
+            timeframe="1d", platform="tradingview")
 
-        print("\n==========================BTC Results=======================\n")
-        if result1 is None:
-            print("❌ Update failed: No result returned")
-        elif result1.get('success'):
-            print("✅ Update successful!")
-            print(f"   📊 New records: {result1.get('records_inserted', 0)}")
-            print(f"   🔄 Updated records: {result1.get('records_updated', 0)}")
-            print(f"   🔄 aggregation result: {result1.get('aggregation_breakdown', {})}")
-        else:
-            print(f"❌ Update failed: {result1.get('message')}")
- 
-
-        print("\n==========================BTC.D Results=======================\n")
-        if result2 is None:
-            print("❌ Update failed: No result returned")
-        elif result2.get('success'):
-            print("✅ Update successful!")
-            print(f"   📊 New records: {result2.get('records_inserted', 0)}")
-            print(f"   🔄 Updated records: {result2.get('records_updated', 0)}")
-            print(f"   🔄 aggregation result: {result2.get('aggregation_breakdown', {})}")
-        else:
-            print(f"❌ Update failed: {result.get('message')}")
-        
-       
+        #print_update_results(result1, "BTC")
+        #print_update_results(result2, "BTC.D")
+        print_update_results(result3, "TOTAL")
         session.close()
         db_module.engine.dispose()
         
