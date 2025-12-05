@@ -46,9 +46,17 @@ class TradingViewClient:
             # Get last 24 1-hourly data points
             data = await client.get_price_data_by_timeframe('bitcoin', '1h', 24)
         """
+        exchange = "CRYPTOCAP"  # Default exchange for crypto indices like BTC.D, TOTAL
+        if crypto_id in ["BTCUSDTPERP_OI"]:
+            exchange = "BINANCE"  # Exchange for Open Interest data
+        
+        if crypto_id in ['SPX', 'GOLD', 'VIX', 'DXY', "US10Y"]:
+            exchange = "TVC"  # Exchange for traditional markets
+
         data = await self._get_ohlcv(
             asset_id=asset_id,
             symbol=crypto_id,
+            exchange=exchange,
             days=days,
             interval=timeframe
         )
@@ -115,8 +123,11 @@ class TradingViewClient:
             n_bars = min(n_bars, 5000)
 
             print(f"symbol={symbol}, exchange={exchange}, interval={interval_attr}, n_bars={n_bars}")
+            print(f"tv.get_hist(symbol={symbol}, exchange={exchange}, interval={interval_attr}, n_bars={n_bars})")
             df = tv.get_hist(symbol=symbol, exchange=exchange, interval=interval_attr, n_bars=n_bars)
             # Convert raw data to structured format
+            print(f"df:")
+            print(f"{df}")
             ohlcv = []
 
 

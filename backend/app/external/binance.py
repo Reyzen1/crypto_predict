@@ -6,11 +6,14 @@ import asyncio
 from typing import Dict, List, Optional, Any
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
+
+import requests
 
 from app.core.rate_limiter import rate_limiter
 from app.core.config import settings
 from app.external.ohlcv_utils import convert_ohlcv_to_standardized
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -362,4 +365,78 @@ class BinanceClient:
             await self.session.aclose()
             self.session = None
 
+    async def get_funding_rate_history(self, symbol='BTCUSDT', days=365):
+        
+        # Calculate start time (for example: one year ago)
+        end_time = datetime.now()
+        start_time = end_time - timedelta(days=days)
+        start_timestamp = int(start_time.timestamp() * 1000)
+        
+        all_data = []
+        current_start = start_timestamp
+              
+        while True:
+            params = {
+                'symbol': symbol,
+                'startTime': current_start,
+                'limit': 1000  # Maximum
+            }
+            
+            try:
+                data = await self._make_request("fapi/v1/fundingRate", params)
+                
+                if not data:
+                    break
+                
+                all_data.extend(data)
 
+                # Last time for the next request
+                last_time = data[-1]['fundingTime']
+                current_start = last_time + 1
+                
+                # If we reached the current time, stop
+                if last_time >= int(end_time.timestamp() * 1000):
+                    break
+                
+                # Delay to avoid Rate Limit
+                await asyncio.sleep(0.5)
+                
+            except Exception as e:
+                print(f"Error: {e}")
+                break
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(all_data)
+        df['fundingTime'] = pd.to_datetime(df['fundingTime'], unit='ms')
+        df['fundingRate'] = df['fundingRate'].astype(float)
+        df['fundingRate_percent'] = df['fundingRate'] * 100  # Convert to percent
+        
+        # Sort by time
+        df = df.sort_values('fundingTime').reset_index(drop=True)
+        
+        return df
+
+
+    async def get_binance_funding_rate(self, symbol='BTCUSDT', limit=1000):
+        import ccxt
+
+        exchange = ccxt.binance()
+        funding_history = exchange.fapiPublic_get_fundingrate({
+            'symbol': 'BTCUSDT',
+            'limit': 1000
+        })
+        return funding_history
+
+        # binance_client = BinanceClient(base_url="https://fapi.binance.com")
+        params = {
+            'symbol': symbol,
+            'interval': "1d",
+            'limit': limit
+        }
+        
+        data = await self._make_request("fapi/v1/fundingRate", params)
+        df = pd.DataFrame(data)
+        df['fundingTime'] = pd.to_datetime(df['fundingTime'], unit='ms')
+        df['fundingRate'] = df['fundingRate'].astype(float)
+        
+        return df

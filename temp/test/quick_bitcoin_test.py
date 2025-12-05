@@ -1,3 +1,4 @@
+# temp/test/quick_bitcoin_test.py
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -92,15 +93,35 @@ async def quick_bitcoin_test():
         result2 = await price_service.populate_price_data(
             asset_repo.get_by_symbol(symbol='BTC.D'), 
             timeframe="1d", platform="tradingview")
-        print("\n==========================TOTAL=======================\n")
         """
-        result3 = await price_service.populate_price_data(
-            asset_repo.get_by_symbol(symbol='TOTAL'), 
-            timeframe="1d", platform="tradingview")
 
-        #print_update_results(result1, "BTC")
-        #print_update_results(result2, "BTC.D")
-        print_update_results(result3, "TOTAL")
+        symbols_list = [['SPX', "tradingview"], 
+                        ['GOLD', "tradingview"], 
+                        ['VIX', "tradingview"], 
+                        ['DXY', "tradingview"], 
+                        ["US10Y", "tradingview"], 
+                        ["BTC_OI", "tradingview"]]
+        results = {}
+
+        """
+        for symbol in symbols_list:
+            print(f"\n=========================={symbol[0]}=======================\n")
+            result = await price_service.populate_price_data(
+                asset_repo.get_by_symbol(symbol=symbol[0]), 
+                timeframe="1d", platform=symbol[1])
+            results[symbol[0]] = result
+
+        for symbol, result in results.items():
+            print_update_results(result, symbol)    
+        """
+        from app.external.binance import BinanceClient
+        binance_client = BinanceClient(base_url="https://fapi.binance.com")
+        funding_rate = await binance_client.get_funding_rate_history(symbol="BTCUSDT", days=7)
+        print(f"\n==========================BTC Funding Rate=======================\n")
+        print(funding_rate)
+
+
+        # Cleanup    
         session.close()
         db_module.engine.dispose()
         

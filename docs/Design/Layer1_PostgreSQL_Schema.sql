@@ -721,10 +721,31 @@ INSERT INTO assets (
 ('BTC.D', 'Bitcoin Dominance', 'index', 'USD', '{"tradingview_id": "BTC.D"}'),
 
 -- Ethereum Dominance (ETH.D)
-('ETH.D', 'Ethereum Dominance', 'index', 'USD', '{"tradingview_id": "ETH.D"}')
+('ETH.D', 'Ethereum Dominance', 'index', 'USD', '{"tradingview_id": "ETH.D"}'),
 
 -- Total Market Cap (TOTAL)
-('TOTAL', 'Total Market Cap', 'index', 'USD (B)', '{"tradingview_id": "TOTAL"}')
+('TOTAL', 'Total Market Cap', 'index', 'USD (B)', '{"tradingview_id": "TOTAL"}'),
+
+-- BTC Open Interest (BTC_OI)
+('BTC_OI', 'BTC Open Interest', 'index', 'USD', '{"tradingview_id": "BTCUSDTPERP_OI"}'),
+
+-- BTC Funding Rate (BTC_FR)
+('BTC_FR', 'BTC Funding Rate', 'index', 'USD', '{"tradingview_id": "BTCUSDTPERP_FR"}'),
+
+-- S&P 500 Index (SPX)
+('SPX', 'S&P 500 Index', 'index', 'USD', '{"tradingview_id": "SPX"}'),
+
+-- Gold Index (GOLD)
+('GOLD', 'Gold Index', 'index', 'USD', '{"tradingview_id": "GOLD"}'),
+
+-- Volatility Index (VIX)
+('VIX', 'CBOE Volatility Index', 'index', 'USD', '{"tradingview_id": "VIX"}'),
+
+-- US Dollar Index (DXY)
+('DXY', 'US Dollar Index', 'index', 'USD', '{"tradingview_id": "DXY"}'),
+
+-- US 10-Year Treasury Yield (US10Y)
+('US10Y', 'US 10-Year Treasury Yield', 'bond', 'USD', '{"tradingview_id": "US10Y"}')
 
 ON CONFLICT (symbol) DO NOTHING;
 
