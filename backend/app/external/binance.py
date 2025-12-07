@@ -6,13 +6,14 @@ import asyncio
 from typing import Dict, List, Optional, Any
 import json
 import logging
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
-import requests
 
 from app.core.rate_limiter import rate_limiter
 from app.core.config import settings
 from app.external.ohlcv_utils import convert_ohlcv_to_standardized
+from app.utils.datetime_utils import normalize_candle_time
+
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -405,9 +406,21 @@ class BinanceClient:
                 print(f"Error: {e}")
                 break
         
+        interval = "1d"
+        for item in all_data:
+            try:
+                ts = item.get('fundingTime') if isinstance(item, dict) else None
+                funding_time = float(item.get('fundingRate'))
+                fundingRate_percent = float(item.get('fundingRate')) * 100  # Convert to percent
+                
+            except Exception as e:
+                logger.warning(f"Skipping funding rate item due to conversion error: {e}")
+                continue                
+
+
         # Convert to DataFrame
         df = pd.DataFrame(all_data)
-        df['fundingTime'] = pd.to_datetime(df['fundingTime'], unit='ms')
+        df['fundingTime'] = pd.to_datetime(df['fundingTime'], unit='ms',utc=True)
         df['fundingRate'] = df['fundingRate'].astype(float)
         df['fundingRate_percent'] = df['fundingRate'] * 100  # Convert to percent
         
@@ -417,26 +430,3 @@ class BinanceClient:
         return df
 
 
-    async def get_binance_funding_rate(self, symbol='BTCUSDT', limit=1000):
-        import ccxt
-
-        exchange = ccxt.binance()
-        funding_history = exchange.fapiPublic_get_fundingrate({
-            'symbol': 'BTCUSDT',
-            'limit': 1000
-        })
-        return funding_history
-
-        # binance_client = BinanceClient(base_url="https://fapi.binance.com")
-        params = {
-            'symbol': symbol,
-            'interval': "1d",
-            'limit': limit
-        }
-        
-        data = await self._make_request("fapi/v1/fundingRate", params)
-        df = pd.DataFrame(data)
-        df['fundingTime'] = pd.to_datetime(df['fundingTime'], unit='ms')
-        df['fundingRate'] = df['fundingRate'].astype(float)
-        
-        return df
